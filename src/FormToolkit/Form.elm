@@ -37,7 +37,6 @@ import Html.Attributes as A
         , for
         , id
         , novalidate
-        , property
         , required
         , selected
         , step
@@ -48,8 +47,6 @@ import Html.Attributes as A
 import Html.Events as Html
     exposing
         ( onBlur
-        , onCheck
-        , onClick
         , onFocus
         , onInput
         , preventDefaultOn
@@ -60,9 +57,7 @@ import Internal.Tree as Tree exposing (Tree)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
-import Process exposing (sleep)
 import Result
-import Task
 
 
 {-|
@@ -81,7 +76,7 @@ Json Values
 
 -}
 type Form
-    = Form { root : Tree Input }
+    = Form (Tree Input)
 
 
 type alias Attributes msg =
@@ -109,9 +104,7 @@ type Msg
 
 init : List (Tree Input) -> Form
 init inputs =
-    Form
-        { root = Tree.branch Input.root inputs
-        }
+    Form (Tree.branch Input.root inputs)
 
 
 initAttributes : Attributes msg
@@ -136,12 +129,8 @@ onChange tagger =
 
 
 setValues : Dict String Decode.Value -> Form -> Form
-setValues values (Form params) =
-    Form
-        { params
-            | root =
-                Tree.map (Tree.updateValue (setValuesHelp values)) params.root
-        }
+setValues values (Form root) =
+    Form (Tree.map (Tree.updateValue (setValuesHelp values)) root)
 
 
 setValuesHelp : Dict String Decode.Value -> Input -> Input
@@ -160,14 +149,8 @@ setValuesHelp values input =
 
 
 clear : Form -> Form
-clear (Form params) =
-    Form
-        { params
-            | root =
-                Tree.map
-                    (Tree.updateValue (Input.update Value.blank))
-                    params.root
-        }
+clear (Form root) =
+    Form (Tree.map (Tree.updateValue (Input.update Value.blank)) root)
 
 
 valueDecoder : Decode.Decoder Value
@@ -185,7 +168,7 @@ valueDecoder =
 
 
 encodeValues : Form -> Encode.Value
-encodeValues (Form { root }) =
+encodeValues (Form root) =
     Encode.object (encodeHelp root [])
 
 
@@ -219,12 +202,12 @@ encodeHelp element acc =
 
 
 validate : Form -> Form
-validate (Form params) =
-    Form { params | root = Tree.mapValues Input.validate params.root }
+validate (Form root) =
+    Form (Tree.mapValues Input.validate root)
 
 
 check : Form -> Result Error ()
-check (Form { root }) =
+check (Form root) =
     Tree.foldl (\e -> Result.andThen (\() -> Input.check (Tree.value e)))
         (Ok ())
         root
@@ -238,7 +221,7 @@ isValid form =
 
 
 toValues : Form -> Dict String Value
-toValues (Form { root }) =
+toValues (Form root) =
     Dict.fromList (nodeValues root [])
 
 
@@ -275,40 +258,25 @@ toValuesHelp node acc =
 
 
 update : Msg -> Form -> Form
-update msg (Form params) =
+update msg (Form root) =
     case msg of
         InputChanged path str ->
-            Form
-                { params
-                    | root =
-                        Tree.update path (updateInput str) params.root
-                }
+            Form (Tree.update path (updateInput str) root)
 
         InputChecked path bool ->
-            Form
-                { params
-                    | root =
-                        Tree.update path (updateInputWithBool bool) params.root
-                }
+            Form (Tree.update path (updateInputWithBool bool) root)
 
         InputFocused path ->
-            Form
-                { params
-                    | root = Tree.update path resetInputStatus params.root
-                }
+            Form (Tree.update path resetInputStatus root)
 
         InputBlured path ->
-            Form
-                { params | root = Tree.update path validateInput params.root }
+            Form (Tree.update path validateInput root)
 
         InputsAdded path template ->
-            Form
-                { params
-                    | root = Tree.update path (Tree.push template) params.root
-                }
+            Form (Tree.update path (Tree.push template) root)
 
         InputsRemoved path ->
-            Form { params | root = Tree.remove path params.root }
+            Form (Tree.remove path root)
 
 
 updateInput : String -> Tree Input -> Tree Input
@@ -346,7 +314,7 @@ hasErrors =
 
 
 toHtml : List (Attribute msg) -> Form -> Html msg
-toHtml attrList (Form params) =
+toHtml attrList (Form root) =
     let
         attrs =
             List.foldl (\(Attribute f) a -> f a) initAttributes attrList
@@ -360,8 +328,8 @@ toHtml attrList (Form params) =
         ]
         [ fieldset
             []
-            [ elementToHtml attrs (Form params) [] params.root ]
-        , submitButtonHtml (Form params) []
+            [ elementToHtml attrs (Form root) [] root ]
+        , submitButtonHtml (Form root) []
         ]
 
 
