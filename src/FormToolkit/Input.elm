@@ -41,80 +41,80 @@ import Internal.Tree as Tree exposing (Tree)
 import Regex
 
 
-type alias Input =
-    Tree Input.Input
+type alias Input a =
+    Tree (Input.Input a)
 
 
-type Attribute
-    = Attribute (Input.Input -> Input.Input)
+type Attribute a
+    = Attribute (Input.Input a -> Input.Input a)
 
 
 
 -- CREATE
 
 
-text : List Attribute -> Input
+text : List (Attribute a) -> Input a
 text attributes =
     init Text attributes
 
 
-textarea : List Attribute -> Input
+textarea : List (Attribute a) -> Input a
 textarea =
     init TextArea
 
 
-email : List Attribute -> Input
+email : List (Attribute a) -> Input a
 email =
     init Email
 
 
-password : List Attribute -> Input
+password : List (Attribute a) -> Input a
 password =
     init Password
 
 
-integer : List Attribute -> Input
+integer : List (Attribute a) -> Input a
 integer =
     init Integer
 
 
-float : List Attribute -> Input
+float : List (Attribute a) -> Input a
 float =
     init Float
 
 
-date : List Attribute -> Input
+date : List (Attribute a) -> Input a
 date =
     init Date
 
 
-month : List Attribute -> Input
+month : List (Attribute a) -> Input a
 month =
     init Month
 
 
-select : List Attribute -> Input
+select : List (Attribute a) -> Input a
 select =
     init Select
 
 
-radio : List Attribute -> Input
+radio : List (Attribute a) -> Input a
 radio =
     init Radio
 
 
-checkbox : List Attribute -> Input
+checkbox : List (Attribute a) -> Input a
 checkbox =
     init Checkbox
 
 
-group : List Attribute -> List Input -> Input
+group : List (Attribute a) -> List (Input a) -> Input a
 group attributes =
     Tree.branch
         (Input.init Group (List.map (\(Attribute f) -> f) attributes))
 
 
-repeatable : Input -> List Attribute -> List Input -> Input
+repeatable : Input a -> List (Attribute a) -> List (Input a) -> Input a
 repeatable template attributes inputs =
     Tree.branch
         (Input.init (Repeatable template)
@@ -128,7 +128,7 @@ repeatable template attributes inputs =
         )
 
 
-init : InputType -> List Attribute -> Input
+init : InputType a -> List (Attribute a) -> Input a
 init inputType attributes =
     Tree.leaf (Input.init inputType (List.map (\(Attribute f) -> f) attributes))
 
@@ -137,62 +137,62 @@ init inputType attributes =
 -- ATTRIBUTES
 
 
-name : String -> Attribute
+name : String -> Attribute a
 name str =
     Attribute (\input -> { input | name = str })
 
 
-value : Value -> Attribute
+value : Value -> Attribute a
 value inputValue =
     Attribute (\input -> { input | value = inputValue })
 
 
-required : Bool -> Attribute
+required : Bool -> Attribute a
 required bool =
     Attribute (\input -> { input | isRequired = bool })
 
 
-label : String -> Attribute
+label : String -> Attribute a
 label str =
     Attribute (\input -> { input | label = Just str })
 
 
-hint : String -> Attribute
+hint : String -> Attribute a
 hint str =
     Attribute (\input -> { input | hint = Just str })
 
 
-placeholder : String -> Attribute
+placeholder : String -> Attribute a
 placeholder str =
     Attribute (\input -> { input | placeholder = Just str })
 
 
-options : List ( String, Value ) -> Attribute
+options : List ( String, Value ) -> Attribute a
 options dict =
     Attribute (\input -> { input | options = dict })
 
 
-min : Value -> Attribute
+min : Value -> Attribute a
 min val =
     Attribute (\input -> { input | min = val })
 
 
-max : Value -> Attribute
+max : Value -> Attribute a
 max val =
     Attribute (\input -> { input | max = val })
 
 
-inline : Bool -> Attribute
+inline : Bool -> Attribute a
 inline bool =
     Attribute (\input -> { input | inline = bool })
 
 
-parser : (Value -> Maybe Value) -> Attribute
+parser : (Value -> Maybe Value) -> Attribute a
 parser f =
     Attribute (\input -> { input | parsers = f :: input.parsers })
 
 
-reject : String -> Attribute
+reject : String -> Attribute a
 reject string =
     parser
         (Just
@@ -204,6 +204,6 @@ reject string =
         )
 
 
-noattr : Attribute
+noattr : Attribute a
 noattr =
     Attribute identity

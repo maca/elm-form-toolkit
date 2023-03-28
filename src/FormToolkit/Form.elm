@@ -75,8 +75,8 @@ Json Values
 @docs setValues, updateValues
 
 -}
-type Form
-    = Form (Tree Input)
+type Form a
+    = Form (Tree (Input a))
 
 
 type alias Attributes msg =
@@ -94,7 +94,7 @@ type Msg
     | InputChecked (List Int) Bool
     | InputFocused (List Int)
     | InputBlured (List Int)
-    | InputsAdded (List Int) (Tree Input)
+    | InputsAdded (List Int)
     | InputsRemoved (List Int)
 
 
@@ -102,7 +102,7 @@ type Msg
 -- INIT
 
 
-init : List (Tree Input) -> Form
+init : List (Tree (Input a)) -> Form a
 init inputs =
     Form (Tree.branch Input.root inputs)
 
@@ -128,12 +128,12 @@ onChange tagger =
     Attribute (\attrs -> { attrs | onChange = Just tagger })
 
 
-setValues : Dict String Decode.Value -> Form -> Form
+setValues : Dict String Decode.Value -> Form a -> Form a
 setValues values (Form root) =
     Form (Tree.map (Tree.updateValue (setValuesHelp values)) root)
 
 
-setValuesHelp : Dict String Decode.Value -> Input -> Input
+setValuesHelp : Dict String Decode.Value -> Input a -> Input a
 setValuesHelp values input =
     Dict.get input.name values
         |> Maybe.map
@@ -148,7 +148,7 @@ setValuesHelp values input =
         |> Maybe.withDefault input
 
 
-clear : Form -> Form
+clear : Form a -> Form a
 clear (Form root) =
     Form (Tree.map (Tree.updateValue (Input.update Value.blank)) root)
 
@@ -167,13 +167,13 @@ valueDecoder =
 -- VALUES
 
 
-encodeValues : Form -> Encode.Value
+encodeValues : Form a -> Encode.Value
 encodeValues (Form root) =
     Encode.object (encodeHelp root [])
 
 
 encodeHelp :
-    Tree Input
+    Tree (Input a)
     -> List ( String, Encode.Value )
     -> List ( String, Encode.Value )
 encodeHelp element acc =
@@ -201,36 +201,36 @@ encodeHelp element acc =
 -- UPDATE
 
 
-validate : Form -> Form
+validate : Form a -> Form a
 validate (Form root) =
     Form (Tree.mapValues Input.validate root)
 
 
-check : Form -> Result Error ()
+check : Form a -> Result Error ()
 check (Form root) =
     Tree.foldl (\e -> Result.andThen (\() -> Input.check (Tree.value e)))
         (Ok ())
         root
 
 
-isValid : Form -> Bool
+isValid : Form a -> Bool
 isValid form =
     check form
         |> Result.map (always True)
         |> Result.withDefault False
 
 
-toValues : Form -> Dict String Value
+toValues : Form a -> Dict String Value
 toValues (Form root) =
     Dict.fromList (nodeValues root [])
 
 
-nodeValues : Tree Input -> List ( String, Value ) -> List ( String, Value )
+nodeValues : Tree (Input a) -> List ( String, Value ) -> List ( String, Value )
 nodeValues node acc =
     List.foldr toValuesHelp acc (Tree.children node)
 
 
-toValuesHelp : Tree Input -> List ( String, Value ) -> List ( String, Value )
+toValuesHelp : Tree (Input a) -> List ( String, Value ) -> List ( String, Value )
 toValuesHelp node acc =
     let
         input =
@@ -257,7 +257,7 @@ toValuesHelp node acc =
 -- UPDATE FUNC
 
 
-update : Msg -> Form -> Form
+update : Msg -> Form a -> Form a
 update msg (Form root) =
     case msg of
         InputChanged path str ->
@@ -272,39 +272,44 @@ update msg (Form root) =
         InputBlured path ->
             Form (Tree.update path validateInput root)
 
-        InputsAdded path template ->
-            Form (Tree.update path (Tree.push template) root)
+        InputsAdded path ->
+            case Tree.getValue path root |> Maybe.map .inputType of
+                Just (Input.Repeatable template) ->
+                    Form (Tree.update path (Tree.push template) root)
+
+                _ ->
+                    Form root
 
         InputsRemoved path ->
             Form (Tree.remove path root)
 
 
-updateInput : String -> Tree Input -> Tree Input
+updateInput : String -> Tree (Input a) -> Tree (Input a)
 updateInput string =
     Tree.updateValue (Input.updateWithString string)
 
 
-updateInputWithBool : Bool -> Tree Input -> Tree Input
+updateInputWithBool : Bool -> Tree (Input a) -> Tree (Input a)
 updateInputWithBool bool =
     Tree.updateValue (Input.update (Value.boolean bool))
 
 
-resetInputStatus : Tree Input -> Tree Input
+resetInputStatus : Tree (Input a) -> Tree (Input a)
 resetInputStatus =
     Tree.updateValue Input.resetStatus
 
 
-validateInput : Tree Input -> Tree Input
+validateInput : Tree (Input a) -> Tree (Input a)
 validateInput =
     Tree.updateValue Input.validate
 
 
-hasBlankValues : Tree Input -> Bool
+hasBlankValues : Tree (Input a) -> Bool
 hasBlankValues =
     Tree.any (Tree.value >> Input.isBlank)
 
 
-hasErrors : Tree Input -> Bool
+hasErrors : Tree (Input a) -> Bool
 hasErrors =
     Tree.any (\v -> Input.error (Tree.value v) /= Nothing)
 
@@ -313,7 +318,7 @@ hasErrors =
 -- VIEW
 
 
-toHtml : List (Attribute msg) -> Form -> Html msg
+toHtml : List (Attribute msg) -> Form a -> Html msg
 toHtml attrList (Form root) =
     let
         attrs =
@@ -333,7 +338,7 @@ toHtml attrList (Form root) =
         ]
 
 
-elementToHtml : Attributes msg -> Form -> List Int -> Tree Input -> Html msg
+elementToHtml : Attributes msg -> Form a -> List Int -> Tree (Input a) -> Html msg
 elementToHtml attrs form path node =
     let
         input =
@@ -364,7 +369,7 @@ elementToHtml attrs form path node =
                     :: children
                 )
 
-        Input.Repeatable template ->
+        Input.Repeatable _ ->
             let
                 children =
                     Tree.children node
@@ -382,7 +387,7 @@ elementToHtml attrs form path node =
             fieldset
                 [ id (identifier input.name path) ]
                 [ div [] (legend input.label :: inputs)
-                , addInputsButton attrs path template
+                , addInputsButton attrs path
                 ]
 
         Input.Text ->
@@ -430,14 +435,14 @@ elementToHtml attrs form path node =
                 |> wrapInput path input
 
 
-submitButtonHtml : Form -> List (Html.Attribute msg) -> Html msg
+submitButtonHtml : Form a -> List (Html.Attribute msg) -> Html msg
 submitButtonHtml _ attrs =
     button
         (id "form-submit-button" :: attrs)
         [ text "Submit" ]
 
 
-inputToHtml : Attributes msg -> String -> List Int -> Input -> List (Html.Attribute msg) -> Html msg
+inputToHtml : Attributes msg -> String -> List Int -> Input a -> List (Html.Attribute msg) -> Html msg
 inputToHtml attrs inputType path input htmlAttrs =
     Html.input
         (htmlAttrs
@@ -452,7 +457,7 @@ inputToHtml attrs inputType path input htmlAttrs =
         []
 
 
-textAreaToHtml : Attributes msg -> List Int -> Input -> Html msg
+textAreaToHtml : Attributes msg -> List Int -> Input a -> Html msg
 textAreaToHtml attrs path input =
     let
         value =
@@ -472,7 +477,7 @@ textAreaToHtml attrs path input =
         ]
 
 
-checkboxToHtml : Attributes msg -> List Int -> Input -> Html msg
+checkboxToHtml : Attributes msg -> List Int -> Input a -> Html msg
 checkboxToHtml attrs path input =
     Html.input
         (type_ "checkbox"
@@ -492,7 +497,7 @@ checkboxToHtml attrs path input =
         []
 
 
-inputAttrs : Attributes msg -> List Int -> Input -> List (Html.Attribute msg)
+inputAttrs : Attributes msg -> List Int -> Input a -> List (Html.Attribute msg)
 inputAttrs attrs path { name, isRequired, placeholder, min, max } =
     [ id (identifier name path)
     , required isRequired
@@ -505,7 +510,7 @@ inputAttrs attrs path { name, isRequired, placeholder, min, max } =
     ]
 
 
-selectToHtml : Attributes msg -> List Int -> Input -> Html msg
+selectToHtml : Attributes msg -> List Int -> Input a -> Html msg
 selectToHtml attrs path { name, isRequired, options, value } =
     Html.select
         [ id (identifier name path)
@@ -532,7 +537,7 @@ valueAttribute f value =
     Value.toString value |> Maybe.map f |> Maybe.withDefault (class "")
 
 
-radioToHtml : Attributes msg -> List Int -> Input -> Html msg
+radioToHtml : Attributes msg -> List Int -> Input a -> Html msg
 radioToHtml attrs path { name, isRequired, options, value } =
     Html.div
         [ class "radios" ]
@@ -561,15 +566,15 @@ radioToHtml attrs path { name, isRequired, options, value } =
         )
 
 
-addInputsButton : Attributes msg -> List Int -> Tree Input -> Html msg
-addInputsButton attrs path template =
+addInputsButton : Attributes msg -> List Int -> Html msg
+addInputsButton attrs path =
     button
         [ class "add-fields"
         , case attrs.onChange of
             Just tagger ->
                 preventDefaultOn "click"
                     (Decode.succeed
-                        ( tagger (InputsAdded path template), True )
+                        ( tagger (InputsAdded path), True )
                     )
 
             Nothing ->
@@ -579,7 +584,7 @@ addInputsButton attrs path template =
         ]
 
 
-templateHtml : Attributes msg -> Form -> List Int -> Bool -> Tree Input -> Html msg
+templateHtml : Attributes msg -> Form a -> List Int -> Bool -> Tree (Input a) -> Html msg
 templateHtml attributes form path isLast element =
     div
         [ class "group-repeat" ]
@@ -605,7 +610,7 @@ templateHtml attributes form path isLast element =
         ]
 
 
-wrapInput : List Int -> Input -> Html msg -> Html msg
+wrapInput : List Int -> Input a -> Html msg -> Html msg
 wrapInput path { hint, name, status, isRequired, label, help } inputHtml =
     div
         [ class "field"

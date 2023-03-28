@@ -3,7 +3,7 @@ module Internal.Tree exposing
     , branch, leaf
     , value, setValue, updateValue
     , children, unshift, push
-    , get, update, set, remove, insertBefore, insertAfter
+    , get, getValue, update, set, remove, insertBefore, insertAfter
     , map, mapValues, filterMap, foldl, foldr, any
     , last
     )
@@ -30,7 +30,7 @@ module Internal.Tree exposing
 
 # Traversing
 
-@docs get, update, set, remove, insertBefore, insertAfter
+@docs get, getValue, update, set, remove, insertBefore, insertAfter
 
 
 # Folds
@@ -98,6 +98,11 @@ get path (Tree _ ns) =
 
         [] ->
             Nothing
+
+
+getValue : List Int -> Tree a -> Maybe a
+getValue path tree =
+    get path tree |> Maybe.map value
 
 
 update : List Int -> (Tree a -> Tree a) -> Tree a -> Tree a
