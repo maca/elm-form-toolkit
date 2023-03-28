@@ -5,7 +5,7 @@ module FormToolkit.Input exposing
     , date, month
     , select, radio, checkbox
     , group, repeatable
-    , name, value, required, label, hint, placeholder
+    , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
     , reject
@@ -28,7 +28,7 @@ module FormToolkit.Input exposing
 # Attributes
 
 @docs Attribute
-@docs name, value, required, label, hint, placeholder, help
+@docs name, identifier, value, required, label, hint, placeholder, help
 @docs options, min, max
 @docs inline, noattr
 @docs reject
@@ -140,6 +140,11 @@ init inputType attributes =
 name : String -> Attribute a
 name str =
     Attribute (\input -> { input | name = str })
+
+
+identifier : a -> Attribute a
+identifier id =
+    Attribute (\input -> { input | identifier = Just id })
 
 
 value : Value -> Attribute a

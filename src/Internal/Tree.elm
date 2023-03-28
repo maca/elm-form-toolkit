@@ -4,7 +4,7 @@ module Internal.Tree exposing
     , value, setValue, updateValue
     , children, unshift, push
     , get, getValue, update, set, remove, insertBefore, insertAfter
-    , map, mapValues, filterMap, foldl, foldr, any
+    , map, mapValues, filterMap, foldl, foldr, find, any
     , last
     )
 
@@ -35,7 +35,7 @@ module Internal.Tree exposing
 
 # Folds
 
-@docs map, mapValues, filterMap, foldl, foldr, any
+@docs map, mapValues, filterMap, foldl, foldr, find, any
 
 -}
 
@@ -158,6 +158,21 @@ foldr f acc (Tree a ns) =
 any : (Tree a -> Bool) -> Tree a -> Bool
 any pred =
     foldl (\n acc -> acc || pred n) False
+
+
+{-| TODO: tests
+-}
+find : (Tree a -> Bool) -> Tree a -> Maybe (Tree a)
+find pred =
+    foldl
+        (\n acc ->
+            if pred n && acc == Nothing then
+                Just n
+
+            else
+                acc
+        )
+        Nothing
 
 
 last : Tree a -> Maybe (Tree a)

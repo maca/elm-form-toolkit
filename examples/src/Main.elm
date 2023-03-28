@@ -6,6 +6,7 @@ import FormToolkit.Input as Input
 import FormToolkit.Value as Value
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
+import Internal.Input exposing (Error(..))
 
 
 main =
@@ -20,18 +21,37 @@ main =
 -- MODEL
 
 
+type PersonFields
+    = FirstName
+    | LastName
+
+
+type alias Person =
+    { firstName : String
+    , lastName : String
+    }
+
+
 type alias Model =
-    Form
+    { form : Form PersonFields }
 
 
 init : Model
 init =
-    Form.init
-        [ Input.text
-            [ Input.label "First Name"
-            , Input.required True
+    { form =
+        Form.init
+            [ Input.text
+                [ Input.label "First Name"
+                , Input.required True
+                , Input.identifier FirstName
+                ]
+            , Input.text
+                [ Input.label "Last Name"
+                , Input.required True
+                , Input.identifier LastName
+                ]
             ]
-        ]
+    }
 
 
 
@@ -46,7 +66,7 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         FormChanged formMsg ->
-            Form.update formMsg model
+            { model | form = Form.update formMsg model.form }
 
 
 
@@ -54,7 +74,19 @@ update msg model =
 
 
 view : Model -> Html Msg
-view form =
-    div []
-        [ Form.toHtml [ Form.onChange FormChanged ] form
+view model =
+    let
+        _ =
+            Form.succeed Person
+                |> Form.andMap
+                    (Form.getValue Value.toString FirstName model.form)
+                |> Form.andMap
+                    (Form.getValue Value.toString LastName model.form)
+                |> Debug.log "person"
+    in
+    div
+        []
+        [ Form.toHtml
+            [ Form.onChange FormChanged ]
+            model.form
         ]

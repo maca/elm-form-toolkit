@@ -8,7 +8,7 @@ module Internal.Input exposing
 
 {-|
 
-@docs Input, Error, InputType, Attribute
+@docs Input, Error, InputType
 
 
 # Update
@@ -63,6 +63,7 @@ type Error
     | NotInRange ( Value, Value )
     | NotInOptions
     | IsBlank
+    | InputNotFound
     | DecodeError Decode.Error
 
 
@@ -81,7 +82,7 @@ type alias Input a =
     , parsers : List (Value -> Maybe Value)
     , status : Status
     , inline : Bool
-    , id : Maybe a
+    , identifier : Maybe a
     }
 
 
@@ -107,7 +108,7 @@ init inputType =
         , isRequired = False
         , options = []
         , inline = False
-        , id = Nothing
+        , identifier = Nothing
         }
 
 
@@ -184,7 +185,7 @@ error { status } =
 validate : Input a -> Input a
 validate input =
     case check input of
-        Ok () ->
+        Ok _ ->
             { input | status = Valid }
 
         Err err ->
@@ -196,19 +197,19 @@ resetStatus input =
     { input | status = Unchecked }
 
 
-check : Input a -> Result Error ()
+check : Input a -> Result Error Value
 check input =
     checkRequired input
-        |> Result.andThen (\() -> checkInRange input)
+        |> Result.andThen (\_ -> checkInRange input)
 
 
-checkRequired : Input a -> Result Error ()
+checkRequired : Input a -> Result Error Value
 checkRequired { isRequired, value } =
     if isRequired && Value.isBlank value then
         Err IsBlank
 
     else
-        Ok ()
+        Ok value
 
 
 isBlank : Input a -> Bool
@@ -224,7 +225,7 @@ isBlank { value, inputType } =
             Value.isBlank value
 
 
-checkInRange : Input a -> Result Error ()
+checkInRange : Input a -> Result Error Value
 checkInRange { value, min, max } =
     case ( Value.compare value min, Value.compare value max ) of
         ( Just LT, Just _ ) ->
@@ -240,7 +241,7 @@ checkInRange { value, min, max } =
             Err (TooLarge max)
 
         _ ->
-            Ok ()
+            Ok value
 
 
 errorMessage : Status -> Maybe String

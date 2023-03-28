@@ -1,19 +1,25 @@
 module FormToolkit.Form exposing
     ( Form
     , Msg
+    , andMap
     , clear
     , encodeValues
+    , getField
+    , getValue
     , hasBlankValues
     , init
     , isValid
     , onChange
     , onSubmit
     , setValues
+    , succeed
     , toHtml
     , toValues
     , update
     , validate
     )
+
+{-| -}
 
 import Dict exposing (Dict)
 import Dict.Extra as Dict
@@ -51,7 +57,7 @@ import Html.Events as Html
         , onInput
         , preventDefaultOn
         )
-import Internal.Input as Input exposing (Error, Input)
+import Internal.Input as Input exposing (Error(..), Input)
 import Internal.Markdown as Markdown
 import Internal.Tree as Tree exposing (Tree)
 import Json.Decode as Decode
@@ -75,8 +81,8 @@ Json Values
 @docs setValues, updateValues
 
 -}
-type Form a
-    = Form (Tree (Input a))
+type Form id
+    = Form (Tree (Input id))
 
 
 type alias Attributes msg =
@@ -102,7 +108,7 @@ type Msg
 -- INIT
 
 
-init : List (Tree (Input a)) -> Form a
+init : List (Tree (Input id)) -> Form id
 init inputs =
     Form (Tree.branch Input.root inputs)
 
@@ -128,7 +134,7 @@ onChange tagger =
     Attribute (\attrs -> { attrs | onChange = Just tagger })
 
 
-setValues : Dict String Decode.Value -> Form a -> Form a
+setValues : Dict String Decode.Value -> Form id -> Form id
 setValues values (Form root) =
     Form (Tree.map (Tree.updateValue (setValuesHelp values)) root)
 
@@ -148,7 +154,7 @@ setValuesHelp values input =
         |> Maybe.withDefault input
 
 
-clear : Form a -> Form a
+clear : Form id -> Form id
 clear (Form root) =
     Form (Tree.map (Tree.updateValue (Input.update Value.blank)) root)
 
@@ -167,7 +173,7 @@ valueDecoder =
 -- VALUES
 
 
-encodeValues : Form a -> Encode.Value
+encodeValues : Form id -> Encode.Value
 encodeValues (Form root) =
     Encode.object (encodeHelp root [])
 
@@ -201,26 +207,30 @@ encodeHelp element acc =
 -- UPDATE
 
 
-validate : Form a -> Form a
+validate : Form id -> Form id
 validate (Form root) =
     Form (Tree.mapValues Input.validate root)
 
 
-check : Form a -> Result Error ()
+check : Form id -> Result Error ()
 check (Form root) =
-    Tree.foldl (\e -> Result.andThen (\() -> Input.check (Tree.value e)))
+    Tree.foldl
+        (\e ->
+            Result.andThen
+                (\_ -> Input.check (Tree.value e) |> Result.map (always ()))
+        )
         (Ok ())
         root
 
 
-isValid : Form a -> Bool
+isValid : Form id -> Bool
 isValid form =
     check form
         |> Result.map (always True)
         |> Result.withDefault False
 
 
-toValues : Form a -> Dict String Value
+toValues : Form id -> Dict String Value
 toValues (Form root) =
     Dict.fromList (nodeValues root [])
 
@@ -253,11 +263,45 @@ toValuesHelp node acc =
             ( input.name, input.value ) :: acc
 
 
+succeed : a -> Result Error a
+succeed a =
+    Ok a
+
+
+andMap : Result Error a -> Result Error (a -> b) -> Result Error b
+andMap a b =
+    Result.map2 (|>) a b
+
+
+getField : id -> Form id -> Result Error (Input id)
+getField id (Form root) =
+    root
+        |> Tree.find (Tree.value >> .identifier >> (==) (Just id))
+        |> Maybe.map (Ok << Tree.value)
+        |> Maybe.withDefault (Err Input.InputNotFound)
+
+
+getValue : (Value -> Maybe a) -> id -> Form id -> Result Error a
+getValue f id form =
+    getField id form
+        |> Result.andThen Input.check
+        |> Result.andThen
+            (f >> Maybe.map Ok >> Maybe.withDefault (Err Input.InputNotFound))
+
+
+mapValue : Form id -> id -> (Value -> Maybe a) -> Result Error a
+mapValue form id f =
+    getField id form
+        |> Result.andThen Input.check
+        |> Result.andThen
+            (f >> Maybe.map Ok >> Maybe.withDefault (Err Input.InputNotFound))
+
+
 
 -- UPDATE FUNC
 
 
-update : Msg -> Form a -> Form a
+update : Msg -> Form id -> Form id
 update msg (Form root) =
     case msg of
         InputChanged path str ->
@@ -318,7 +362,7 @@ hasErrors =
 -- VIEW
 
 
-toHtml : List (Attribute msg) -> Form a -> Html msg
+toHtml : List (Attribute msg) -> Form id -> Html msg
 toHtml attrList (Form root) =
     let
         attrs =
@@ -338,7 +382,7 @@ toHtml attrList (Form root) =
         ]
 
 
-elementToHtml : Attributes msg -> Form a -> List Int -> Tree (Input a) -> Html msg
+elementToHtml : Attributes msg -> Form id -> List Int -> Tree (Input a) -> Html msg
 elementToHtml attrs form path node =
     let
         input =
@@ -435,7 +479,7 @@ elementToHtml attrs form path node =
                 |> wrapInput path input
 
 
-submitButtonHtml : Form a -> List (Html.Attribute msg) -> Html msg
+submitButtonHtml : Form id -> List (Html.Attribute msg) -> Html msg
 submitButtonHtml _ attrs =
     button
         (id "form-submit-button" :: attrs)
@@ -584,7 +628,7 @@ addInputsButton attrs path =
         ]
 
 
-templateHtml : Attributes msg -> Form a -> List Int -> Bool -> Tree (Input a) -> Html msg
+templateHtml : Attributes msg -> Form id -> List Int -> Bool -> Tree (Input a) -> Html msg
 templateHtml attributes form path isLast element =
     div
         [ class "group-repeat" ]
@@ -654,7 +698,7 @@ wrapInput path { hint, name, status, isRequired, label, help } inputHtml =
 
 identifier : String -> List Int -> String
 identifier name path =
-    (name :: List.map String.fromInt path) |> String.join "-"
+    String.join "-" (name :: List.map String.fromInt path)
 
 
 legend : Maybe String -> Html msg
