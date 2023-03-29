@@ -35,9 +35,9 @@ module FormToolkit.Input exposing
 
 -}
 
-import FormToolkit.Value as Value exposing (Value)
 import Internal.Input as Input exposing (Input, InputType(..))
 import Internal.Tree as Tree exposing (Tree)
+import Internal.Value as Value exposing (Value)
 import Regex
 
 

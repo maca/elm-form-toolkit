@@ -1,5 +1,5 @@
 module Internal.Input exposing
-    ( Input, Error(..), InputType(..)
+    ( Input, InputType(..)
     , update, updateWithString
     , resetStatus, validate, check
     , humanValue
@@ -28,8 +28,10 @@ module Internal.Input exposing
 -}
 
 import Array
-import FormToolkit.Value as Value exposing (Value)
+import FormToolkit.Error as Error exposing (Error(..))
+import FormToolkit.Value as Value
 import Internal.Tree exposing (Tree)
+import Internal.Value exposing (Value)
 import Json.Decode as Decode
 import List.Extra as List
 import Result exposing (Result)
@@ -55,16 +57,6 @@ type InputType a
     | Checkbox
     | Group
     | Repeatable (Tree (Input a))
-
-
-type Error
-    = TooLarge Value
-    | TooSmall Value
-    | NotInRange ( Value, Value )
-    | NotInOptions
-    | IsBlank
-    | InputNotFound
-    | DecodeError Decode.Error
 
 
 type alias Input a =
@@ -138,16 +130,16 @@ updateWithString str ({ inputType } as input) =
             update (Value.string str) input
 
         Integer ->
-            update (Value.intFromString str) input
+            update (Internal.Value.intFromString str) input
 
         Float ->
-            update (Value.floatFromString str) input
+            update (Internal.Value.floatFromString str) input
 
         Month ->
-            update (Value.monthFromString str) input
+            update (Internal.Value.monthFromString str) input
 
         Date ->
-            update (Value.dateFromString str) input
+            update (Internal.Value.dateFromString str) input
 
         Select ->
             update (getChoice str input) input
@@ -227,7 +219,11 @@ isBlank { value, inputType } =
 
 checkInRange : Input a -> Result Error Value
 checkInRange { value, min, max } =
-    case ( Value.compare value min, Value.compare value max ) of
+    case
+        ( Internal.Value.compare value min
+        , Internal.Value.compare value max
+        )
+    of
         ( Just LT, Just _ ) ->
             Err (NotInRange ( min, max ))
 
@@ -248,7 +244,7 @@ errorMessage : Status -> Maybe String
 errorMessage status =
     let
         value =
-            Value.toString >> Maybe.withDefault ""
+            Internal.Value.toString >> Maybe.withDefault ""
     in
     case status of
         WithError (TooLarge max) ->

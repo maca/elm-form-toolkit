@@ -4,8 +4,8 @@ module FormToolkit.Form exposing
     , andMap
     , clear
     , encodeValues
-    , getField
-    , getValue
+    , get
+    , getInput
     , hasBlankValues
     , init
     , isValid
@@ -14,7 +14,6 @@ module FormToolkit.Form exposing
     , setValues
     , succeed
     , toHtml
-    , toValues
     , update
     , validate
     )
@@ -23,6 +22,7 @@ module FormToolkit.Form exposing
 
 import Dict exposing (Dict)
 import Dict.Extra as Dict
+import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Value as Value exposing (Value)
 import Html
     exposing
@@ -57,9 +57,10 @@ import Html.Events as Html
         , onInput
         , preventDefaultOn
         )
-import Internal.Input as Input exposing (Error(..), Input)
+import Internal.Input as Input exposing (Input)
 import Internal.Markdown as Markdown
 import Internal.Tree as Tree exposing (Tree)
+import Internal.Value exposing (Value)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
@@ -200,7 +201,7 @@ encodeHelp element acc =
                 :: acc
 
         _ ->
-            ( input.name, Value.encode input.value ) :: acc
+            ( input.name, Internal.Value.encode input.value ) :: acc
 
 
 
@@ -230,39 +231,6 @@ isValid form =
         |> Result.withDefault False
 
 
-toValues : Form id -> Dict String Value
-toValues (Form root) =
-    Dict.fromList (nodeValues root [])
-
-
-nodeValues : Tree (Input a) -> List ( String, Value ) -> List ( String, Value )
-nodeValues node acc =
-    List.foldr toValuesHelp acc (Tree.children node)
-
-
-toValuesHelp : Tree (Input a) -> List ( String, Value ) -> List ( String, Value )
-toValuesHelp node acc =
-    let
-        input =
-            Tree.value node
-    in
-    case input.inputType of
-        Input.Group ->
-            nodeValues node acc
-
-        Input.Repeatable _ ->
-            ( input.name
-            , Value.list
-                (Tree.children node
-                    |> List.foldr (\n a -> nodeValues n [] :: a) []
-                )
-            )
-                :: acc
-
-        _ ->
-            ( input.name, input.value ) :: acc
-
-
 succeed : a -> Result Error a
 succeed a =
     Ok a
@@ -273,28 +241,19 @@ andMap a b =
     Result.map2 (|>) a b
 
 
-getField : id -> Form id -> Result Error (Input id)
-getField id (Form root) =
+getInput : id -> Form id -> Result Error (Input id)
+getInput id (Form root) =
     root
         |> Tree.find (Tree.value >> .identifier >> (==) (Just id))
         |> Maybe.map (Ok << Tree.value)
-        |> Maybe.withDefault (Err Input.InputNotFound)
+        |> Maybe.withDefault (Err Error.InputNotFound)
 
 
-getValue : (Value -> Maybe a) -> id -> Form id -> Result Error a
-getValue f id form =
-    getField id form
+get : id -> (Value -> Result Error a) -> Form id -> Result Error a
+get id f form =
+    getInput id form
         |> Result.andThen Input.check
-        |> Result.andThen
-            (f >> Maybe.map Ok >> Maybe.withDefault (Err Input.InputNotFound))
-
-
-mapValue : Form id -> id -> (Value -> Maybe a) -> Result Error a
-mapValue form id f =
-    getField id form
-        |> Result.andThen Input.check
-        |> Result.andThen
-            (f >> Maybe.map Ok >> Maybe.withDefault (Err Input.InputNotFound))
+        |> Result.andThen f
 
 
 
@@ -491,10 +450,7 @@ inputToHtml attrs inputType path input htmlAttrs =
     Html.input
         (htmlAttrs
             ++ type_ inputType
-            :: (Value.toString input.value
-                    |> Maybe.map value
-                    |> Maybe.withDefault (class "")
-               )
+            :: valueAttribute value input.value
             :: onInputChanged attrs path
             :: inputAttrs attrs path input
         )
@@ -505,7 +461,7 @@ textAreaToHtml : Attributes msg -> List Int -> Input a -> Html msg
 textAreaToHtml attrs path input =
     let
         value =
-            Value.toString input.value
+            Internal.Value.toString input.value
                 |> Maybe.withDefault ""
     in
     div
@@ -526,8 +482,8 @@ checkboxToHtml attrs path input =
     Html.input
         (type_ "checkbox"
             :: (Value.toBool input.value
-                    |> Maybe.map checked
-                    |> Maybe.withDefault (class "")
+                    |> Result.map checked
+                    |> Result.withDefault (class "")
                )
             :: (case attrs.onChange of
                     Just tagger ->
@@ -578,7 +534,9 @@ selectToHtml attrs path { name, isRequired, options, value } =
 
 valueAttribute : (String -> Html.Attribute msg) -> Value -> Html.Attribute msg
 valueAttribute f value =
-    Value.toString value |> Maybe.map f |> Maybe.withDefault (class "")
+    Internal.Value.toString value
+        |> Maybe.map f
+        |> Maybe.withDefault (class "")
 
 
 radioToHtml : Attributes msg -> List Int -> Input a -> Html msg
