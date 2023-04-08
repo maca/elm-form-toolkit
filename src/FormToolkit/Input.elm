@@ -9,6 +9,7 @@ module FormToolkit.Input exposing
     , options, min, max
     , inline, noattr
     , reject
+    , Error
     )
 
 {-|
@@ -35,6 +36,7 @@ module FormToolkit.Input exposing
 
 -}
 
+import FormToolkit.Error as Error
 import Internal.Input as Input exposing (Input, InputType(..))
 import Internal.Tree as Tree exposing (Tree)
 import Internal.Value as Value exposing (Value)
@@ -43,6 +45,10 @@ import Regex
 
 type alias Input a =
     Tree (Input.Input a)
+
+
+type alias Error =
+    Error.Error
 
 
 type Attribute a

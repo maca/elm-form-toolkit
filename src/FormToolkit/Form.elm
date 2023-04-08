@@ -1,28 +1,50 @@
 module FormToolkit.Form exposing
-    ( Form
-    , Msg
-    , andMap
-    , clear
-    , encodeValues
-    , get
-    , getInput
-    , hasBlankValues
-    , init
-    , isValid
-    , onChange
-    , onSubmit
-    , setValues
-    , succeed
-    , toHtml
-    , update
-    , validate
+    ( Form, Msg
+    , init, update
+    , toHtml, onChange, onSubmit
+    , get, getMaybe, getInput
+    , validate, isValid, hasBlankValues, hasErrors, clear
+    , succeed, andMap, map, map2, map3, map4, map5, map6, map7, map8
+    , encodeValues, setValues
     )
 
-{-| -}
+{-|
+
+@docs Form, Msg
+
+@docs init, update
+
+
+# View
+
+@docs toHtml, onChange, onSubmit
+
+
+# Traversing
+
+@docs get, getMaybe, getInput
+
+
+# Validation
+
+@docs validate, isValid, hasBlankValues, hasErrors, isValid, clear
+
+
+# Result
+
+@docs succeed, andMap, map, map2, map3, map4, map5, map6, map7, map8
+
+
+# JSON
+
+@docs encodeValues, setValues
+
+-}
 
 import Dict exposing (Dict)
 import Dict.Extra as Dict
 import FormToolkit.Error as Error exposing (Error)
+import FormToolkit.Input as Input
 import FormToolkit.Value as Value exposing (Value)
 import Html
     exposing
@@ -84,6 +106,11 @@ Json Values
 -}
 type Form id
     = Form (Tree (Input id))
+
+
+
+-- type Error id
+--     = Error id Input.Error
 
 
 type alias Attributes msg =
@@ -236,6 +263,91 @@ succeed a =
     Ok a
 
 
+map : (a -> b) -> Result Error a -> Result Error b
+map =
+    Result.map
+
+
+map2 : (a -> b -> c) -> Result Error a -> Result Error b -> Result Error c
+map2 =
+    Result.map2
+
+
+map3 :
+    (a -> b -> c -> out)
+    -> Result Error a
+    -> Result Error b
+    -> Result Error c
+    -> Result Error out
+map3 =
+    Result.map3
+
+
+map4 :
+    (a -> b -> c -> d -> out)
+    -> Result Error a
+    -> Result Error b
+    -> Result Error c
+    -> Result Error d
+    -> Result Error out
+map4 =
+    Result.map4
+
+
+map5 :
+    (a -> b -> c -> d -> e -> out)
+    -> Result Error a
+    -> Result Error b
+    -> Result Error c
+    -> Result Error d
+    -> Result Error e
+    -> Result Error out
+map5 =
+    Result.map5
+
+
+map6 :
+    (a -> b -> c -> d -> e -> f -> out)
+    -> Result Error a
+    -> Result Error b
+    -> Result Error c
+    -> Result Error d
+    -> Result Error e
+    -> Result Error f
+    -> Result Error out
+map6 func a b c d e f =
+    map5 func a b c d e |> andMap f
+
+
+map7 :
+    (a -> b -> c -> d -> e -> f -> g -> out)
+    -> Result Error a
+    -> Result Error b
+    -> Result Error c
+    -> Result Error d
+    -> Result Error e
+    -> Result Error f
+    -> Result Error g
+    -> Result Error out
+map7 func a b c d e f g =
+    map6 func a b c d e f |> andMap g
+
+
+map8 :
+    (a -> b -> c -> d -> e -> f -> g -> h -> out)
+    -> Result Error a
+    -> Result Error b
+    -> Result Error c
+    -> Result Error d
+    -> Result Error e
+    -> Result Error f
+    -> Result Error g
+    -> Result Error h
+    -> Result Error out
+map8 func a b c d e f g h =
+    map7 func a b c d e f g |> andMap h
+
+
 andMap : Result Error a -> Result Error (a -> b) -> Result Error b
 andMap a b =
     Result.map2 (|>) a b
@@ -254,6 +366,11 @@ get id f form =
     getInput id form
         |> Result.andThen Input.check
         |> Result.andThen f
+
+
+getMaybe : id -> (Value -> Result Error a) -> Form id -> Result Error (Maybe a)
+getMaybe id f =
+    get id (Value.toMaybe f)
 
 
 
@@ -630,8 +747,6 @@ wrapInput path { hint, name, status, isRequired, label, help } inputHtml =
                         [ type_ "button"
                         , class "field-help"
                         , title "Field Help"
-
-                        -- , onClick (HelpDisplayed (FieldHelp helpText))
                         ]
                         [ text "?" ]
 

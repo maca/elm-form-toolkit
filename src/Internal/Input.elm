@@ -43,7 +43,7 @@ type Status
     | WithError Error
 
 
-type InputType a
+type InputType id
     = Text
     | TextArea
     | Password
@@ -56,11 +56,11 @@ type InputType a
     | Radio
     | Checkbox
     | Group
-    | Repeatable (Tree (Input a))
+    | Repeatable (Tree (Input id))
 
 
-type alias Input a =
-    { inputType : InputType a
+type alias Input id =
+    { inputType : InputType id
     , name : String
     , value : Value
     , isRequired : Bool
@@ -74,16 +74,16 @@ type alias Input a =
     , parsers : List (Value -> Maybe Value)
     , status : Status
     , inline : Bool
-    , identifier : Maybe a
+    , identifier : Maybe id
     }
 
 
-root : Input a
+root : Input id
 root =
     init Group []
 
 
-init : InputType a -> List (Input a -> Input a) -> Input a
+init : InputType id -> List (Input id -> Input id) -> Input id
 init inputType =
     List.foldl (\f i -> f i)
         { inputType = inputType
@@ -104,7 +104,7 @@ init inputType =
         }
 
 
-update : Value -> Input a -> Input a
+update : Value -> Input id -> Input id
 update value input =
     { input
         | value =
@@ -114,7 +114,7 @@ update value input =
     }
 
 
-updateWithString : String -> Input a -> Input a
+updateWithString : String -> Input id -> Input id
 updateWithString str ({ inputType } as input) =
     case inputType of
         Text ->
@@ -151,7 +151,7 @@ updateWithString str ({ inputType } as input) =
             input
 
 
-getChoice : String -> Input a -> Value
+getChoice : String -> Input id -> Value
 getChoice str { options } =
     case String.toInt str of
         Just idx ->
@@ -164,7 +164,7 @@ getChoice str { options } =
             Value.blank
 
 
-error : Input a -> Maybe Error
+error : Input id -> Maybe Error
 error { status } =
     case status of
         WithError err ->
@@ -174,7 +174,7 @@ error { status } =
             Nothing
 
 
-validate : Input a -> Input a
+validate : Input id -> Input id
 validate input =
     case check input of
         Ok _ ->
@@ -184,18 +184,18 @@ validate input =
             { input | status = WithError err }
 
 
-resetStatus : Input a -> Input a
+resetStatus : Input id -> Input id
 resetStatus input =
     { input | status = Unchecked }
 
 
-check : Input a -> Result Error Value
+check : Input id -> Result Error Value
 check input =
     checkRequired input
         |> Result.andThen (\_ -> checkInRange input)
 
 
-checkRequired : Input a -> Result Error Value
+checkRequired : Input id -> Result Error Value
 checkRequired { isRequired, value } =
     if isRequired && Value.isBlank value then
         Err IsBlank
@@ -204,7 +204,7 @@ checkRequired { isRequired, value } =
         Ok value
 
 
-isBlank : Input a -> Bool
+isBlank : Input id -> Bool
 isBlank { value, inputType } =
     case inputType of
         Group ->
@@ -217,7 +217,7 @@ isBlank { value, inputType } =
             Value.isBlank value
 
 
-checkInRange : Input a -> Result Error Value
+checkInRange : Input id -> Result Error Value
 checkInRange { value, min, max } =
     case
         ( Internal.Value.compare value min
@@ -266,7 +266,7 @@ errorMessage status =
             Nothing
 
 
-humanValue : Input a -> Value
+humanValue : Input id -> Value
 humanValue input =
     case input.inputType of
         Radio ->
@@ -279,7 +279,7 @@ humanValue input =
             input.value
 
 
-humanValueHelp : Input a -> Value
+humanValueHelp : Input id -> Value
 humanValueHelp { value, options } =
     List.filter (\( _, v ) -> v == value) options
         |> List.head
