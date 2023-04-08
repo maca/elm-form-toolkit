@@ -1,12 +1,12 @@
 module Main exposing (..)
 
 import Browser
+import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Form as Form exposing (Form)
 import FormToolkit.Input as Input
 import FormToolkit.Value as Value
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
-import Internal.Input exposing (Error(..))
 
 
 main =
@@ -23,13 +23,19 @@ main =
 
 type PersonFields
     = FirstName
+    | MiddleName
     | LastName
 
 
 type alias Person =
     { firstName : String
+    , middleName : Maybe String
     , lastName : String
     }
+
+
+type Name
+    = Name String
 
 
 type alias Model =
@@ -44,6 +50,10 @@ init =
                 [ Input.label "First Name"
                 , Input.required True
                 , Input.identifier FirstName
+                ]
+            , Input.text
+                [ Input.label "Middle Name"
+                , Input.identifier MiddleName
                 ]
             , Input.text
                 [ Input.label "Last Name"
@@ -76,13 +86,17 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
+        -- _ =
+        --     Form.map Name (Form.get FirstName Value.toString model.form)
+        --         |> Debug.log "person"
         _ =
             Form.succeed Person
-                |> Form.andMap
-                    (Form.getValue Value.toString FirstName model.form)
-                |> Form.andMap
-                    (Form.getValue Value.toString LastName model.form)
-                |> Debug.log "person"
+                |> Form.andMap (Form.get FirstName Value.toString model.form)
+
+        -- |> Form.andMap
+        --     (Form.getMaybe MiddleName Value.toString model.form)
+        -- |> Form.andMap (Form.get LastName Value.toString model.form)
+        -- |> Debug.log "person"
     in
     div
         []

@@ -8,7 +8,7 @@ module Internal.Input exposing
 
 {-|
 
-@docs Input, Error, InputType
+@docs Input, InputType
 
 
 # Update
@@ -28,11 +28,10 @@ module Internal.Input exposing
 -}
 
 import Array
-import FormToolkit.Error as Error exposing (Error(..))
+import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Internal.Tree exposing (Tree)
 import Internal.Value exposing (Value)
-import Json.Decode as Decode
 import List.Extra as List
 import Result exposing (Result)
 
@@ -67,7 +66,6 @@ type alias Input id =
     , label : Maybe String
     , hint : Maybe String
     , placeholder : Maybe String
-    , help : Maybe String
     , min : Value
     , max : Value
     , options : List ( String, Value )
@@ -89,7 +87,6 @@ init inputType =
         { inputType = inputType
         , name = ""
         , label = Nothing
-        , help = Nothing
         , hint = Nothing
         , placeholder = Nothing
         , status = Unchecked

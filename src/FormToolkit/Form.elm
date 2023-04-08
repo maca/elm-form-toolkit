@@ -108,9 +108,9 @@ type Form id
     = Form (Tree (Input id))
 
 
-
--- type Error id
---     = Error id Input.Error
+type Error id
+    = InputError (Maybe id) Input.Error
+    | InputNotFound id
 
 
 type alias Attributes msg =
@@ -240,12 +240,20 @@ validate (Form root) =
     Form (Tree.mapValues Input.validate root)
 
 
-check : Form id -> Result Error ()
+check : Form id -> Result (Error id) ()
 check (Form root) =
     Tree.foldl
-        (\e ->
+        (\node ->
+            let
+                input =
+                    Tree.value node
+            in
             Result.andThen
-                (\_ -> Input.check (Tree.value e) |> Result.map (always ()))
+                (\_ ->
+                    Input.check input
+                        |> Result.map (always ())
+                        |> Result.mapError (InputError input.identifier)
+                )
         )
         (Ok ())
         root
@@ -258,117 +266,154 @@ isValid form =
         |> Result.withDefault False
 
 
-succeed : a -> Result Error a
+hasBlankValues : Form id -> Bool
+hasBlankValues (Form tree) =
+    Tree.any (Tree.value >> Input.isBlank) tree
+
+
+hasErrors : Form id -> Bool
+hasErrors (Form tree) =
+    Tree.any (\v -> Input.error (Tree.value v) /= Nothing) tree
+
+
+errors : Form id -> List (Error id)
+errors (Form tree) =
+    Tree.foldr
+        (\v errs ->
+            let
+                input =
+                    Tree.value v
+            in
+            case Input.error input of
+                Just err ->
+                    InputError input.identifier err :: errs
+
+                Nothing ->
+                    errs
+        )
+        []
+        tree
+
+
+getInput : id -> Form id -> Result (Error id) (Input id)
+getInput id (Form root) =
+    root
+        |> Tree.find (Tree.value >> .identifier >> (==) (Just id))
+        |> Maybe.map (Ok << Tree.value)
+        |> Maybe.withDefault (Err (InputNotFound id))
+
+
+get : id -> (Value -> Result Input.Error a) -> Form id -> Result (Error id) a
+get id f form =
+    getInput id form
+        |> Result.andThen
+            (\input ->
+                Input.check input
+                    |> Result.andThen f
+                    |> Result.mapError (InputError input.identifier)
+            )
+
+
+succeed : a -> Result (Error id) a
 succeed a =
     Ok a
 
 
-map : (a -> b) -> Result Error a -> Result Error b
+map : (a -> b) -> Result (Error id) a -> Result (Error id) b
 map =
     Result.map
 
 
-map2 : (a -> b -> c) -> Result Error a -> Result Error b -> Result Error c
+map2 : (a -> b -> c) -> Result (Error id) a -> Result (Error id) b -> Result (Error id) c
 map2 =
     Result.map2
 
 
 map3 :
     (a -> b -> c -> out)
-    -> Result Error a
-    -> Result Error b
-    -> Result Error c
-    -> Result Error out
+    -> Result (Error id) a
+    -> Result (Error id) b
+    -> Result (Error id) c
+    -> Result (Error id) out
 map3 =
     Result.map3
 
 
 map4 :
     (a -> b -> c -> d -> out)
-    -> Result Error a
-    -> Result Error b
-    -> Result Error c
-    -> Result Error d
-    -> Result Error out
+    -> Result (Error id) a
+    -> Result (Error id) b
+    -> Result (Error id) c
+    -> Result (Error id) d
+    -> Result (Error id) out
 map4 =
     Result.map4
 
 
 map5 :
     (a -> b -> c -> d -> e -> out)
-    -> Result Error a
-    -> Result Error b
-    -> Result Error c
-    -> Result Error d
-    -> Result Error e
-    -> Result Error out
+    -> Result (Error id) a
+    -> Result (Error id) b
+    -> Result (Error id) c
+    -> Result (Error id) d
+    -> Result (Error id) e
+    -> Result (Error id) out
 map5 =
     Result.map5
 
 
 map6 :
     (a -> b -> c -> d -> e -> f -> out)
-    -> Result Error a
-    -> Result Error b
-    -> Result Error c
-    -> Result Error d
-    -> Result Error e
-    -> Result Error f
-    -> Result Error out
+    -> Result (Error id) a
+    -> Result (Error id) b
+    -> Result (Error id) c
+    -> Result (Error id) d
+    -> Result (Error id) e
+    -> Result (Error id) f
+    -> Result (Error id) out
 map6 func a b c d e f =
     map5 func a b c d e |> andMap f
 
 
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> out)
-    -> Result Error a
-    -> Result Error b
-    -> Result Error c
-    -> Result Error d
-    -> Result Error e
-    -> Result Error f
-    -> Result Error g
-    -> Result Error out
+    -> Result (Error id) a
+    -> Result (Error id) b
+    -> Result (Error id) c
+    -> Result (Error id) d
+    -> Result (Error id) e
+    -> Result (Error id) f
+    -> Result (Error id) g
+    -> Result (Error id) out
 map7 func a b c d e f g =
     map6 func a b c d e f |> andMap g
 
 
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> out)
-    -> Result Error a
-    -> Result Error b
-    -> Result Error c
-    -> Result Error d
-    -> Result Error e
-    -> Result Error f
-    -> Result Error g
-    -> Result Error h
-    -> Result Error out
+    -> Result (Error id) a
+    -> Result (Error id) b
+    -> Result (Error id) c
+    -> Result (Error id) d
+    -> Result (Error id) e
+    -> Result (Error id) f
+    -> Result (Error id) g
+    -> Result (Error id) h
+    -> Result (Error id) out
 map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
-andMap : Result Error a -> Result Error (a -> b) -> Result Error b
+andMap : Result (Error id) a -> Result (Error id) (a -> b) -> Result (Error id) b
 andMap a b =
     Result.map2 (|>) a b
 
 
-getInput : id -> Form id -> Result Error (Input id)
-getInput id (Form root) =
-    root
-        |> Tree.find (Tree.value >> .identifier >> (==) (Just id))
-        |> Maybe.map (Ok << Tree.value)
-        |> Maybe.withDefault (Err Error.InputNotFound)
-
-
-get : id -> (Value -> Result Error a) -> Form id -> Result Error a
-get id f form =
-    getInput id form
-        |> Result.andThen Input.check
-        |> Result.andThen f
-
-
-getMaybe : id -> (Value -> Result Error a) -> Form id -> Result Error (Maybe a)
+getMaybe :
+    id
+    -> (Value -> Result Input.Error a)
+    -> Form id
+    -> Result (Error id) (Maybe a)
 getMaybe id f =
     get id (Value.toMaybe f)
 
@@ -422,16 +467,6 @@ resetInputStatus =
 validateInput : Tree (Input a) -> Tree (Input a)
 validateInput =
     Tree.updateValue Input.validate
-
-
-hasBlankValues : Tree (Input a) -> Bool
-hasBlankValues =
-    Tree.any (Tree.value >> Input.isBlank)
-
-
-hasErrors : Tree (Input a) -> Bool
-hasErrors =
-    Tree.any (\v -> Input.error (Tree.value v) /= Nothing)
 
 
 
@@ -730,7 +765,7 @@ templateHtml attributes form path isLast element =
 
 
 wrapInput : List Int -> Input a -> Html msg -> Html msg
-wrapInput path { hint, name, status, isRequired, label, help } inputHtml =
+wrapInput path { hint, name, status, isRequired, label } inputHtml =
     div
         [ class "field"
         , classList [ ( "required", isRequired ) ]
@@ -740,19 +775,7 @@ wrapInput path { hint, name, status, isRequired, label, help } inputHtml =
             [ text (Maybe.withDefault name label) ]
         , div
             [ class "input-wrapper" ]
-            [ inputHtml
-            , case help of
-                Just helpText ->
-                    button
-                        [ type_ "button"
-                        , class "field-help"
-                        , title "Field Help"
-                        ]
-                        [ text "?" ]
-
-                Nothing ->
-                    text ""
-            ]
+            [ inputHtml ]
         , case Input.errorMessage status of
             Just msg ->
                 p [ class "error" ] [ text msg ]
