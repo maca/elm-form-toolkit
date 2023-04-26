@@ -385,9 +385,7 @@ toHtml attrList (Form root) =
             |> Maybe.withDefault (class "")
         , novalidate True
         ]
-        [ fieldset
-            []
-            [ elementToHtml attrs [] root ]
+        [ fieldset [] [ elementToHtml attrs [] root ]
         , submitButtonHtml []
         ]
 
@@ -488,14 +486,13 @@ elementToHtml attrs path node =
                 |> wrapInput path input
 
 
-submitButtonHtml : List (Html.Attribute msg) -> Html msg
-submitButtonHtml attrs =
-    button
-        (id "form-submit-button" :: attrs)
-        [ text "Submit" ]
-
-
-inputToHtml : Attributes msg -> String -> List Int -> Input a -> List (Html.Attribute msg) -> Html msg
+inputToHtml :
+    Attributes msg
+    -> String
+    -> List Int
+    -> Input a
+    -> List (Html.Attribute msg)
+    -> Html msg
 inputToHtml attrs inputType path input htmlAttrs =
     Html.input
         (htmlAttrs
@@ -547,19 +544,6 @@ checkboxToHtml attrs path input =
         []
 
 
-inputAttrs : Attributes msg -> List Int -> Input a -> List (Html.Attribute msg)
-inputAttrs attrs path { name, isRequired, placeholder, min, max } =
-    [ id (identifier name path)
-    , required isRequired
-    , autocomplete False
-    , onInputFocused attrs path
-    , onInputBlured attrs path
-    , A.placeholder (Maybe.withDefault "" placeholder)
-    , valueAttribute A.min min
-    , valueAttribute A.max max
-    ]
-
-
 selectToHtml : Attributes msg -> List Int -> Input a -> Html msg
 selectToHtml attrs path { name, isRequired, options, value } =
     Html.select
@@ -580,13 +564,6 @@ selectToHtml attrs path { name, isRequired, options, value } =
                 )
                 options
         )
-
-
-valueAttribute : (String -> Html.Attribute msg) -> Value -> Html.Attribute msg
-valueAttribute f value =
-    Internal.Value.toString value
-        |> Maybe.map f
-        |> Maybe.withDefault (class "")
 
 
 radioToHtml : Attributes msg -> List Int -> Input a -> Html msg
@@ -700,6 +677,33 @@ legend label =
     label
         |> Maybe.map (\t -> Html.legend [] [ text t ])
         |> Maybe.withDefault (text "")
+
+
+valueAttribute : (String -> Html.Attribute msg) -> Value -> Html.Attribute msg
+valueAttribute f value =
+    Internal.Value.toString value
+        |> Maybe.map f
+        |> Maybe.withDefault (class "")
+
+
+inputAttrs : Attributes msg -> List Int -> Input a -> List (Html.Attribute msg)
+inputAttrs attrs path { name, isRequired, placeholder, min, max } =
+    [ id (identifier name path)
+    , required isRequired
+    , autocomplete False
+    , onInputFocused attrs path
+    , onInputBlured attrs path
+    , A.placeholder (Maybe.withDefault "" placeholder)
+    , valueAttribute A.min min
+    , valueAttribute A.max max
+    ]
+
+
+submitButtonHtml : List (Html.Attribute msg) -> Html msg
+submitButtonHtml attrs =
+    button
+        (id "form-submit-button" :: attrs)
+        [ text "Submit" ]
 
 
 onInputChanged : Attributes msg -> List Int -> Html.Attribute msg
