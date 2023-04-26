@@ -4,6 +4,7 @@ import Browser
 import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Form as Form exposing (Form)
 import FormToolkit.Input as Input
+import FormToolkit.Parse as Parse exposing (Parser)
 import FormToolkit.Value as Value
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
@@ -21,45 +22,81 @@ main =
 -- MODEL
 
 
-type PersonFields
-    = FirstName
-    | MiddleName
-    | LastName
-
-
-type alias Person =
+type alias Author =
     { firstName : String
-    , middleName : Maybe String
+
+    -- , middleName : Maybe String
     , lastName : String
     }
 
 
-type Name
-    = Name String
+type alias Date =
+    { year : Int
+    , month : Int
+    , day : Int
+    }
+
+
+type alias Record =
+    { title : String
+    , releaseDate : Date
+    , authors : List Author
+    }
 
 
 type alias Model =
-    { form : Form PersonFields }
+    { form : Form Fields }
+
+
+type Fields
+    = Title
+    | Release
+    | Authors
+    | FirstName
+    | MiddleName
+    | LastName
+
+
+personFields =
+    Input.group
+        []
+        [ Input.text
+            [ Input.label "First Name"
+            , Input.required True
+            , Input.identifier FirstName
+            ]
+
+        -- , Input.text
+        --     [ Input.label "Middle Name"
+        --     , Input.identifier MiddleName
+        --     ]
+        , Input.text
+            [ Input.label "Last Name"
+            , Input.required True
+            , Input.identifier LastName
+            ]
+        ]
 
 
 init : Model
 init =
     { form =
         Form.init
-            [ Input.text
-                [ Input.label "First Name"
-                , Input.required True
-                , Input.identifier FirstName
-                ]
-            , Input.text
-                [ Input.label "Middle Name"
-                , Input.identifier MiddleName
-                ]
-            , Input.text
-                [ Input.label "Last Name"
-                , Input.required True
-                , Input.identifier LastName
-                ]
+            [ personFields
+
+            -- Input.group []
+            --     [ Input.text
+            --         [ Input.label "Title"
+            --         , Input.required True
+            --         , Input.identifier Title
+            --         ]
+            --     , Input.date
+            --         [ Input.label "Release"
+            --         , Input.required True
+            --         , Input.identifier Release
+            --         ]
+            --     ]
+            -- , Input.repeatable [] personFields []
             ]
     }
 
@@ -86,17 +123,9 @@ update msg model =
 view : Model -> Html Msg
 view model =
     let
-        -- _ =
-        --     Form.map Name (Form.get FirstName Value.toString model.form)
-        --         |> Debug.log "person"
         _ =
-            Form.succeed Person
-                |> Form.andMap (Form.get FirstName Value.toString model.form)
-
-        -- |> Form.andMap
-        --     (Form.getMaybe MiddleName Value.toString model.form)
-        -- |> Form.andMap (Form.get LastName Value.toString model.form)
-        -- |> Debug.log "person"
+            Parse.parse authorParser model.form
+                |> Debug.log "Author"
     in
     div
         []
@@ -104,3 +133,10 @@ view model =
             [ Form.onChange FormChanged ]
             model.form
         ]
+
+
+authorParser : Parser Fields Author
+authorParser =
+    Parse.succeed Author
+        |> Parse.andMap (Parse.field FirstName Parse.string)
+        |> Parse.andMap (Parse.field LastName Parse.string)

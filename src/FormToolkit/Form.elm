@@ -1,11 +1,11 @@
 module FormToolkit.Form exposing
-    ( Form, Msg
+    ( Form(..), Msg
     , init, update
     , toHtml, onChange, onSubmit
     , get, getMaybe, getInput
     , validate, isValid, hasBlankValues, hasErrors, clear
-    , succeed, andMap, map, map2, map3, map4, map5, map6, map7, map8
     , encodeValues, setValues
+    , Error, errors
     )
 
 {-|
@@ -30,11 +30,6 @@ module FormToolkit.Form exposing
 @docs validate, isValid, hasBlankValues, hasErrors, isValid, clear
 
 
-# Result
-
-@docs succeed, andMap, map, map2, map3, map4, map5, map6, map7, map8
-
-
 # JSON
 
 @docs encodeValues, setValues
@@ -43,7 +38,7 @@ module FormToolkit.Form exposing
 
 import Dict exposing (Dict)
 import Dict.Extra as Dict
-import FormToolkit.Error as Error exposing (Error)
+import FormToolkit.Error exposing (Error)
 import FormToolkit.Input as Input
 import FormToolkit.Value as Value exposing (Value)
 import Html
@@ -68,7 +63,6 @@ import Html.Attributes as A
         , required
         , selected
         , step
-        , title
         , type_
         , value
         )
@@ -314,101 +308,6 @@ get id f form =
             )
 
 
-succeed : a -> Result (Error id) a
-succeed a =
-    Ok a
-
-
-map : (a -> b) -> Result (Error id) a -> Result (Error id) b
-map =
-    Result.map
-
-
-map2 : (a -> b -> c) -> Result (Error id) a -> Result (Error id) b -> Result (Error id) c
-map2 =
-    Result.map2
-
-
-map3 :
-    (a -> b -> c -> out)
-    -> Result (Error id) a
-    -> Result (Error id) b
-    -> Result (Error id) c
-    -> Result (Error id) out
-map3 =
-    Result.map3
-
-
-map4 :
-    (a -> b -> c -> d -> out)
-    -> Result (Error id) a
-    -> Result (Error id) b
-    -> Result (Error id) c
-    -> Result (Error id) d
-    -> Result (Error id) out
-map4 =
-    Result.map4
-
-
-map5 :
-    (a -> b -> c -> d -> e -> out)
-    -> Result (Error id) a
-    -> Result (Error id) b
-    -> Result (Error id) c
-    -> Result (Error id) d
-    -> Result (Error id) e
-    -> Result (Error id) out
-map5 =
-    Result.map5
-
-
-map6 :
-    (a -> b -> c -> d -> e -> f -> out)
-    -> Result (Error id) a
-    -> Result (Error id) b
-    -> Result (Error id) c
-    -> Result (Error id) d
-    -> Result (Error id) e
-    -> Result (Error id) f
-    -> Result (Error id) out
-map6 func a b c d e f =
-    map5 func a b c d e |> andMap f
-
-
-map7 :
-    (a -> b -> c -> d -> e -> f -> g -> out)
-    -> Result (Error id) a
-    -> Result (Error id) b
-    -> Result (Error id) c
-    -> Result (Error id) d
-    -> Result (Error id) e
-    -> Result (Error id) f
-    -> Result (Error id) g
-    -> Result (Error id) out
-map7 func a b c d e f g =
-    map6 func a b c d e f |> andMap g
-
-
-map8 :
-    (a -> b -> c -> d -> e -> f -> g -> h -> out)
-    -> Result (Error id) a
-    -> Result (Error id) b
-    -> Result (Error id) c
-    -> Result (Error id) d
-    -> Result (Error id) e
-    -> Result (Error id) f
-    -> Result (Error id) g
-    -> Result (Error id) h
-    -> Result (Error id) out
-map8 func a b c d e f g h =
-    map7 func a b c d e f g |> andMap h
-
-
-andMap : Result (Error id) a -> Result (Error id) (a -> b) -> Result (Error id) b
-andMap a b =
-    Result.map2 (|>) a b
-
-
 getMaybe :
     id
     -> (Value -> Result Input.Error a)
@@ -488,13 +387,13 @@ toHtml attrList (Form root) =
         ]
         [ fieldset
             []
-            [ elementToHtml attrs (Form root) [] root ]
-        , submitButtonHtml (Form root) []
+            [ elementToHtml attrs [] root ]
+        , submitButtonHtml []
         ]
 
 
-elementToHtml : Attributes msg -> Form id -> List Int -> Tree (Input a) -> Html msg
-elementToHtml attrs form path node =
+elementToHtml : Attributes msg -> List Int -> Tree (Input a) -> Html msg
+elementToHtml attrs path node =
     let
         input =
             Tree.value node
@@ -505,7 +404,7 @@ elementToHtml attrs form path node =
                 children =
                     Tree.children node
                         |> List.indexedMap
-                            (\idx -> elementToHtml attrs form (path ++ [ idx ]))
+                            (\idx -> elementToHtml attrs (path ++ [ idx ]))
             in
             fieldset
                 [ id (identifier input.name path)
@@ -534,7 +433,6 @@ elementToHtml attrs form path node =
                         |> List.indexedMap
                             (\idx ->
                                 templateHtml attrs
-                                    form
                                     (path ++ [ idx ])
                                     (List.length children /= (idx + 1))
                             )
@@ -590,8 +488,8 @@ elementToHtml attrs form path node =
                 |> wrapInput path input
 
 
-submitButtonHtml : Form id -> List (Html.Attribute msg) -> Html msg
-submitButtonHtml _ attrs =
+submitButtonHtml : List (Html.Attribute msg) -> Html msg
+submitButtonHtml attrs =
     button
         (id "form-submit-button" :: attrs)
         [ text "Submit" ]
@@ -738,11 +636,11 @@ addInputsButton attrs path =
         ]
 
 
-templateHtml : Attributes msg -> Form id -> List Int -> Bool -> Tree (Input a) -> Html msg
-templateHtml attributes form path isLast element =
+templateHtml : Attributes msg -> List Int -> Bool -> Tree (Input a) -> Html msg
+templateHtml attributes path isLast element =
     div
         [ class "group-repeat" ]
-        [ elementToHtml attributes form path element
+        [ elementToHtml attributes path element
         , if isLast then
             button
                 [ class "remove-fields"
