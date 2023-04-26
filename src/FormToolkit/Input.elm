@@ -120,8 +120,8 @@ group attributes =
         (Input.init Group (List.map (\(Attribute f) -> f) attributes))
 
 
-repeatable : Input a -> List (Attribute a) -> List (Input a) -> Input a
-repeatable template attributes inputs =
+repeatable : List (Attribute a) -> Input a -> List (Input a) -> Input a
+repeatable attributes template inputs =
     Tree.branch
         (Input.init (Repeatable template)
             (List.map (\(Attribute f) -> f) attributes)
