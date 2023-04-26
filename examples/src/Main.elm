@@ -24,8 +24,7 @@ main =
 
 type alias Author =
     { firstName : String
-
-    -- , middleName : Maybe String
+    , middleName : Maybe String
     , lastName : String
     }
 
@@ -65,11 +64,10 @@ personFields =
             , Input.required True
             , Input.identifier FirstName
             ]
-
-        -- , Input.text
-        --     [ Input.label "Middle Name"
-        --     , Input.identifier MiddleName
-        --     ]
+        , Input.text
+            [ Input.label "Middle Name"
+            , Input.identifier MiddleName
+            ]
         , Input.text
             [ Input.label "Last Name"
             , Input.required True
@@ -139,4 +137,5 @@ authorParser : Parser Fields Author
 authorParser =
     Parse.succeed Author
         |> Parse.andMap (Parse.field FirstName Parse.string)
+        |> Parse.andMap (Parse.field MiddleName (Parse.maybe Parse.string))
         |> Parse.andMap (Parse.field LastName Parse.string)

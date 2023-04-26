@@ -2,6 +2,7 @@ module FormToolkit.Parse exposing
     ( Parser
     , field
     , string, int, float, bool, posix, maybe
+    , custom, value
     , succeed
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
@@ -14,6 +15,7 @@ module FormToolkit.Parse exposing
 
 @docs field
 @docs string, int, float, bool, posix, maybe
+@docs custom, value
 
 @docs succeed
 @docs map, map2, map3, map4, map5, map6, map7, map8
@@ -41,52 +43,54 @@ type alias Parser id a =
 
 
 field : id -> Parser id a -> Parser id a
-field id parser tree =
-    tree
-        |> Tree.find (Tree.value >> .identifier >> (==) (Just id))
-        |> Maybe.map parser
-        |> Maybe.withDefault (Err (InputNotFound id))
+field id parser =
+    Tree.find (Tree.value >> .identifier >> (==) (Just id))
+        >> Maybe.map parser
+        >> Maybe.withDefault (Err (InputNotFound id))
 
 
 string : Parser id String
 string tree =
-    custom Value.toString tree
+    value Value.toString tree
 
 
 int : Parser id Int
 int tree =
-    custom Value.toInt tree
+    value Value.toInt tree
 
 
 float : Parser id Float
 float tree =
-    custom Value.toFloat tree
+    value Value.toFloat tree
 
 
 bool : Parser id Bool
 bool tree =
-    custom Value.toBool tree
+    value Value.toBool tree
 
 
 posix : Parser id Time.Posix
 posix tree =
-    custom Value.toPosix tree
+    value Value.toPosix tree
 
 
 maybe : Parser id a -> Parser id (Maybe a)
-maybe tree =
-    Debug.todo "crash"
+maybe parser tree =
+    if Input.isBlank (Tree.value tree) then
+        succeed Nothing tree
+
+    else
+        Result.map Just (parser tree)
 
 
-custom : (Value -> Result Input.Error a) -> Parser id a
+value : (Value -> Result Input.Error a) -> Parser id a
+value func =
+    custom (Tree.value >> Input.check >> Result.andThen func)
+
+
+custom : (Tree (Input id) -> Result Input.Error a) -> Parser id a
 custom func tree =
-    let
-        val =
-            Tree.value tree
-    in
-    Input.check val
-        |> Result.andThen func
-        |> Result.mapError (InputError val.identifier)
+    Result.mapError (InputError (.identifier (Tree.value tree))) (func tree)
 
 
 succeed : a -> Parser id a
