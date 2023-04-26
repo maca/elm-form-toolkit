@@ -1,7 +1,4 @@
-module TreeTest exposing (..)
-
--- import Random exposing (Generator)
--- import Shrink
+module TreeTest exposing (suite)
 
 import Expect
 import Fuzz exposing (Fuzzer)
