@@ -403,6 +403,14 @@ elementToHtml attrs path node =
                     Tree.children node
                         |> List.indexedMap
                             (\idx -> elementToHtml attrs (path ++ [ idx ]))
+
+                inputLabel =
+                    case input.label of
+                        Just label ->
+                            Html.legend [] [ text label ]
+
+                        Nothing ->
+                            text ""
             in
             fieldset
                 [ id (identifier input.name path)
@@ -411,15 +419,7 @@ elementToHtml attrs path node =
                     , ( "stacked", not input.inline )
                     ]
                 ]
-                ((case input.label of
-                    Just label ->
-                        Html.legend [] [ text label ]
-
-                    Nothing ->
-                        text ""
-                 )
-                    :: children
-                )
+                (inputLabel :: children)
 
         Input.Repeatable _ ->
             let

@@ -38,7 +38,8 @@ type alias Date =
 
 type alias Record =
     { title : String
-    , releaseDate : Date
+
+    -- , releaseDate : Date
     , authors : List Author
     }
 
@@ -80,21 +81,19 @@ init : Model
 init =
     { form =
         Form.init
-            [ personFields
-
-            -- Input.group []
-            --     [ Input.text
-            --         [ Input.label "Title"
-            --         , Input.required True
-            --         , Input.identifier Title
-            --         ]
-            --     , Input.date
-            --         [ Input.label "Release"
-            --         , Input.required True
-            --         , Input.identifier Release
-            --         ]
-            --     ]
-            -- , Input.repeatable [] personFields []
+            [ Input.group []
+                [ Input.text
+                    [ Input.label "Title"
+                    , Input.required True
+                    , Input.identifier Title
+                    ]
+                , Input.date
+                    [ Input.label "Release"
+                    , Input.required True
+                    , Input.identifier Release
+                    ]
+                ]
+            , Input.repeatable [ Input.identifier Authors ] personFields []
             ]
     }
 
@@ -122,7 +121,7 @@ view : Model -> Html Msg
 view model =
     let
         _ =
-            Parse.parse authorParser model.form
+            Parse.parse recordParser model.form
                 |> Debug.log "Author"
     in
     div
@@ -131,6 +130,13 @@ view model =
             [ Form.onChange FormChanged ]
             model.form
         ]
+
+
+recordParser : Parser Fields Record
+recordParser =
+    Parse.map2 Record
+        (Parse.field Title Parse.string)
+        (Parse.field Authors (Parse.list authorParser))
 
 
 authorParser : Parser Fields Author

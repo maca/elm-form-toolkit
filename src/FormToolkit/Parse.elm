@@ -1,7 +1,7 @@
 module FormToolkit.Parse exposing
     ( Parser
     , field
-    , string, int, float, bool, posix, maybe
+    , string, int, float, bool, posix, maybe, list
     , custom, value
     , succeed
     , map, map2, map3, map4, map5, map6, map7, map8
@@ -14,7 +14,7 @@ module FormToolkit.Parse exposing
 @docs Parser
 
 @docs field
-@docs string, int, float, bool, posix, maybe
+@docs string, int, float, bool, posix, maybe, list
 @docs custom, value
 
 @docs succeed
@@ -35,6 +35,7 @@ import Time
 
 type Error id
     = InputError (Maybe id) Input.Error
+    | ListError Int (Error id)
     | InputNotFound id
 
 
@@ -83,6 +84,24 @@ maybe parser tree =
         Result.map Just (parser tree)
 
 
+list : Parser id a -> Parser id (List a)
+list parser tree =
+    (Tree.children tree
+        |> List.foldl
+            (\e ( prev, i ) ->
+                ( map2 (::)
+                    (\_ -> Result.mapError (ListError i) (parser e))
+                    prev
+                , i + 1
+                )
+            )
+            ( succeed [], 0 )
+        |> Tuple.first
+        |> map List.reverse
+    )
+        tree
+
+
 value : (Value -> Result Input.Error a) -> Parser id a
 value func =
     custom (Tree.value >> Input.check >> Result.andThen func)
@@ -94,8 +113,8 @@ custom func tree =
 
 
 succeed : a -> Parser id a
-succeed a =
-    always (Ok a)
+succeed a _ =
+    Ok a
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b
