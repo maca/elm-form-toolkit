@@ -5,13 +5,13 @@ module FormToolkit.Form exposing
     , get, getMaybe, getInput
     , validate, isValid, hasBlankValues, hasErrors, clear
     , encodeValues, setValues
+    , toGroup
     , Error, errors
     )
 
 {-|
 
 @docs Form, Msg
-
 @docs init, update
 
 
@@ -34,12 +34,17 @@ module FormToolkit.Form exposing
 
 @docs encodeValues, setValues
 
+
+# Inputs
+
+@docs toGroup
+
 -}
 
 import Dict exposing (Dict)
 import Dict.Extra as Dict
-import FormToolkit.Error exposing (Error)
-import FormToolkit.Input as Input
+import FormToolkit.Error as Error
+import FormToolkit.Input exposing (group)
 import FormToolkit.Value as Value exposing (Value)
 import Html
     exposing
@@ -99,11 +104,11 @@ Json Values
 
 -}
 type Form id
-    = Form (Tree (Input id))
+    = Form (Tree (Input.Input id))
 
 
 type Error id
-    = InputError (Maybe id) Input.Error
+    = InputError (Maybe id) Error.Error
     | InputNotFound id
 
 
@@ -189,6 +194,11 @@ valueDecoder =
         , Decode.map Value.int Decode.int
         , Decode.map Value.float Decode.float
         ]
+
+
+toGroup : List (FormToolkit.Input.Attribute id) -> Form id -> FormToolkit.Input.Input id
+toGroup attributes (Form root) =
+    FormToolkit.Input.group attributes (Tree.children root)
 
 
 
@@ -297,7 +307,7 @@ getInput id (Form root) =
         |> Maybe.withDefault (Err (InputNotFound id))
 
 
-get : id -> (Value -> Result Input.Error a) -> Form id -> Result (Error id) a
+get : id -> (Value -> Result Error.Error a) -> Form id -> Result (Error id) a
 get id f form =
     getInput id form
         |> Result.andThen
@@ -310,7 +320,7 @@ get id f form =
 
 getMaybe :
     id
-    -> (Value -> Result Input.Error a)
+    -> (Value -> Result Error.Error a)
     -> Form id
     -> Result (Error id) (Maybe a)
 getMaybe id f =

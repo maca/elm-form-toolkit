@@ -8,7 +8,6 @@ module FormToolkit.Input exposing
     , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
-    , reject
     , Error
     )
 
@@ -43,84 +42,84 @@ import Internal.Value as Value exposing (Value)
 import Regex
 
 
-type alias Input a =
-    Tree (Input.Input a)
+type alias Input id =
+    Tree (Input.Input id)
 
 
 type alias Error =
     Error.Error
 
 
-type Attribute a
-    = Attribute (Input.Input a -> Input.Input a)
+type Attribute id
+    = Attribute (Input.Input id -> Input.Input id)
 
 
 
 -- CREATE
 
 
-text : List (Attribute a) -> Input a
+text : List (Attribute id) -> Input id
 text attributes =
     init Text attributes
 
 
-textarea : List (Attribute a) -> Input a
+textarea : List (Attribute id) -> Input id
 textarea =
     init TextArea
 
 
-email : List (Attribute a) -> Input a
+email : List (Attribute id) -> Input id
 email =
     init Email
 
 
-password : List (Attribute a) -> Input a
+password : List (Attribute id) -> Input id
 password =
     init Password
 
 
-integer : List (Attribute a) -> Input a
+integer : List (Attribute id) -> Input id
 integer =
     init Integer
 
 
-float : List (Attribute a) -> Input a
+float : List (Attribute id) -> Input id
 float =
     init Float
 
 
-date : List (Attribute a) -> Input a
+date : List (Attribute id) -> Input id
 date =
     init Date
 
 
-month : List (Attribute a) -> Input a
+month : List (Attribute id) -> Input id
 month =
     init Month
 
 
-select : List (Attribute a) -> Input a
+select : List (Attribute id) -> Input id
 select =
     init Select
 
 
-radio : List (Attribute a) -> Input a
+radio : List (Attribute id) -> Input id
 radio =
     init Radio
 
 
-checkbox : List (Attribute a) -> Input a
+checkbox : List (Attribute id) -> Input id
 checkbox =
     init Checkbox
 
 
-group : List (Attribute a) -> List (Input a) -> Input a
+group : List (Attribute id) -> List (Input id) -> Input id
 group attributes =
     Tree.branch
         (Input.init Group (List.map (\(Attribute f) -> f) attributes))
 
 
-repeatable : List (Attribute a) -> Input a -> List (Input a) -> Input a
+repeatable : List (Attribute id) -> Input id -> List (Input id) -> Input id
 repeatable attributes template inputs =
     Tree.branch
         (Input.init (Repeatable template)
@@ -134,7 +133,7 @@ repeatable attributes template inputs =
         )
 
 
-init : InputType a -> List (Attribute a) -> Input a
+init : InputType id -> List (Attribute id) -> Input id
 init inputType attributes =
     Tree.leaf (Input.init inputType (List.map (\(Attribute f) -> f) attributes))
 
@@ -143,78 +142,66 @@ init inputType attributes =
 -- ATTRIBUTES
 
 
-name : String -> Attribute a
+name : String -> Attribute id
 name str =
     Attribute (\input -> { input | name = str })
 
 
-identifier : a -> Attribute a
+identifier : id -> Attribute id
 identifier id =
     Attribute (\input -> { input | identifier = Just id })
 
 
-value : Value -> Attribute a
+value : Value -> Attribute id
 value inputValue =
     Attribute (\input -> { input | value = inputValue })
 
 
-required : Bool -> Attribute a
+required : Bool -> Attribute id
 required bool =
     Attribute (\input -> { input | isRequired = bool })
 
 
-label : String -> Attribute a
+label : String -> Attribute id
 label str =
     Attribute (\input -> { input | label = Just str })
 
 
-hint : String -> Attribute a
+hint : String -> Attribute id
 hint str =
     Attribute (\input -> { input | hint = Just str })
 
 
-placeholder : String -> Attribute a
+placeholder : String -> Attribute id
 placeholder str =
     Attribute (\input -> { input | placeholder = Just str })
 
 
-options : List ( String, Value ) -> Attribute a
+options : List ( String, Value ) -> Attribute id
 options dict =
     Attribute (\input -> { input | options = dict })
 
 
-min : Value -> Attribute a
+min : Value -> Attribute id
 min val =
     Attribute (\input -> { input | min = val })
 
 
-max : Value -> Attribute a
+max : Value -> Attribute id
 max val =
     Attribute (\input -> { input | max = val })
 
 
-inline : Bool -> Attribute a
+inline : Bool -> Attribute id
 inline bool =
     Attribute (\input -> { input | inline = bool })
 
 
-parser : (Value -> Maybe Value) -> Attribute a
-parser f =
-    Attribute (\input -> { input | parsers = f :: input.parsers })
-
-
-reject : String -> Attribute a
-reject string =
-    parser
-        (Just
-            << Value.transformString
-                (Regex.replace
-                    (Maybe.withDefault Regex.never (Regex.fromString string))
-                    (always "")
-                )
-        )
-
-
-noattr : Attribute a
+noattr : Attribute id
 noattr =
     Attribute identity
+
+
+mapIdentifier : (a -> b) -> Input a -> Input b
+mapIdentifier func =
+    Tree.mapValues (Input.mapIdentifier func)

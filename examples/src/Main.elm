@@ -1,10 +1,10 @@
 module Main exposing (..)
 
 import Browser
+import FormToolkit.Decode as Decode exposing (Decoder)
 import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Form as Form exposing (Form)
 import FormToolkit.Input as Input
-import FormToolkit.Parse as Parse exposing (Parser)
 import FormToolkit.Value as Value
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
@@ -79,23 +79,26 @@ personFields =
 
 init : Model
 init =
-    { form =
-        Form.init
-            [ Input.group []
-                [ Input.text
-                    [ Input.label "Title"
-                    , Input.required True
-                    , Input.identifier Title
-                    ]
-                , Input.date
-                    [ Input.label "Release"
-                    , Input.required True
-                    , Input.identifier Release
-                    ]
+    { form = recordForm }
+
+
+recordForm : Form Fields
+recordForm =
+    Form.init
+        [ Input.group []
+            [ Input.text
+                [ Input.label "Title"
+                , Input.required True
+                , Input.identifier Title
                 ]
-            , Input.repeatable [ Input.identifier Authors ] personFields []
+            , Input.date
+                [ Input.label "Release"
+                , Input.required True
+                , Input.identifier Release
+                ]
             ]
-    }
+        , Input.repeatable [ Input.identifier Authors ] personFields []
+        ]
 
 
 
@@ -121,27 +124,25 @@ view : Model -> Html Msg
 view model =
     let
         _ =
-            Parse.parse recordParser model.form
+            Decode.decode recordDecoder model.form
                 |> Debug.log "Author"
     in
     div
         []
-        [ Form.toHtml
-            [ Form.onChange FormChanged ]
-            model.form
+        [ Form.toHtml [ Form.onChange FormChanged ] model.form
         ]
 
 
-recordParser : Parser Fields Record
-recordParser =
-    Parse.map2 Record
-        (Parse.field Title Parse.string)
-        (Parse.field Authors (Parse.list authorParser))
+recordDecoder : Decoder Fields Record
+recordDecoder =
+    Decode.map2 Record
+        (Decode.field Title Decode.string)
+        (Decode.field Authors (Decode.list authorDecoder))
 
 
-authorParser : Parser Fields Author
-authorParser =
-    Parse.succeed Author
-        |> Parse.andMap (Parse.field FirstName Parse.string)
-        |> Parse.andMap (Parse.field MiddleName (Parse.maybe Parse.string))
-        |> Parse.andMap (Parse.field LastName Parse.string)
+authorDecoder : Decoder Fields Author
+authorDecoder =
+    Decode.succeed Author
+        |> Decode.andMap (Decode.field FirstName Decode.string)
+        |> Decode.andMap (Decode.field MiddleName (Decode.maybe Decode.string))
+        |> Decode.andMap (Decode.field LastName Decode.string)

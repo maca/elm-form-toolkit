@@ -4,6 +4,7 @@ module Internal.Input exposing
     , resetStatus, validate, check
     , humanValue
     , error, errorMessage, init, isBlank, root
+    , mapIdentifier
     )
 
 {-|
@@ -25,12 +26,22 @@ module Internal.Input exposing
 
 @docs humanValue
 
+
+# Errors
+
+@docs error, errorMessage, init, isBlank, root
+
+
+# Map
+
+@docs mapIdentifier
+
 -}
 
 import Array
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
-import Internal.Tree exposing (Tree)
+import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
 import List.Extra as List
 import Result exposing (Result)
@@ -69,7 +80,6 @@ type alias Input id =
     , min : Value
     , max : Value
     , options : List ( String, Value )
-    , parsers : List (Value -> Maybe Value)
     , status : Status
     , inline : Bool
     , identifier : Maybe id
@@ -90,7 +100,6 @@ init inputType =
         , hint = Nothing
         , placeholder = Nothing
         , status = Unchecked
-        , parsers = []
         , value = Value.blank
         , min = Value.blank
         , max = Value.blank
@@ -103,12 +112,7 @@ init inputType =
 
 update : Value -> Input id -> Input id
 update value input =
-    { input
-        | value =
-            List.foldr (\f v -> f v |> Maybe.withDefault input.value)
-                value
-                input.parsers
-    }
+    { input | value = value }
 
 
 updateWithString : String -> Input id -> Input id
@@ -282,3 +286,64 @@ humanValueHelp { value, options } =
         |> List.head
         |> Maybe.map (Tuple.first >> Value.string)
         |> Maybe.withDefault Value.blank
+
+
+mapIdentifier : (a -> b) -> Input a -> Input b
+mapIdentifier func input =
+    { inputType = mapInputType func input.inputType
+    , name = input.name
+    , label = input.label
+    , hint = input.hint
+    , placeholder = input.placeholder
+    , status = input.status
+    , value = input.value
+    , min = input.min
+    , max = input.max
+    , isRequired = input.isRequired
+    , options = input.options
+    , inline = input.inline
+    , identifier = Maybe.map func input.identifier
+    }
+
+
+mapInputType : (a -> b) -> InputType a -> InputType b
+mapInputType func inputType =
+    case inputType of
+        Repeatable tree ->
+            Repeatable (Tree.mapValues (mapIdentifier func) tree)
+
+        Text ->
+            Text
+
+        TextArea ->
+            TextArea
+
+        Password ->
+            Password
+
+        Email ->
+            Email
+
+        Integer ->
+            Integer
+
+        Float ->
+            Float
+
+        Month ->
+            Month
+
+        Date ->
+            Date
+
+        Select ->
+            Select
+
+        Radio ->
+            Radio
+
+        Checkbox ->
+            Checkbox
+
+        Group ->
+            Group
