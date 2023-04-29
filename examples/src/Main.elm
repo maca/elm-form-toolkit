@@ -87,8 +87,7 @@ recordForm : Form Fields
 recordForm =
     Form.init
         [ Input.group []
-            [ Input.element Element
-            , Input.text
+            [ Input.text
                 [ Input.label "Title"
                 , Input.required True
                 , Input.identifier Title
@@ -100,6 +99,7 @@ recordForm =
                 ]
             ]
         , Input.repeatable [ Input.identifier Authors ] personFields []
+        , Input.element Element
         ]
 
 
