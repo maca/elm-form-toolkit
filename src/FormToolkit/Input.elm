@@ -4,10 +4,11 @@ module FormToolkit.Input exposing
     , integer, float
     , date, month
     , select, radio, checkbox
-    , group, repeatable
+    , group, repeatable, element
     , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
+    , mapIdentifier
     , Error
     )
 
@@ -16,30 +17,29 @@ module FormToolkit.Input exposing
 @docs Input, Attribute
 
 
-# Create
+# Init
 
 @docs text, textarea, email, password
 @docs integer, float
 @docs date, month, time
 @docs select, radio, checkbox
-@docs group, repeatable, help
+@docs group, repeatable, element
 
 
 # Attributes
 
 @docs Attribute
-@docs name, identifier, value, required, label, hint, placeholder, help
+@docs name, identifier, value, required, label, hint, placeholder
 @docs options, min, max
 @docs inline, noattr
-@docs reject
+@docs mapIdentifier
 
 -}
 
 import FormToolkit.Error as Error
 import Internal.Input as Input exposing (Input, InputType(..))
 import Internal.Tree as Tree exposing (Tree)
-import Internal.Value as Value exposing (Value)
-import Regex
+import Internal.Value exposing (Value)
 
 
 type alias Input id =
@@ -131,6 +131,11 @@ repeatable attributes template inputs =
          else
             inputs
         )
+
+
+element : id -> Input id
+element id =
+    init (Element id) []
 
 
 init : InputType id -> List (Attribute id) -> Input id

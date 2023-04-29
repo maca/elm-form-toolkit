@@ -55,6 +55,7 @@ type Fields
     | FirstName
     | MiddleName
     | LastName
+    | Element
 
 
 personFields =
@@ -86,7 +87,8 @@ recordForm : Form Fields
 recordForm =
     Form.init
         [ Input.group []
-            [ Input.text
+            [ Input.element Element
+            , Input.text
                 [ Input.label "Title"
                 , Input.required True
                 , Input.identifier Title
@@ -129,7 +131,11 @@ view model =
     in
     div
         []
-        [ Form.toHtml [ Form.onChange FormChanged ] model.form
+        [ Form.toHtml
+            [ Form.onChange FormChanged
+            , Form.elementHtml Element (text "hello")
+            ]
+            model.form
         ]
 
 

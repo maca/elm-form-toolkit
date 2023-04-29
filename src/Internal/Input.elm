@@ -67,6 +67,7 @@ type InputType id
     | Checkbox
     | Group
     | Repeatable (Tree (Input id))
+    | Element id
 
 
 type alias Input id =
@@ -311,6 +312,9 @@ mapInputType func inputType =
     case inputType of
         Repeatable tree ->
             Repeatable (Tree.mapValues (mapIdentifier func) tree)
+
+        Element id ->
+            Element (func id)
 
         Text ->
             Text
