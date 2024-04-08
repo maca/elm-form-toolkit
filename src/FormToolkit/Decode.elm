@@ -40,9 +40,9 @@ decoders and perform decoding operations.
 
 import FormToolkit.Error as Error
 import FormToolkit.Form exposing (Form(..))
-import FormToolkit.Value as Value exposing (Value)
 import Internal.Input as Input exposing (Input)
 import Internal.Tree as Tree exposing (Tree)
+import Internal.Value as Value exposing (Value)
 import Time
 
 
@@ -87,36 +87,51 @@ field id decoder tree =
 {-| TODO
 -}
 string : Decoder id String
-string tree =
-    value Value.toString tree
+string =
+    value
+        (Value.toString
+            >> Result.mapError (\_ -> Error.NotString)
+        )
 
 
 {-| TODO
 -}
 int : Decoder id Int
-int tree =
-    value Value.toInt tree
+int =
+    value
+        (Value.toInt
+            >> Result.mapError (\_ -> Error.NotInt)
+        )
 
 
 {-| TODO
 -}
 float : Decoder id Float
-float tree =
-    value Value.toFloat tree
+float =
+    value
+        (Value.toFloat
+            >> Result.mapError (\_ -> Error.NotFloat)
+        )
 
 
 {-| TODO
 -}
 bool : Decoder id Bool
-bool tree =
-    value Value.toBool tree
+bool =
+    value
+        (Value.toBoolean
+            >> Result.mapError (\_ -> Error.NotBool)
+        )
 
 
 {-| TODO
 -}
 posix : Decoder id Time.Posix
-posix tree =
-    value Value.toPosix tree
+posix =
+    value
+        (Value.toPosix
+            >> Result.mapError (\_ -> Error.NotPosix)
+        )
 
 
 {-| TODO

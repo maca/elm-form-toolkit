@@ -1,13 +1,26 @@
 module Internal.Value exposing
     ( Value(..)
+    , blank
     , compare
     , dateFromString
     , encode
     , floatFromString
+    , fromBoolean
+    , fromDate
+    , fromFloat
+    , fromInt
+    , fromMonth
+    , fromString
+    , fromTime
     , intFromString
+    , isBlank
     , monthFromString
     , timeFromString
+    , toBoolean
+    , toFloat
     , toHuman
+    , toInt
+    , toPosix
     , toString
     , transformString
     )
@@ -15,6 +28,7 @@ module Internal.Value exposing
 import Internal.Time exposing (dateMonthToHuman, dateToHuman)
 import Iso8601
 import Json.Encode as Encode
+import String.Extra as String
 import Time exposing (Posix)
 
 
@@ -26,39 +40,94 @@ type Value
     | Date Posix
     | Time Posix
     | Boolean Bool
-    | List (List (List ( String, Value )))
     | Blank
 
 
-toString : Value -> Maybe String
+toString : Value -> Result () String
 toString value =
     case value of
-        Text s ->
-            Just s
+        Text string ->
+            Ok string
 
-        Integer n ->
-            Just (String.fromInt n)
+        Integer number ->
+            Ok (String.fromInt number)
 
-        Float n ->
-            Just (String.fromFloat n)
+        Float number ->
+            Ok (String.fromFloat number)
 
         Month posix ->
-            Just <| String.slice 0 7 (Iso8601.fromTime posix)
+            Ok <| String.slice 0 7 (Iso8601.fromTime posix)
 
         Date posix ->
-            Just <| String.slice 0 10 (Iso8601.fromTime posix)
+            Ok <| String.slice 0 10 (Iso8601.fromTime posix)
 
         Time posix ->
-            Just (Iso8601.fromTime posix)
+            Ok (Iso8601.fromTime posix)
 
         Boolean True ->
-            Just "true"
+            Ok "true"
 
         Boolean False ->
-            Just "false"
+            Ok "false"
 
         _ ->
-            Nothing
+            Err ()
+
+
+toInt : Value -> Result () Int
+toInt value =
+    case value of
+        Integer val ->
+            Ok val
+
+        _ ->
+            Err ()
+
+
+toFloat : Value -> Result () Float
+toFloat value =
+    case value of
+        Float val ->
+            Ok val
+
+        _ ->
+            Err ()
+
+
+toBoolean : Value -> Result () Bool
+toBoolean value =
+    case value of
+        Boolean val ->
+            Ok val
+
+        _ ->
+            Err ()
+
+
+toPosix : Value -> Result () Posix
+toPosix value =
+    case value of
+        Month val ->
+            Ok val
+
+        Date val ->
+            Ok val
+
+        Time val ->
+            Ok val
+
+        _ ->
+            Err ()
+
+
+toMaybe : (Value -> Result () a) -> Value -> Result () (Maybe a)
+toMaybe f value =
+    case value of
+        Blank ->
+            Ok Nothing
+
+        _ ->
+            f value |> Result.map Just
 
 
 encode : Value -> Encode.Value
@@ -78,8 +147,8 @@ encode value =
 
         _ ->
             toString value
-                |> Maybe.map Encode.string
-                |> Maybe.withDefault Encode.null
+                |> Result.map Encode.string
+                |> Result.withDefault Encode.null
 
 
 toHuman : Value -> String
@@ -95,7 +164,7 @@ toHuman value =
             Iso8601.fromTime posix
 
         _ ->
-            Maybe.withDefault "?" (toString value)
+            Result.withDefault "?" (toString value)
 
 
 transformString : (String -> String) -> Value -> Value
@@ -106,6 +175,48 @@ transformString f value =
 
         _ ->
             value
+
+
+fromString : String -> Value
+fromString str =
+    String.nonBlank str
+        |> Maybe.map Text
+        |> Maybe.withDefault Blank
+
+
+fromInt : Int -> Value
+fromInt =
+    Integer
+
+
+fromFloat : Float -> Value
+fromFloat =
+    Float
+
+
+fromMonth : Posix -> Value
+fromMonth =
+    Month
+
+
+fromDate : Posix -> Value
+fromDate =
+    Date
+
+
+fromTime : Posix -> Value
+fromTime =
+    Time
+
+
+fromBoolean : Bool -> Value
+fromBoolean =
+    Boolean
+
+
+blank : Value
+blank =
+    Blank
 
 
 intFromString : String -> Value
@@ -169,3 +280,13 @@ toNumber value =
 
         _ ->
             Nothing
+
+
+isBlank : Value -> Bool
+isBlank value =
+    case value of
+        Blank ->
+            True
+
+        _ ->
+            False

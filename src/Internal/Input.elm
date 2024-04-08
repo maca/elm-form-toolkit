@@ -38,9 +38,10 @@ module Internal.Input exposing
 
 -}
 
+-- import FormToolkit.Value as Value
+
 import Array
 import FormToolkit.Error as Error exposing (Error)
-import FormToolkit.Value as Value
 import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
 import List.Extra as List
@@ -101,9 +102,9 @@ init inputType =
         , hint = Nothing
         , placeholder = Nothing
         , status = Unchecked
-        , value = Value.blank
-        , min = Value.blank
-        , max = Value.blank
+        , value = Internal.Value.blank
+        , min = Internal.Value.blank
+        , max = Internal.Value.blank
         , isRequired = False
         , options = []
         , inline = False
@@ -120,16 +121,16 @@ updateWithString : String -> Input id -> Input id
 updateWithString str ({ inputType } as input) =
     case inputType of
         Text ->
-            update (Value.string str) input
+            update (Internal.Value.fromString str) input
 
         TextArea ->
-            update (Value.string str) input
+            update (Internal.Value.fromString str) input
 
         Password ->
-            update (Value.string str) input
+            update (Internal.Value.fromString str) input
 
         Email ->
-            update (Value.string str) input
+            update (Internal.Value.fromString str) input
 
         Integer ->
             update (Internal.Value.intFromString str) input
@@ -160,10 +161,10 @@ getChoice str { options } =
             Array.fromList options
                 |> Array.get idx
                 |> Maybe.map Tuple.second
-                |> Maybe.withDefault Value.blank
+                |> Maybe.withDefault Internal.Value.blank
 
         Nothing ->
-            Value.blank
+            Internal.Value.blank
 
 
 error : Input id -> Maybe Error
@@ -199,7 +200,7 @@ check input =
 
 checkRequired : Input id -> Result Error Value
 checkRequired { isRequired, value } =
-    if isRequired && Value.isBlank value then
+    if isRequired && Internal.Value.isBlank value then
         Err Error.IsBlank
 
     else
@@ -216,7 +217,7 @@ isBlank { value, inputType } =
             False
 
         _ ->
-            Value.isBlank value
+            Internal.Value.isBlank value
 
 
 checkInRange : Input id -> Result Error Value
@@ -246,7 +247,7 @@ errorMessage : Status -> Maybe String
 errorMessage status =
     let
         value =
-            Internal.Value.toString >> Maybe.withDefault ""
+            Internal.Value.toString >> Result.withDefault ""
     in
     case status of
         WithError (Error.TooLarge max) ->
@@ -285,8 +286,8 @@ humanValueHelp : Input id -> Value
 humanValueHelp { value, options } =
     List.filter (\( _, v ) -> v == value) options
         |> List.head
-        |> Maybe.map (Tuple.first >> Value.string)
-        |> Maybe.withDefault Value.blank
+        |> Maybe.map (Tuple.first >> Internal.Value.fromString)
+        |> Maybe.withDefault Internal.Value.blank
 
 
 mapIdentifier : (a -> b) -> Input a -> Input b

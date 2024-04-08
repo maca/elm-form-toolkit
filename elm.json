@@ -7,7 +7,6 @@
        "FormToolkit.Form",
        "FormToolkit.Decode",
        "FormToolkit.Error",
-       "FormToolkit.Value",
        "FormToolkit.Input"
     ],
     "elm-version": "0.19.1",

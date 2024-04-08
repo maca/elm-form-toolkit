@@ -5,11 +5,14 @@ module FormToolkit.Input exposing
     , date, month
     , select, radio, checkbox
     , group, repeatable, element
+    , mapIdentifier
     , Attribute
     , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
-    , mapIdentifier
+    , Value
+    , stringValue, intValue, floatValue, booleanValue, blankValue
+    , dateValue, monthValue, timeValue
     )
 
 {-|
@@ -23,6 +26,7 @@ module FormToolkit.Input exposing
 @docs date, month
 @docs select, radio, checkbox
 @docs group, repeatable, element
+@docs mapIdentifier
 
 
 # Attributes
@@ -31,13 +35,21 @@ module FormToolkit.Input exposing
 @docs name, identifier, value, required, label, hint, placeholder
 @docs options, min, max
 @docs inline, noattr
-@docs mapIdentifier
+
+
+# Values
+
+@docs Value
+@docs stringValue, intValue, floatValue, booleanValue, blankValue
+@docs dateValue, monthValue, timeValue
 
 -}
 
 import Internal.Input as Input
 import Internal.Tree as Tree exposing (Tree)
-import Internal.Value exposing (Value)
+import Internal.Value as Internal exposing (Value)
+import String.Extra as String
+import Time exposing (Posix)
 
 
 {-| TODO
@@ -164,6 +176,18 @@ init inputType attributes =
 
 {-| TODO
 -}
+mapIdentifier : (a -> b) -> Input a -> Input b
+mapIdentifier func =
+    Tree.mapValues (Input.mapIdentifier func)
+
+
+toFunc : Attribute id -> (Input.Input id -> Input.Input id)
+toFunc (Attribute func) =
+    func
+
+
+{-| TODO
+-}
 type Attribute id
     = Attribute (Input.Input id -> Input.Input id)
 
@@ -185,7 +209,7 @@ identifier id =
 {-| TODO
 -}
 value : Value -> Attribute id
-value inputValue =
+value (Value inputValue) =
     Attribute (\input -> { input | value = inputValue })
 
 
@@ -220,21 +244,28 @@ placeholder str =
 {-| TODO
 -}
 options : List ( String, Value ) -> Attribute id
-options dict =
-    Attribute (\input -> { input | options = dict })
+options values =
+    Attribute
+        (\input ->
+            { input
+                | options =
+                    List.map (Tuple.mapSecond (\(Value val) -> val))
+                        values
+            }
+        )
 
 
 {-| TODO
 -}
 min : Value -> Attribute id
-min val =
+min (Value val) =
     Attribute (\input -> { input | min = val })
 
 
 {-| TODO
 -}
 max : Value -> Attribute id
-max val =
+max (Value val) =
     Attribute (\input -> { input | max = val })
 
 
@@ -254,13 +285,63 @@ noattr =
 
 {-| TODO
 -}
-mapIdentifier : (a -> b) -> Input a -> Input b
-mapIdentifier func =
-    Tree.mapValues (Input.mapIdentifier func)
+type Value
+    = Value Internal.Value
 
 
-{-| Don't worry about it
+{-| TODO
 -}
-toFunc : Attribute id -> (Input.Input id -> Input.Input id)
-toFunc (Attribute func) =
-    func
+stringValue : String -> Value
+stringValue str =
+    String.nonBlank str
+        |> Maybe.map (Value << Internal.Text)
+        |> Maybe.withDefault blankValue
+
+
+{-| TODO
+-}
+intValue : Int -> Value
+intValue =
+    Value << Internal.Integer
+
+
+{-| TODO
+-}
+floatValue : Float -> Value
+floatValue =
+    Value << Internal.Float
+
+
+{-| TODO
+-}
+booleanValue : Bool -> Value
+booleanValue =
+    Value << Internal.Boolean
+
+
+{-| TODO
+-}
+blankValue : Value
+blankValue =
+    Value Internal.Blank
+
+
+{-| TODO
+-}
+monthValue : Posix -> Value
+monthValue =
+    Value << Internal.Month
+
+
+{-| TODO
+-}
+dateValue : Posix -> Value
+dateValue =
+    Value << Internal.Date
+
+
+{-| TODO
+-}
+timeValue : Posix -> Value
+timeValue =
+    Value << Internal.Time

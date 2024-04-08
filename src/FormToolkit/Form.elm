@@ -34,7 +34,6 @@ import Dict exposing (Dict)
 import Dict.Extra as Dict
 import FormToolkit.Error as Error
 import FormToolkit.Input as InputAttribute exposing (Input)
-import FormToolkit.Value as Value exposing (Value)
 import Html
     exposing
         ( Html
@@ -177,16 +176,22 @@ setValuesHelp values input =
 -}
 clear : Form id -> Form id
 clear (Form root) =
-    Form (Tree.map (Tree.updateValue (Internal.Input.update Value.blank)) root)
+    Form
+        (Tree.map
+            (Tree.updateValue
+                (Internal.Input.update Internal.Value.blank)
+            )
+            root
+        )
 
 
 valueDecoder : Decode.Decoder Value
 valueDecoder =
     Decode.oneOf
-        [ Decode.map Value.boolean Decode.bool
-        , Decode.map Value.string Decode.string
-        , Decode.map Value.int Decode.int
-        , Decode.map Value.float Decode.float
+        [ Decode.map Internal.Value.fromBoolean Decode.bool
+        , Decode.map Internal.Value.fromString Decode.string
+        , Decode.map Internal.Value.fromInt Decode.int
+        , Decode.map Internal.Value.fromFloat Decode.float
         ]
 
 
@@ -353,7 +358,10 @@ updateInput string =
 
 updateInputWithBool : Bool -> Input id -> Input id
 updateInputWithBool bool =
-    Tree.updateValue (Internal.Input.update (Value.boolean bool))
+    Tree.updateValue
+        (Internal.Input.update
+            (Internal.Value.fromBoolean bool)
+        )
 
 
 resetInputStatus : Input id -> Input id
@@ -516,7 +524,7 @@ textAreaToHtml attrs path input =
     let
         value =
             Internal.Value.toString input.value
-                |> Maybe.withDefault ""
+                |> Result.withDefault ""
     in
     div
         [ class "grow-wrap"
@@ -535,7 +543,7 @@ checkboxToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Htm
 checkboxToHtml attrs path input =
     Html.input
         (type_ "checkbox"
-            :: (Value.toBool input.value
+            :: (Internal.Value.toBoolean input.value
                     |> Result.map checked
                     |> Result.withDefault (class "")
                )
@@ -691,8 +699,8 @@ legend label =
 valueAttribute : (String -> Html.Attribute msg) -> Value -> Html.Attribute msg
 valueAttribute f value =
     Internal.Value.toString value
-        |> Maybe.map f
-        |> Maybe.withDefault (class "")
+        |> Result.map f
+        |> Result.withDefault (class "")
 
 
 inputAttrs : Attributes id msg -> List Int -> Internal.Input.Input id -> List (Html.Attribute msg)
