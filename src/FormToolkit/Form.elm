@@ -1,7 +1,7 @@
 module FormToolkit.Form exposing
-    ( Form(..), Msg
-    , init, update
-    , toHtml, onChange, onSubmit, elementHtml, toInputGroup
+    ( Form(..), init
+    , Msg, update
+    , Attribute, toHtml, onChange, onSubmit, elementHtml, toInputGroup
     , Error, errors
     , validate, hasBlankValues, hasErrors, isValid, clear
     , encodeValues, setValues
@@ -9,13 +9,20 @@ module FormToolkit.Form exposing
 
 {-| Separate in typed and untyped?
 
-@docs Form, Msg
-@docs init, update
+
+# Init
+
+@docs Form, init
+
+
+# Update
+
+@docs Msg, update
 
 
 # View
 
-@docs toHtml, onChange, onSubmit, elementHtml, toInputGroup
+@docs Attribute, toHtml, onChange, onSubmit, elementHtml, toInputGroup
 
 
 # Validation
@@ -88,21 +95,6 @@ type alias Attributes id msg =
     }
 
 
-type Attribute id msg
-    = Attribute (Attributes id msg -> Attributes id msg)
-
-
-{-| TODO
--}
-type Msg
-    = InputChanged (List Int) String
-    | InputChecked (List Int) Bool
-    | InputFocused (List Int)
-    | InputBlured (List Int)
-    | InputsAdded (List Int)
-    | InputsRemoved (List Int)
-
-
 
 -- INIT
 
@@ -122,8 +114,73 @@ initAttributes =
     }
 
 
+{-| TODO
+-}
+type Msg
+    = InputChanged (List Int) String
+    | InputChecked (List Int) Bool
+    | InputFocused (List Int)
+    | InputBlured (List Int)
+    | InputsAdded (List Int)
+    | InputsRemoved (List Int)
 
--- Interface
+
+{-| TODO
+-}
+update : Msg -> Form id -> Form id
+update msg (Form root) =
+    case msg of
+        InputChanged path str ->
+            Form (Tree.update path (updateInput str) root)
+
+        InputChecked path bool ->
+            Form (Tree.update path (updateInputWithBool bool) root)
+
+        InputFocused path ->
+            Form (Tree.update path resetInputStatus root)
+
+        InputBlured path ->
+            Form (Tree.update path validateInput root)
+
+        InputsAdded path ->
+            case Tree.getValue path root |> Maybe.map .inputType of
+                Just (Internal.Input.Repeatable template) ->
+                    Form (Tree.update path (Tree.push template) root)
+
+                _ ->
+                    Form root
+
+        InputsRemoved path ->
+            Form (Tree.remove path root)
+
+
+updateInput : String -> Input id -> Input id
+updateInput string =
+    Tree.updateValue (Internal.Input.updateWithString string)
+
+
+updateInputWithBool : Bool -> Input id -> Input id
+updateInputWithBool bool =
+    Tree.updateValue
+        (Internal.Input.update
+            (Internal.Value.fromBoolean bool)
+        )
+
+
+resetInputStatus : Input id -> Input id
+resetInputStatus =
+    Tree.updateValue Internal.Input.resetStatus
+
+
+validateInput : Input id -> Input id
+validateInput =
+    Tree.updateValue Internal.Input.validate
+
+
+{-| TODO
+-}
+type Attribute id msg
+    = Attribute (Attributes id msg -> Attributes id msg)
 
 
 {-| TODO
@@ -316,62 +373,6 @@ hasBlankValues (Form tree) =
 hasErrors : Form id -> Bool
 hasErrors (Form tree) =
     Tree.any (\v -> Internal.Input.error (Tree.value v) /= Nothing) tree
-
-
-
--- UPDATE FUNC
-
-
-{-| TODO
--}
-update : Msg -> Form id -> Form id
-update msg (Form root) =
-    case msg of
-        InputChanged path str ->
-            Form (Tree.update path (updateInput str) root)
-
-        InputChecked path bool ->
-            Form (Tree.update path (updateInputWithBool bool) root)
-
-        InputFocused path ->
-            Form (Tree.update path resetInputStatus root)
-
-        InputBlured path ->
-            Form (Tree.update path validateInput root)
-
-        InputsAdded path ->
-            case Tree.getValue path root |> Maybe.map .inputType of
-                Just (Internal.Input.Repeatable template) ->
-                    Form (Tree.update path (Tree.push template) root)
-
-                _ ->
-                    Form root
-
-        InputsRemoved path ->
-            Form (Tree.remove path root)
-
-
-updateInput : String -> Input id -> Input id
-updateInput string =
-    Tree.updateValue (Internal.Input.updateWithString string)
-
-
-updateInputWithBool : Bool -> Input id -> Input id
-updateInputWithBool bool =
-    Tree.updateValue
-        (Internal.Input.update
-            (Internal.Value.fromBoolean bool)
-        )
-
-
-resetInputStatus : Input id -> Input id
-resetInputStatus =
-    Tree.updateValue Internal.Input.resetStatus
-
-
-validateInput : Input id -> Input id
-validateInput =
-    Tree.updateValue Internal.Input.validate
 
 
 
