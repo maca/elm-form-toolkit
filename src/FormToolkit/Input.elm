@@ -1,27 +1,26 @@
 module FormToolkit.Input exposing
-    ( Input, Attribute
+    ( Input
     , text, textarea, email, password
     , integer, float
     , date, month
     , select, radio, checkbox
     , group, repeatable, element
+    , Attribute
     , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
     , mapIdentifier
-    , Error
     )
 
 {-|
 
-@docs Input, Attribute
 
+# Inputs
 
-# Init
-
+@docs Input
 @docs text, textarea, email, password
 @docs integer, float
-@docs date, month, time
+@docs date, month
 @docs select, radio, checkbox
 @docs group, repeatable, element
 
@@ -36,94 +35,108 @@ module FormToolkit.Input exposing
 
 -}
 
-import FormToolkit.Error as Error
-import Internal.Input as Input exposing (Input, InputType(..))
+import Internal.Input as Input
 import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
 
 
+{-| TODO
+-}
 type alias Input id =
     Tree (Input.Input id)
 
 
-type alias Error =
-    Error.Error
-
-
-type Attribute id
-    = Attribute (Input.Input id -> Input.Input id)
-
-
-
--- CREATE
-
-
+{-| TODO
+-}
 text : List (Attribute id) -> Input id
-text attributes =
-    init Text attributes
+text =
+    init Input.Text
 
 
+{-| TODO
+-}
 textarea : List (Attribute id) -> Input id
 textarea =
-    init TextArea
+    init Input.TextArea
 
 
+{-| TODO
+-}
 email : List (Attribute id) -> Input id
 email =
-    init Email
+    init Input.Email
 
 
+{-| TODO
+-}
 password : List (Attribute id) -> Input id
 password =
-    init Password
+    init Input.Password
 
 
+{-| TODO
+-}
 integer : List (Attribute id) -> Input id
 integer =
-    init Integer
+    init Input.Integer
 
 
+{-| TODO
+-}
 float : List (Attribute id) -> Input id
 float =
-    init Float
+    init Input.Float
 
 
+{-| TODO
+-}
 date : List (Attribute id) -> Input id
 date =
-    init Date
+    init Input.Date
 
 
+{-| TODO
+-}
 month : List (Attribute id) -> Input id
 month =
-    init Month
+    init Input.Month
 
 
+{-| TODO
+-}
 select : List (Attribute id) -> Input id
 select =
-    init Select
+    init Input.Select
 
 
+{-| TODO
+-}
 radio : List (Attribute id) -> Input id
 radio =
-    init Radio
+    init Input.Radio
 
 
+{-| TODO
+-}
 checkbox : List (Attribute id) -> Input id
 checkbox =
-    init Checkbox
+    init Input.Checkbox
 
 
+{-| TODO
+-}
 group : List (Attribute id) -> List (Input id) -> Input id
 group attributes =
-    Tree.branch
-        (Input.init Group (List.map (\(Attribute f) -> f) attributes))
+    Tree.branch (Input.init Input.Group (List.map toFunc attributes))
 
 
+{-| TODO
+-}
 repeatable : List (Attribute id) -> Input id -> List (Input id) -> Input id
 repeatable attributes template inputs =
     Tree.branch
-        (Input.init (Repeatable template)
-            (List.map (\(Attribute f) -> f) attributes)
+        (Input.init (Input.Repeatable template)
+            (List.map toFunc attributes)
         )
         (if List.isEmpty inputs then
             [ template ]
@@ -133,80 +146,121 @@ repeatable attributes template inputs =
         )
 
 
+{-| TODO
+-}
 element : id -> Input id
 element id =
-    init (Element id) []
+    init (Input.Element id) []
 
 
-init : InputType id -> List (Attribute id) -> Input id
+init :
+    Input.InputType id
+    -> List (Attribute id)
+    -> Input id
 init inputType attributes =
-    Tree.leaf (Input.init inputType (List.map (\(Attribute f) -> f) attributes))
+    Tree.leaf
+        (Input.init inputType (List.map toFunc attributes))
 
 
+{-| TODO
+-}
+type Attribute id
+    = Attribute (Input.Input id -> Input.Input id)
 
--- ATTRIBUTES
 
-
+{-| TODO
+-}
 name : String -> Attribute id
 name str =
     Attribute (\input -> { input | name = str })
 
 
+{-| TODO
+-}
 identifier : id -> Attribute id
 identifier id =
     Attribute (\input -> { input | identifier = Just id })
 
 
+{-| TODO
+-}
 value : Value -> Attribute id
 value inputValue =
     Attribute (\input -> { input | value = inputValue })
 
 
+{-| TODO
+-}
 required : Bool -> Attribute id
 required bool =
     Attribute (\input -> { input | isRequired = bool })
 
 
+{-| TODO
+-}
 label : String -> Attribute id
 label str =
     Attribute (\input -> { input | label = Just str })
 
 
+{-| TODO
+-}
 hint : String -> Attribute id
 hint str =
     Attribute (\input -> { input | hint = Just str })
 
 
+{-| TODO
+-}
 placeholder : String -> Attribute id
 placeholder str =
     Attribute (\input -> { input | placeholder = Just str })
 
 
+{-| TODO
+-}
 options : List ( String, Value ) -> Attribute id
 options dict =
     Attribute (\input -> { input | options = dict })
 
 
+{-| TODO
+-}
 min : Value -> Attribute id
 min val =
     Attribute (\input -> { input | min = val })
 
 
+{-| TODO
+-}
 max : Value -> Attribute id
 max val =
     Attribute (\input -> { input | max = val })
 
 
+{-| TODO
+-}
 inline : Bool -> Attribute id
 inline bool =
     Attribute (\input -> { input | inline = bool })
 
 
+{-| TODO
+-}
 noattr : Attribute id
 noattr =
     Attribute identity
 
 
+{-| TODO
+-}
 mapIdentifier : (a -> b) -> Input a -> Input b
 mapIdentifier func =
     Tree.mapValues (Input.mapIdentifier func)
+
+
+{-| Don't worry about it
+-}
+toFunc : Attribute id -> (Input.Input id -> Input.Input id)
+toFunc (Attribute func) =
+    func

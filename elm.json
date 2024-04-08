@@ -3,13 +3,19 @@
     "source-directories": [
         "src"
     ],
+    "exposed-modules" : [
+       "FormToolkit.Form",
+       "FormToolkit.Decode",
+       "FormToolkit.Error",
+       "FormToolkit.Value",
+       "FormToolkit.Input"
+    ],
     "elm-version": "0.19.1",
     "dependencies": {
         "direct": {
             "elm/core": "1.0.5",
             "elm/html": "1.0.0",
             "elm/json": "1.1.3",
-            "elm/regex": "1.0.0",
             "elm/time": "1.0.0",
             "elm-community/array-extra": "2.6.0",
             "elm-community/dict-extra": "2.4.0",

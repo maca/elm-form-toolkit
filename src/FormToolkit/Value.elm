@@ -22,7 +22,7 @@ module FormToolkit.Value exposing
 
 # Other
 
-@docs isBlank, compare
+@docs isBlank
 
 
 # Other
@@ -32,132 +32,166 @@ encode
 -}
 
 import FormToolkit.Error as Error exposing (Error)
-import Internal.Value as Internal exposing (Value(..))
+import Internal.Value as Internal exposing (Value)
 import String.Extra as String
 import Time exposing (Posix)
 
 
+{-| TODO
+-}
 type alias Value =
     Internal.Value
 
 
+{-| TODO
+-}
 string : String -> Value
 string str =
     String.nonBlank str
-        |> Maybe.map Text
-        |> Maybe.withDefault Blank
+        |> Maybe.map Internal.Text
+        |> Maybe.withDefault Internal.Blank
 
 
+{-| TODO
+-}
 int : Int -> Value
 int =
-    Integer
+    Internal.Integer
 
 
+{-| TODO
+-}
 float : Float -> Value
 float =
-    Float
+    Internal.Float
 
 
+{-| TODO
+-}
 month : Posix -> Value
 month =
-    Month
+    Internal.Month
 
 
+{-| TODO
+-}
 date : Posix -> Value
 date =
-    Date
+    Internal.Date
 
 
+{-| TODO
+-}
 time : Posix -> Value
 time =
-    Time
+    Internal.Time
 
 
+{-| TODO
+-}
 boolean : Bool -> Value
 boolean =
-    Boolean
+    Internal.Boolean
 
 
+{-| TODO
+-}
 list : List (List ( String, Value )) -> Value
 list =
-    List
+    Internal.List
 
 
+{-| TODO
+-}
 blank : Value
 blank =
-    Blank
+    Internal.Blank
 
 
+{-| TODO
+-}
 isBlank : Value -> Bool
 isBlank value =
     case value of
-        Blank ->
+        Internal.Blank ->
             True
 
         _ ->
             False
 
 
+{-| TODO
+-}
 toString : Value -> Result Error String
 toString value =
     case value of
-        Text val ->
+        Internal.Text val ->
             Ok val
 
         _ ->
             Err Error.NotString
 
 
+{-| TODO
+-}
 toInt : Value -> Result Error Int
 toInt value =
     case value of
-        Integer val ->
+        Internal.Integer val ->
             Ok val
 
         _ ->
             Err Error.NotInt
 
 
+{-| TODO
+-}
 toFloat : Value -> Result Error Float
 toFloat value =
     case value of
-        Float val ->
+        Internal.Float val ->
             Ok val
 
         _ ->
             Err Error.NotFloat
 
 
+{-| TODO
+-}
 toBool : Value -> Result Error Bool
 toBool value =
     case value of
-        Boolean val ->
+        Internal.Boolean val ->
             Ok val
 
         _ ->
             Err Error.NotBool
 
 
+{-| TODO
+-}
 toPosix : Value -> Result Error Posix
 toPosix value =
     case value of
-        Month val ->
+        Internal.Month val ->
             Ok val
 
-        Date val ->
+        Internal.Date val ->
             Ok val
 
-        Time val ->
+        Internal.Time val ->
             Ok val
 
         _ ->
             Err Error.NotPosix
 
 
+{-| TODO
+-}
 toMaybe : (Value -> Result Error a) -> Value -> Result Error (Maybe a)
 toMaybe f value =
     case value of
-        Blank ->
+        Internal.Blank ->
             Ok Nothing
 
         _ ->

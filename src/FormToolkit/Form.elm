@@ -1,15 +1,13 @@
 module FormToolkit.Form exposing
     ( Form(..), Msg
     , init, update
-    , toHtml, onChange, onSubmit, elementHtml
-    , getInput
-    , validate, isValid, hasBlankValues, hasErrors, clear
-    , encodeValues, setValues
-    , toGroup
+    , toHtml, onChange, onSubmit, elementHtml, toInputGroup
     , Error, errors
+    , validate, hasBlankValues, hasErrors, isValid, clear
+    , encodeValues, setValues
     )
 
-{-|
+{-| Separate in typed and untyped?
 
 @docs Form, Msg
 @docs init, update
@@ -17,34 +15,25 @@ module FormToolkit.Form exposing
 
 # View
 
-@docs toHtml, onChange, onSubmit, elementHtml
-
-
-# Traversing
-
-@docs get, getMaybe, getInput
+@docs toHtml, onChange, onSubmit, elementHtml, toInputGroup
 
 
 # Validation
 
-@docs validate, isValid, hasBlankValues, hasErrors, isValid, clear
+@docs Error, errors
+@docs validate, hasBlankValues, hasErrors, isValid, clear
 
 
 # JSON
 
 @docs encodeValues, setValues
 
-
-# Inputs
-
-@docs toGroup
-
 -}
 
 import Dict exposing (Dict)
 import Dict.Extra as Dict
 import FormToolkit.Error as Error
-import FormToolkit.Input exposing (Input, group)
+import FormToolkit.Input as InputAttribute exposing (Input)
 import FormToolkit.Value as Value exposing (Value)
 import Html
     exposing
@@ -53,7 +42,6 @@ import Html
         , div
         , fieldset
         , p
-        , text
         )
 import Html.Attributes as A
     exposing
@@ -78,7 +66,7 @@ import Html.Events as Html
         , onInput
         , preventDefaultOn
         )
-import Internal.Input as Input
+import Internal.Input
 import Internal.Markdown as Markdown
 import Internal.Tree as Tree
 import Internal.Value exposing (Value)
@@ -88,28 +76,10 @@ import List.Extra as List
 import Result
 
 
-{-|
-
-@docs Form, Msg
-
-@docs init, update
-
-Attributes
-
-@docs onChange, onSubmit
-
-Json Values
-
-@docs setValues, updateValues
-
+{-| Form
 -}
 type Form id
     = Form (Input id)
-
-
-type Error id
-    = InputError (Maybe id) Error.Error
-    | InputNotFound id
 
 
 type alias Attributes id msg =
@@ -123,6 +93,8 @@ type Attribute id msg
     = Attribute (Attributes id msg -> Attributes id msg)
 
 
+{-| TODO
+-}
 type Msg
     = InputChanged (List Int) String
     | InputChecked (List Int) Bool
@@ -136,9 +108,11 @@ type Msg
 -- INIT
 
 
+{-| TODO
+-}
 init : List (Input id) -> Form id
 init inputs =
-    Form (Tree.branch Input.root inputs)
+    Form (Tree.branch Internal.Input.root inputs)
 
 
 initAttributes : Attributes id msg
@@ -153,16 +127,22 @@ initAttributes =
 -- Interface
 
 
+{-| TODO
+-}
 onSubmit : msg -> Attribute id msg
 onSubmit tagger =
     Attribute (\attrs -> { attrs | onSubmit = Just tagger })
 
 
+{-| TODO
+-}
 onChange : (Msg -> msg) -> Attribute id msg
 onChange tagger =
     Attribute (\attrs -> { attrs | onChange = Just tagger })
 
 
+{-| TODO
+-}
 elementHtml : id -> Html msg -> Attribute id msg
 elementHtml id html =
     Attribute
@@ -171,19 +151,21 @@ elementHtml id html =
         )
 
 
+{-| TODO
+-}
 setValues : Dict String Decode.Value -> Form id -> Form id
 setValues values (Form root) =
     Form (Tree.map (Tree.updateValue (setValuesHelp values)) root)
 
 
-setValuesHelp : Dict String Decode.Value -> Input.Input id -> Input.Input id
+setValuesHelp : Dict String Decode.Value -> Internal.Input.Input id -> Internal.Input.Input id
 setValuesHelp values input =
     Dict.get input.name values
         |> Maybe.map
             (\val ->
                 case Decode.decodeValue valueDecoder val of
                     Ok inputValue ->
-                        Input.update inputValue input
+                        Internal.Input.update inputValue input
 
                     Err _ ->
                         input
@@ -191,9 +173,11 @@ setValuesHelp values input =
         |> Maybe.withDefault input
 
 
+{-| TODO
+-}
 clear : Form id -> Form id
 clear (Form root) =
-    Form (Tree.map (Tree.updateValue (Input.update Value.blank)) root)
+    Form (Tree.map (Tree.updateValue (Internal.Input.update Value.blank)) root)
 
 
 valueDecoder : Decode.Decoder Value
@@ -206,15 +190,19 @@ valueDecoder =
         ]
 
 
-toGroup : List (FormToolkit.Input.Attribute id) -> Form id -> Input id
-toGroup attributes (Form root) =
-    group attributes (Tree.children root)
+{-| TODO
+-}
+toInputGroup : List (InputAttribute.Attribute id) -> Form id -> Input id
+toInputGroup attributes (Form root) =
+    InputAttribute.group attributes (Tree.children root)
 
 
 
 -- VALUES
 
 
+{-| TODO
+-}
 encodeValues : Form id -> Encode.Value
 encodeValues (Form root) =
     Encode.object (encodeHelp root [])
@@ -224,20 +212,20 @@ encodeHelp :
     Input id
     -> List ( String, Encode.Value )
     -> List ( String, Encode.Value )
-encodeHelp element acc =
+encodeHelp inputElement acc =
     let
         input =
-            Tree.value element
+            Tree.value inputElement
     in
     case input.inputType of
-        Input.Group ->
-            List.foldl encodeHelp acc (Tree.children element)
+        Internal.Input.Group ->
+            List.foldl encodeHelp acc (Tree.children inputElement)
 
-        Input.Repeatable _ ->
+        Internal.Input.Repeatable _ ->
             ( input.name
             , Encode.list
                 (\e -> Encode.object (encodeHelp e []))
-                (Tree.children element)
+                (Tree.children inputElement)
             )
                 :: acc
 
@@ -249,9 +237,38 @@ encodeHelp element acc =
 -- UPDATE
 
 
+{-| Error
+-}
+type Error id
+    = InputError (Maybe id) Error.Error
+
+
+{-| TODO
+-}
+errors : Form id -> List (Error id)
+errors (Form tree) =
+    Tree.foldr
+        (\v errs ->
+            let
+                input =
+                    Tree.value v
+            in
+            case Internal.Input.error input of
+                Just err ->
+                    InputError input.identifier err :: errs
+
+                Nothing ->
+                    errs
+        )
+        []
+        tree
+
+
+{-| TODO
+-}
 validate : Form id -> Form id
 validate (Form root) =
-    Form (Tree.mapValues Input.validate root)
+    Form (Tree.mapValues Internal.Input.validate root)
 
 
 check : Form id -> Result (Error id) ()
@@ -264,7 +281,7 @@ check (Form root) =
             in
             Result.andThen
                 (\_ ->
-                    Input.check input
+                    Internal.Input.check input
                         |> Result.map (always ())
                         |> Result.mapError (InputError input.identifier)
                 )
@@ -273,6 +290,8 @@ check (Form root) =
         root
 
 
+{-| TODO
+-}
 isValid : Form id -> Bool
 isValid form =
     check form
@@ -280,44 +299,26 @@ isValid form =
         |> Result.withDefault False
 
 
+{-| TODO
+-}
 hasBlankValues : Form id -> Bool
 hasBlankValues (Form tree) =
-    Tree.any (Tree.value >> Input.isBlank) tree
+    Tree.any (Tree.value >> Internal.Input.isBlank) tree
 
 
+{-| TODO
+-}
 hasErrors : Form id -> Bool
 hasErrors (Form tree) =
-    Tree.any (\v -> Input.error (Tree.value v) /= Nothing) tree
-
-
-errors : Form id -> List (Error id)
-errors (Form tree) =
-    Tree.foldr
-        (\v errs ->
-            let
-                input =
-                    Tree.value v
-            in
-            case Input.error input of
-                Just err ->
-                    InputError input.identifier err :: errs
-
-                Nothing ->
-                    errs
-        )
-        []
-        tree
-
-
-getInput : id -> Form id -> Maybe (Input id)
-getInput id (Form root) =
-    root |> Tree.find (Tree.value >> .identifier >> (==) (Just id))
+    Tree.any (\v -> Internal.Input.error (Tree.value v) /= Nothing) tree
 
 
 
 -- UPDATE FUNC
 
 
+{-| TODO
+-}
 update : Msg -> Form id -> Form id
 update msg (Form root) =
     case msg of
@@ -335,7 +336,7 @@ update msg (Form root) =
 
         InputsAdded path ->
             case Tree.getValue path root |> Maybe.map .inputType of
-                Just (Input.Repeatable template) ->
+                Just (Internal.Input.Repeatable template) ->
                     Form (Tree.update path (Tree.push template) root)
 
                 _ ->
@@ -347,28 +348,30 @@ update msg (Form root) =
 
 updateInput : String -> Input id -> Input id
 updateInput string =
-    Tree.updateValue (Input.updateWithString string)
+    Tree.updateValue (Internal.Input.updateWithString string)
 
 
 updateInputWithBool : Bool -> Input id -> Input id
 updateInputWithBool bool =
-    Tree.updateValue (Input.update (Value.boolean bool))
+    Tree.updateValue (Internal.Input.update (Value.boolean bool))
 
 
 resetInputStatus : Input id -> Input id
 resetInputStatus =
-    Tree.updateValue Input.resetStatus
+    Tree.updateValue Internal.Input.resetStatus
 
 
 validateInput : Input id -> Input id
 validateInput =
-    Tree.updateValue Input.validate
+    Tree.updateValue Internal.Input.validate
 
 
 
 -- VIEW
 
 
+{-| TODO
+-}
 toHtml : List (Attribute id msg) -> Form id -> Html msg
 toHtml attrList (Form root) =
     let
@@ -394,7 +397,7 @@ elementToHtml attrs path node =
             Tree.value node
     in
     case input.inputType of
-        Input.Group ->
+        Internal.Input.Group ->
             let
                 children =
                     Tree.children node
@@ -404,10 +407,10 @@ elementToHtml attrs path node =
                 inputLabel =
                     case input.label of
                         Just label ->
-                            Html.legend [] [ text label ]
+                            Html.legend [] [ Html.text label ]
 
                         Nothing ->
-                            text ""
+                            Html.text ""
             in
             fieldset
                 [ id (identifier input.name path)
@@ -418,7 +421,7 @@ elementToHtml attrs path node =
                 ]
                 (inputLabel :: children)
 
-        Input.Repeatable _ ->
+        Internal.Input.Repeatable _ ->
             let
                 children =
                     Tree.children node
@@ -438,63 +441,63 @@ elementToHtml attrs path node =
                 , addInputsButton attrs path
                 ]
 
-        Input.Text ->
+        Internal.Input.Text ->
             inputToHtml attrs "text" path input []
                 |> wrapInput path input
 
-        Input.Email ->
+        Internal.Input.Email ->
             inputToHtml attrs "email" path input []
                 |> wrapInput path input
 
-        Input.Password ->
+        Internal.Input.Password ->
             inputToHtml attrs "password" path input []
                 |> wrapInput path input
 
-        Input.TextArea ->
+        Internal.Input.TextArea ->
             textAreaToHtml attrs path input
                 |> wrapInput path input
 
-        Input.Integer ->
+        Internal.Input.Integer ->
             inputToHtml attrs "number" path input [ step "1" ]
                 |> wrapInput path input
 
-        Input.Float ->
+        Internal.Input.Float ->
             inputToHtml attrs "number" path input [ step "1" ]
                 |> wrapInput path input
 
-        Input.Date ->
+        Internal.Input.Date ->
             inputToHtml attrs "date" path input []
                 |> wrapInput path input
 
-        Input.Month ->
+        Internal.Input.Month ->
             inputToHtml attrs "month" path input []
                 |> wrapInput path input
 
-        Input.Select ->
+        Internal.Input.Select ->
             selectToHtml attrs path input
                 |> wrapInput path input
 
-        Input.Radio ->
+        Internal.Input.Radio ->
             radioToHtml attrs path input
                 |> wrapInput path input
 
-        Input.Checkbox ->
+        Internal.Input.Checkbox ->
             checkboxToHtml attrs path input
                 |> wrapInput path input
 
-        Input.Element elementId ->
+        Internal.Input.Element elementId ->
             attrs.elements
                 |> List.filter (Tuple.first >> (==) elementId)
                 |> List.head
                 |> Maybe.map Tuple.second
-                |> Maybe.withDefault (text "")
+                |> Maybe.withDefault (Html.text "")
 
 
 inputToHtml :
     Attributes id msg
     -> String
     -> List Int
-    -> Input.Input id
+    -> Internal.Input.Input id
     -> List (Html.Attribute msg)
     -> Html msg
 inputToHtml attrs inputType path input htmlAttrs =
@@ -508,7 +511,7 @@ inputToHtml attrs inputType path input htmlAttrs =
         []
 
 
-textAreaToHtml : Attributes id msg -> List Int -> Input.Input id -> Html msg
+textAreaToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
 textAreaToHtml attrs path input =
     let
         value =
@@ -528,7 +531,7 @@ textAreaToHtml attrs path input =
         ]
 
 
-checkboxToHtml : Attributes id msg -> List Int -> Input.Input id -> Html msg
+checkboxToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
 checkboxToHtml attrs path input =
     Html.input
         (type_ "checkbox"
@@ -548,7 +551,7 @@ checkboxToHtml attrs path input =
         []
 
 
-selectToHtml : Attributes id msg -> List Int -> Input.Input id -> Html msg
+selectToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
 selectToHtml attrs path { name, isRequired, options, value } =
     Html.select
         [ id (identifier name path)
@@ -564,13 +567,13 @@ selectToHtml attrs path { name, isRequired, options, value } =
                         [ selected (optionValue == value)
                         , A.value (String.fromInt index)
                         ]
-                        [ text optionText ]
+                        [ Html.text optionText ]
                 )
                 options
         )
 
 
-radioToHtml : Attributes id msg -> List Int -> Input.Input id -> Html msg
+radioToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
 radioToHtml attrs path { name, isRequired, options, value } =
     Html.div
         [ class "radios" ]
@@ -592,7 +595,9 @@ radioToHtml attrs path { name, isRequired, options, value } =
                         , type_ "radio"
                         ]
                         []
-                    , Html.label [ for optionId ] [ text optionText ]
+                    , Html.label
+                        [ for optionId ]
+                        [ Html.text optionText ]
                     ]
             )
             options
@@ -613,15 +618,15 @@ addInputsButton attrs path =
             Nothing ->
                 class ""
         ]
-        [ text "add"
+        [ Html.text "add"
         ]
 
 
 templateHtml : Attributes id msg -> List Int -> Bool -> Input id -> Html msg
-templateHtml attributes path isLast element =
+templateHtml attributes path isLast inputElement =
     div
         [ class "group-repeat" ]
-        [ elementToHtml attributes path element
+        [ elementToHtml attributes path inputElement
         , if isLast then
             button
                 [ class "remove-fields"
@@ -635,15 +640,15 @@ templateHtml attributes path isLast element =
                     Nothing ->
                         class ""
                 ]
-                [ text "Remove"
+                [ Html.text "Remove"
                 ]
 
           else
-            text ""
+            Html.text ""
         ]
 
 
-wrapInput : List Int -> Input.Input id -> Html msg -> Html msg
+wrapInput : List Int -> Internal.Input.Input id -> Html msg -> Html msg
 wrapInput path { hint, name, status, isRequired, label } inputHtml =
     div
         [ class "field"
@@ -651,13 +656,13 @@ wrapInput path { hint, name, status, isRequired, label } inputHtml =
         ]
         [ Html.label
             [ for (identifier name path) ]
-            [ text (Maybe.withDefault name label) ]
+            [ Html.text (Maybe.withDefault name label) ]
         , div
             [ class "input-wrapper" ]
             [ inputHtml ]
-        , case Input.errorMessage status of
+        , case Internal.Input.errorMessage status of
             Just msg ->
-                p [ class "error" ] [ text msg ]
+                p [ class "error" ] [ Html.text msg ]
 
             Nothing ->
                 case hint of
@@ -667,7 +672,7 @@ wrapInput path { hint, name, status, isRequired, label } inputHtml =
                             [ Markdown.toHtml msg ]
 
                     Nothing ->
-                        text ""
+                        Html.text ""
         ]
 
 
@@ -679,8 +684,8 @@ identifier name path =
 legend : Maybe String -> Html msg
 legend label =
     label
-        |> Maybe.map (\t -> Html.legend [] [ text t ])
-        |> Maybe.withDefault (text "")
+        |> Maybe.map (\t -> Html.legend [] [ Html.text t ])
+        |> Maybe.withDefault (Html.text "")
 
 
 valueAttribute : (String -> Html.Attribute msg) -> Value -> Html.Attribute msg
@@ -690,7 +695,7 @@ valueAttribute f value =
         |> Maybe.withDefault (class "")
 
 
-inputAttrs : Attributes id msg -> List Int -> Input.Input id -> List (Html.Attribute msg)
+inputAttrs : Attributes id msg -> List Int -> Internal.Input.Input id -> List (Html.Attribute msg)
 inputAttrs attrs path { name, isRequired, placeholder, min, max } =
     [ id (identifier name path)
     , required isRequired
@@ -707,7 +712,7 @@ submitButtonHtml : List (Html.Attribute msg) -> Html msg
 submitButtonHtml attrs =
     button
         (id "form-submit-button" :: attrs)
-        [ text "Submit" ]
+        [ Html.text "Submit" ]
 
 
 onInputChanged : Attributes id msg -> List Int -> Html.Attribute msg

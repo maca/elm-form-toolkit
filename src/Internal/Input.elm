@@ -39,7 +39,7 @@ module Internal.Input exposing
 -}
 
 import Array
-import FormToolkit.Error exposing (Error(..))
+import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Value as Value
 import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
@@ -200,7 +200,7 @@ check input =
 checkRequired : Input id -> Result Error Value
 checkRequired { isRequired, value } =
     if isRequired && Value.isBlank value then
-        Err IsBlank
+        Err Error.IsBlank
 
     else
         Ok value
@@ -227,16 +227,16 @@ checkInRange { value, min, max } =
         )
     of
         ( Just LT, Just _ ) ->
-            Err (NotInRange ( min, max ))
+            Err (Error.NotInRange ( min, max ))
 
         ( Just _, Just GT ) ->
-            Err (NotInRange ( min, max ))
+            Err (Error.NotInRange ( min, max ))
 
         ( Just LT, Nothing ) ->
-            Err (TooSmall min)
+            Err (Error.TooSmall min)
 
         ( Nothing, Just GT ) ->
-            Err (TooLarge max)
+            Err (Error.TooLarge max)
 
         _ ->
             Ok value
@@ -249,19 +249,19 @@ errorMessage status =
             Internal.Value.toString >> Maybe.withDefault ""
     in
     case status of
-        WithError (TooLarge max) ->
+        WithError (Error.TooLarge max) ->
             Just ("Should be lesser than " ++ value max)
 
-        WithError (TooSmall min) ->
+        WithError (Error.TooSmall min) ->
             Just ("Should be greater than " ++ value min)
 
-        WithError (NotInRange ( min, max )) ->
+        WithError (Error.NotInRange ( min, max )) ->
             Just ("Should be between " ++ value min ++ " and " ++ value max)
 
-        WithError NotInOptions ->
+        WithError Error.NotInOptions ->
             Just "Is not one of the allowed options"
 
-        WithError IsBlank ->
+        WithError Error.IsBlank ->
             Just "Please fill in this input"
 
         _ ->
