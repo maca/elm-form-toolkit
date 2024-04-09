@@ -4,15 +4,17 @@ module FormToolkit.Input exposing
     , integer, float
     , date, month
     , select, radio, checkbox
-    , group, repeatable, element
+    , element
+    , group, repeatable
     , mapIdentifier
     , Attribute
     , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
     , Value
-    , stringValue, intValue, floatValue, booleanValue, blankValue
+    , stringValue, integerValue, floatValue, booleanValue, blankValue
     , dateValue, monthValue, timeValue
+    , fromTree, toTree
     )
 
 {-|
@@ -25,7 +27,8 @@ module FormToolkit.Input exposing
 @docs integer, float
 @docs date, month
 @docs select, radio, checkbox
-@docs group, repeatable, element
+@docs element
+@docs group, repeatable
 @docs mapIdentifier
 
 
@@ -40,156 +43,164 @@ module FormToolkit.Input exposing
 # Values
 
 @docs Value
-@docs stringValue, intValue, floatValue, booleanValue, blankValue
+@docs stringValue, integerValue, floatValue, booleanValue, blankValue
 @docs dateValue, monthValue, timeValue
+
+
+# Etc
+
+@docs fromTree, toTree
 
 -}
 
-import Internal.Input as Input
+import Internal.Input as Internal
 import Internal.Tree as Tree exposing (Tree)
-import Internal.Value as Internal exposing (Value)
+import Internal.Value as Value
 import String.Extra as String
 import Time exposing (Posix)
 
 
 {-| TODO
 -}
-type alias Input id =
-    Tree (Input.Input id)
+type Input id
+    = Input (Tree (Internal.Input id))
 
 
 {-| TODO
 -}
 text : List (Attribute id) -> Input id
 text =
-    init Input.Text
+    init Internal.Text
 
 
 {-| TODO
 -}
 textarea : List (Attribute id) -> Input id
 textarea =
-    init Input.TextArea
+    init Internal.TextArea
 
 
 {-| TODO
 -}
 email : List (Attribute id) -> Input id
 email =
-    init Input.Email
+    init Internal.Email
 
 
 {-| TODO
 -}
 password : List (Attribute id) -> Input id
 password =
-    init Input.Password
+    init Internal.Password
 
 
 {-| TODO
 -}
 integer : List (Attribute id) -> Input id
 integer =
-    init Input.Integer
+    init Internal.Integer
 
 
 {-| TODO
 -}
 float : List (Attribute id) -> Input id
 float =
-    init Input.Float
+    init Internal.Float
 
 
 {-| TODO
 -}
 date : List (Attribute id) -> Input id
 date =
-    init Input.Date
+    init Internal.Date
 
 
 {-| TODO
 -}
 month : List (Attribute id) -> Input id
 month =
-    init Input.Month
+    init Internal.Month
 
 
 {-| TODO
 -}
 select : List (Attribute id) -> Input id
 select =
-    init Input.Select
+    init Internal.Select
 
 
 {-| TODO
 -}
 radio : List (Attribute id) -> Input id
 radio =
-    init Input.Radio
+    init Internal.Radio
 
 
 {-| TODO
 -}
 checkbox : List (Attribute id) -> Input id
 checkbox =
-    init Input.Checkbox
+    init Internal.Checkbox
 
 
 {-| TODO
 -}
 group : List (Attribute id) -> List (Input id) -> Input id
-group attributes =
-    Tree.branch (Input.init Input.Group (List.map toFunc attributes))
+group attributes inputs =
+    List.map toTree inputs
+        |> Tree.branch
+            (Internal.init Internal.Group (unwrapAttrs attributes))
+        |> Input
 
 
 {-| TODO
 -}
 repeatable : List (Attribute id) -> Input id -> List (Input id) -> Input id
 repeatable attributes template inputs =
-    Tree.branch
-        (Input.init (Input.Repeatable template)
-            (List.map toFunc attributes)
-        )
-        (if List.isEmpty inputs then
-            [ template ]
+    Input <|
+        Tree.branch
+            (Internal.init (Internal.Repeatable (toTree template))
+                (unwrapAttrs attributes)
+            )
+            (if List.isEmpty inputs then
+                [ toTree template ]
 
-         else
-            inputs
-        )
+             else
+                List.map toTree inputs
+            )
 
 
 {-| TODO
 -}
 element : id -> Input id
 element id =
-    init (Input.Element id) []
+    init (Internal.Element id) []
 
 
 init :
-    Input.InputType id
+    Internal.InputType id
     -> List (Attribute id)
     -> Input id
 init inputType attributes =
-    Tree.leaf
-        (Input.init inputType (List.map toFunc attributes))
+    Input (Tree.leaf (Internal.init inputType (unwrapAttrs attributes)))
 
 
 {-| TODO
 -}
 mapIdentifier : (a -> b) -> Input a -> Input b
-mapIdentifier func =
-    Tree.mapValues (Input.mapIdentifier func)
+mapIdentifier func (Input tree) =
+    Input (Tree.mapValues (Internal.mapIdentifier func) tree)
 
 
-toFunc : Attribute id -> (Input.Input id -> Input.Input id)
-toFunc (Attribute func) =
-    func
+unwrapAttrs : List (Attribute id) -> List (Internal.Input id -> Internal.Input id)
+unwrapAttrs =
+    List.map (\(Attribute f) -> f)
 
 
 {-| TODO
 -}
 type Attribute id
-    = Attribute (Input.Input id -> Input.Input id)
+    = Attribute (Internal.Input id -> Internal.Input id)
 
 
 {-| TODO
@@ -286,7 +297,7 @@ noattr =
 {-| TODO
 -}
 type Value
-    = Value Internal.Value
+    = Value Value.Value
 
 
 {-| TODO
@@ -294,54 +305,66 @@ type Value
 stringValue : String -> Value
 stringValue str =
     String.nonBlank str
-        |> Maybe.map (Value << Internal.Text)
+        |> Maybe.map (Value << Value.Text)
         |> Maybe.withDefault blankValue
 
 
 {-| TODO
 -}
-intValue : Int -> Value
-intValue =
-    Value << Internal.Integer
+integerValue : Int -> Value
+integerValue =
+    Value << Value.Integer
 
 
 {-| TODO
 -}
 floatValue : Float -> Value
 floatValue =
-    Value << Internal.Float
+    Value << Value.Float
 
 
 {-| TODO
 -}
 booleanValue : Bool -> Value
 booleanValue =
-    Value << Internal.Boolean
+    Value << Value.Boolean
 
 
 {-| TODO
 -}
 blankValue : Value
 blankValue =
-    Value Internal.Blank
+    Value Value.Blank
 
 
 {-| TODO
 -}
 monthValue : Posix -> Value
 monthValue =
-    Value << Internal.Month
+    Value << Value.Month
 
 
 {-| TODO
 -}
 dateValue : Posix -> Value
 dateValue =
-    Value << Internal.Date
+    Value << Value.Date
 
 
 {-| TODO
 -}
 timeValue : Posix -> Value
 timeValue =
-    Value << Internal.Time
+    Value << Value.Time
+
+
+{-| -}
+fromTree : Tree (Internal.Input id) -> Input id
+fromTree =
+    Input
+
+
+{-| -}
+toTree : Input id -> Tree (Internal.Input id)
+toTree (Input tree) =
+    tree

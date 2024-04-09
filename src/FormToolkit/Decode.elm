@@ -2,11 +2,11 @@ module FormToolkit.Decode exposing
     ( Decoder
     , field
     , string, int, float, bool, posix, maybe, list
-    , custom, value
     , succeed
+    , custom
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
-    , decode
+    , Error(..), decode
     )
 
 {-| This module contains a set of decoders that are useful when working with
@@ -21,9 +21,8 @@ decoders and perform decoding operations.
 
 @docs field
 @docs string, int, float, bool, posix, maybe, list
-@docs custom, value
-
 @docs succeed
+@docs custom
 
 
 # Maps and combinators
@@ -34,31 +33,24 @@ decoders and perform decoding operations.
 
 # Decoding
 
-@docs decode
+@docs Error, decode
 
 -}
 
 import FormToolkit.Error as Error
 import FormToolkit.Form exposing (Form(..))
-import Internal.Input as Input exposing (Input)
+import FormToolkit.Input as Input exposing (Input)
+import Internal.Input
 import Internal.Tree as Tree exposing (Tree)
 import Internal.Value as Value exposing (Value)
 import Time
 
 
-{-| Represents an error that occurred during decoding.
--}
-type Error id
-    = InputError (Maybe id) Error.Error
-    | ListError Int (Error id)
-    | InputNotFound id
-
-
 {-| A decoder that takes a tree of input data and returns a decoded result
 or an error if the decoding fails.
 -}
-type alias Decoder id a =
-    Tree (Input id) -> Result (Error id) a
+type Decoder id a
+    = Decoder (Tree (Internal.Input.Input id) -> Result (Error id) a)
 
 
 {-| Decoder for a field with the given ID using a provided decoder.
@@ -69,142 +61,153 @@ type alias Decoder id a =
             [ Input.text
                 [ Input.label "first-name"
                 , Input.identifier "name"
-                , Input.value (Value.string "Juan")
+                , Input.value (Input.stringValue "Juan")
                 ]
             ]
-
     decode (field "first-name" string) form == Ok "Juan"
 
 -}
 field : id -> Decoder id a -> Decoder id a
-field id decoder tree =
-    tree
-        |> Tree.find (Tree.value >> .identifier >> (==) (Just id))
-        |> Maybe.map decoder
-        |> Maybe.withDefault (Err (InputNotFound id))
+field id (Decoder decoder) =
+    Decoder
+        (Tree.find (Tree.value >> .identifier >> (==) (Just id))
+            >> Maybe.map decoder
+            >> Maybe.withDefault (Err (InputNotFound id))
+        )
 
 
 {-| TODO
 -}
 string : Decoder id String
 string =
-    value
-        (Value.toString
-            >> Result.mapError (\_ -> Error.NotString)
-        )
+    value (Value.toString >> Result.mapError (\_ -> Error.NotString))
 
 
 {-| TODO
 -}
 int : Decoder id Int
 int =
-    value
-        (Value.toInt
-            >> Result.mapError (\_ -> Error.NotInt)
-        )
+    value (Value.toInt >> Result.mapError (\_ -> Error.NotInt))
 
 
 {-| TODO
 -}
 float : Decoder id Float
 float =
-    value
-        (Value.toFloat
-            >> Result.mapError (\_ -> Error.NotFloat)
-        )
+    value (Value.toFloat >> Result.mapError (\_ -> Error.NotFloat))
 
 
 {-| TODO
 -}
 bool : Decoder id Bool
 bool =
-    value
-        (Value.toBoolean
-            >> Result.mapError (\_ -> Error.NotBool)
-        )
+    value (Value.toBoolean >> Result.mapError (\_ -> Error.NotBool))
 
 
 {-| TODO
 -}
 posix : Decoder id Time.Posix
 posix =
-    value
-        (Value.toPosix
-            >> Result.mapError (\_ -> Error.NotPosix)
-        )
+    value (Value.toPosix >> Result.mapError (\_ -> Error.NotPosix))
 
 
 {-| TODO
 -}
 maybe : Decoder id a -> Decoder id (Maybe a)
-maybe decoder tree =
-    if Input.isBlank (Tree.value tree) then
-        succeed Nothing tree
+maybe (Decoder decoder) =
+    Decoder
+        (\tree ->
+            if Internal.Input.isBlank (Tree.value tree) then
+                Ok Nothing
 
-    else
-        Result.map Just (decoder tree)
+            else
+                Result.map Just (decoder tree)
+        )
 
 
 {-| TODO
 -}
 list : Decoder id a -> Decoder id (List a)
-list decoder tree =
-    (Tree.children tree
-        |> List.foldl
-            (\e ( prev, i ) ->
-                ( map2 (::)
-                    (\_ -> Result.mapError (ListError i) (decoder e))
-                    prev
-                , i + 1
+list (Decoder decoder) =
+    Decoder
+        (Tree.children
+            >> List.foldl
+                (\e ( prev, i ) ->
+                    ( Result.map2 (::)
+                        (Result.mapError (ListError i) (decoder e))
+                        prev
+                    , i + 1
+                    )
                 )
-            )
-            ( succeed [], 0 )
-        |> Tuple.first
-        |> map List.reverse
-    )
-        tree
+                ( Ok [], 0 )
+            >> Tuple.first
+            >> Result.map List.reverse
+        )
+
+
+{-| TODO
+-}
+succeed : a -> Decoder id a
+succeed a =
+    Decoder (\_ -> Ok a)
 
 
 {-| TODO
 -}
 value : (Value -> Result Error.Error a) -> Decoder id a
 value func =
-    custom (Tree.value >> Input.check >> Result.andThen func)
+    custom
+        (Input.toTree
+            >> Tree.value
+            >> Internal.Input.check
+            >> Result.andThen func
+        )
 
 
 {-| TODO
 -}
-custom : (Tree (Input id) -> Result Error.Error a) -> Decoder id a
-custom func tree =
-    Result.mapError (InputError (.identifier (Tree.value tree))) (func tree)
-
-
-{-| TODO
--}
-succeed : a -> Decoder id a
-succeed a _ =
-    Ok a
+custom : (Input id -> Result Error.Error a) -> Decoder id a
+custom func =
+    Decoder
+        (\tree ->
+            Result.mapError (InputError (.identifier (Tree.value tree)))
+                (func (Input.fromTree tree))
+        )
 
 
 {-| TODO
 -}
 andThen : (a -> Decoder id b) -> Decoder id a -> Decoder id b
-andThen callback decoder tree =
-    Result.andThen (\res -> callback res tree) (decoder tree)
+andThen callback (Decoder decoder) =
+    Decoder
+        (\tree ->
+            Result.andThen
+                (\res ->
+                    let
+                        (Decoder inner) =
+                            callback res
+                    in
+                    inner tree
+                )
+                (decoder tree)
+        )
 
 
 {-| TODO
 -}
 andMap : Decoder id a -> Decoder id (a -> b) -> Decoder id b
-andMap decoder partial tree =
-    Result.map2 (|>) (decoder tree) (partial tree)
+andMap (Decoder decoder) (Decoder partial) =
+    Decoder
+        (\tree ->
+            Result.map2 (|>) (decoder tree) (partial tree)
+        )
 
 
 {-| TODO
 -}
 map : (a -> b) -> Decoder id a -> Decoder id b
-map func decoder tree =
-    Result.map func (decoder tree)
+map func (Decoder decoder) =
+    Decoder (\tree -> Result.map func (decoder tree))
 
 
 {-| TODO
@@ -301,8 +304,16 @@ map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
+{-| Represents an error that occurred during decoding.
+-}
+type Error id
+    = InputError (Maybe id) Error.Error
+    | ListError Int (Error id)
+    | InputNotFound id
+
+
 {-| TODO
 -}
 decode : Decoder id a -> Form id -> Result (Error id) a
-decode decoder (Form root) =
-    decoder root
+decode (Decoder decoder) (Form root) =
+    decoder (Input.toTree root)

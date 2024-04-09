@@ -40,7 +40,7 @@ module FormToolkit.Form exposing
 import Dict exposing (Dict)
 import Dict.Extra as Dict
 import FormToolkit.Error as Error
-import FormToolkit.Input as InputAttribute exposing (Input)
+import FormToolkit.Input as Input exposing (Input)
 import Html
     exposing
         ( Html
@@ -74,7 +74,7 @@ import Html.Events as Html
         )
 import Internal.Input
 import Internal.Markdown as Markdown
-import Internal.Tree as Tree
+import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -103,7 +103,7 @@ type alias Attributes id msg =
 -}
 init : List (Input id) -> Form id
 init inputs =
-    Form (Tree.branch Internal.Input.root inputs)
+    Form (Input.group [] inputs)
 
 
 initAttributes : Attributes id msg
@@ -125,41 +125,53 @@ type Msg
     | InputsRemoved (List Int)
 
 
+type alias InputTree id =
+    Tree.Tree (Internal.Input.Input id)
+
+
 {-| TODO
 -}
 update : Msg -> Form id -> Form id
-update msg (Form root) =
+update msg ((Form group) as form) =
     case msg of
         InputChanged path str ->
-            Form (Tree.update path (updateInput str) root)
+            updateHelp path (updateInput str) form
 
         InputChecked path bool ->
-            Form (Tree.update path (updateInputWithBool bool) root)
+            updateHelp path (updateInputWithBool bool) form
 
         InputFocused path ->
-            Form (Tree.update path resetInputStatus root)
+            updateHelp path resetInputStatus form
 
         InputBlured path ->
-            Form (Tree.update path validateInput root)
+            updateHelp path validateInput form
 
         InputsAdded path ->
-            case Tree.getValue path root |> Maybe.map .inputType of
+            case
+                Tree.getValue path (Input.toTree group)
+                    |> Maybe.map .inputType
+            of
                 Just (Internal.Input.Repeatable template) ->
-                    Form (Tree.update path (Tree.push template) root)
+                    updateHelp path (Tree.push template) form
 
                 _ ->
-                    Form root
+                    Form group
 
         InputsRemoved path ->
-            Form (Tree.remove path root)
+            Form (Input.fromTree (Tree.remove path (Input.toTree group)))
 
 
-updateInput : String -> Input id -> Input id
+updateHelp : List Int -> (InputTree id -> InputTree id) -> Form id -> Form id
+updateHelp path func (Form group) =
+    Form (Input.fromTree (Tree.update path func (Input.toTree group)))
+
+
+updateInput : String -> InputTree id -> InputTree id
 updateInput string =
     Tree.updateValue (Internal.Input.updateWithString string)
 
 
-updateInputWithBool : Bool -> Input id -> Input id
+updateInputWithBool : Bool -> InputTree id -> InputTree id
 updateInputWithBool bool =
     Tree.updateValue
         (Internal.Input.update
@@ -167,12 +179,12 @@ updateInputWithBool bool =
         )
 
 
-resetInputStatus : Input id -> Input id
+resetInputStatus : InputTree id -> InputTree id
 resetInputStatus =
     Tree.updateValue Internal.Input.resetStatus
 
 
-validateInput : Input id -> Input id
+validateInput : InputTree id -> InputTree id
 validateInput =
     Tree.updateValue Internal.Input.validate
 
@@ -210,8 +222,8 @@ elementHtml id html =
 {-| TODO
 -}
 setValues : Dict String Decode.Value -> Form id -> Form id
-setValues values (Form root) =
-    Form (Tree.map (Tree.updateValue (setValuesHelp values)) root)
+setValues values (Form group) =
+    Form (mapInput (Tree.updateValue (setValuesHelp values)) group)
 
 
 setValuesHelp : Dict String Decode.Value -> Internal.Input.Input id -> Internal.Input.Input id
@@ -232,13 +244,13 @@ setValuesHelp values input =
 {-| TODO
 -}
 clear : Form id -> Form id
-clear (Form root) =
+clear (Form group) =
     Form
-        (Tree.map
+        (mapInput
             (Tree.updateValue
                 (Internal.Input.update Internal.Value.blank)
             )
-            root
+            group
         )
 
 
@@ -254,9 +266,11 @@ valueDecoder =
 
 {-| TODO
 -}
-toInputGroup : List (InputAttribute.Attribute id) -> Form id -> Input id
-toInputGroup attributes (Form root) =
-    InputAttribute.group attributes (Tree.children root)
+toInputGroup : List (Input.Attribute id) -> Form id -> Input id
+toInputGroup attributes (Form group) =
+    Tree.children (Input.toTree group)
+        |> List.map Input.fromTree
+        |> Input.group attributes
 
 
 
@@ -266,8 +280,8 @@ toInputGroup attributes (Form root) =
 {-| TODO
 -}
 encodeValues : Form id -> Encode.Value
-encodeValues (Form root) =
-    Encode.object (encodeHelp root [])
+encodeValues (Form group) =
+    Encode.object (encodeHelp group [])
 
 
 encodeHelp :
@@ -276,27 +290,29 @@ encodeHelp :
     -> List ( String, Encode.Value )
 encodeHelp inputElement acc =
     let
+        tree =
+            Input.toTree inputElement
+
         input =
-            Tree.value inputElement
+            Tree.value tree
+
+        children =
+            Tree.children tree
     in
     case input.inputType of
         Internal.Input.Group ->
-            List.foldl encodeHelp acc (Tree.children inputElement)
+            List.foldl (encodeHelp << Input.fromTree) acc children
 
         Internal.Input.Repeatable _ ->
             ( input.name
             , Encode.list
-                (\e -> Encode.object (encodeHelp e []))
-                (Tree.children inputElement)
+                (\e -> Encode.object (encodeHelp (Input.fromTree e) []))
+                children
             )
                 :: acc
 
         _ ->
             ( input.name, Internal.Value.encode input.value ) :: acc
-
-
-
--- UPDATE
 
 
 {-| Error
@@ -308,7 +324,7 @@ type Error id
 {-| TODO
 -}
 errors : Form id -> List (Error id)
-errors (Form tree) =
+errors (Form group) =
     Tree.foldr
         (\v errs ->
             let
@@ -323,18 +339,21 @@ errors (Form tree) =
                     errs
         )
         []
-        tree
+        (Input.toTree group)
 
 
 {-| TODO
 -}
 validate : Form id -> Form id
-validate (Form root) =
-    Form (Tree.mapValues Internal.Input.validate root)
+validate (Form group) =
+    Form
+        (Input.fromTree
+            (Tree.mapValues Internal.Input.validate (Input.toTree group))
+        )
 
 
 check : Form id -> Result (Error id) ()
-check (Form root) =
+check (Form group) =
     Tree.foldl
         (\node ->
             let
@@ -349,7 +368,7 @@ check (Form root) =
                 )
         )
         (Ok ())
-        root
+        (Input.toTree group)
 
 
 {-| TODO
@@ -364,15 +383,19 @@ isValid form =
 {-| TODO
 -}
 hasBlankValues : Form id -> Bool
-hasBlankValues (Form tree) =
-    Tree.any (Tree.value >> Internal.Input.isBlank) tree
+hasBlankValues (Form group) =
+    Tree.any (Tree.value >> Internal.Input.isBlank) (Input.toTree group)
 
 
 {-| TODO
 -}
 hasErrors : Form id -> Bool
-hasErrors (Form tree) =
-    Tree.any (\v -> Internal.Input.error (Tree.value v) /= Nothing) tree
+hasErrors (Form group) =
+    Tree.any
+        (\v ->
+            Internal.Input.error (Tree.value v) /= Nothing
+        )
+        (Input.toTree group)
 
 
 
@@ -382,7 +405,7 @@ hasErrors (Form tree) =
 {-| TODO
 -}
 toHtml : List (Attribute id msg) -> Form id -> Html msg
-toHtml attrList (Form root) =
+toHtml attrList (Form group) =
     let
         attrs =
             List.foldl (\(Attribute f) a -> f a) initAttributes attrList
@@ -394,24 +417,30 @@ toHtml attrList (Form root) =
             |> Maybe.withDefault (class "")
         , novalidate True
         ]
-        [ fieldset [] [ elementToHtml attrs [] root ]
+        [ fieldset [] [ treeToHtml attrs [] group ]
         , submitButtonHtml []
         ]
 
 
-elementToHtml : Attributes id msg -> List Int -> Input id -> Html msg
-elementToHtml attrs path node =
+treeToHtml : Attributes id msg -> List Int -> Input id -> Html msg
+treeToHtml attrs path node =
     let
+        tree =
+            Input.toTree node
+
         input =
-            Tree.value node
+            Tree.value tree
     in
     case input.inputType of
         Internal.Input.Group ->
             let
                 children =
-                    Tree.children node
+                    Tree.children tree
                         |> List.indexedMap
-                            (\idx -> elementToHtml attrs (path ++ [ idx ]))
+                            (\idx ->
+                                Input.fromTree
+                                    >> treeToHtml attrs (path ++ [ idx ])
+                            )
 
                 inputLabel =
                     case input.label of
@@ -433,15 +462,16 @@ elementToHtml attrs path node =
         Internal.Input.Repeatable _ ->
             let
                 children =
-                    Tree.children node
+                    Tree.children tree
 
                 inputs =
                     children
                         |> List.indexedMap
                             (\idx ->
-                                templateHtml attrs
-                                    (path ++ [ idx ])
-                                    (List.length children /= (idx + 1))
+                                Input.fromTree
+                                    >> templateHtml attrs
+                                        (path ++ [ idx ])
+                                        (List.length children /= (idx + 1))
                             )
             in
             fieldset
@@ -631,11 +661,16 @@ addInputsButton attrs path =
         ]
 
 
-templateHtml : Attributes id msg -> List Int -> Bool -> Input id -> Html msg
+templateHtml :
+    Attributes id msg
+    -> List Int
+    -> Bool
+    -> Input id
+    -> Html msg
 templateHtml attributes path isLast inputElement =
     div
         [ class "group-repeat" ]
-        [ elementToHtml attributes path inputElement
+        [ treeToHtml attributes path inputElement
         , if isLast then
             button
                 [ class "remove-fields"
@@ -752,3 +787,11 @@ onInputBlured attrs path =
 
         Nothing ->
             class ""
+
+
+mapInput :
+    (Tree (Internal.Input.Input id) -> Tree (Internal.Input.Input id))
+    -> Input id
+    -> Input id
+mapInput func input =
+    Input.fromTree (Tree.map func (Input.toTree input))
