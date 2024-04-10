@@ -39,9 +39,10 @@ decoders and perform decoding operations.
 
 import FormToolkit.Form exposing (Form(..))
 import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.Value as Value
 import Internal.Input
 import Internal.Tree as Tree exposing (Tree)
-import Internal.Value as Value exposing (Value)
+import Internal.Value
 import Time
 
 
@@ -79,35 +80,35 @@ field id (Decoder decoder) =
 -}
 string : Decoder id String
 string =
-    value (Value.toString >> Result.mapError (\_ -> Input.NotString))
+    value (Value.toString >> Result.fromMaybe Input.NotString)
 
 
 {-| TODO
 -}
 int : Decoder id Int
 int =
-    value (Value.toInt >> Result.mapError (\_ -> Input.NotInt))
+    value (Value.toInt >> Result.fromMaybe Input.NotInt)
 
 
 {-| TODO
 -}
 float : Decoder id Float
 float =
-    value (Value.toFloat >> Result.mapError (\_ -> Input.NotFloat))
+    value (Value.toFloat >> Result.fromMaybe Input.NotFloat)
 
 
 {-| TODO
 -}
 bool : Decoder id Bool
 bool =
-    value (Value.toBoolean >> Result.mapError (\_ -> Input.NotBool))
+    value (Value.toBoolean >> Result.fromMaybe Input.NotBool)
 
 
 {-| TODO
 -}
 posix : Decoder id Time.Posix
 posix =
-    value (Value.toPosix >> Result.mapError (\_ -> Input.NotPosix))
+    value (Value.toPosix >> Result.fromMaybe Input.NotPosix)
 
 
 {-| TODO
@@ -153,7 +154,7 @@ succeed a =
 
 {-| TODO
 -}
-value : (Value -> Result Input.Error a) -> Decoder id a
+value : (Value.Value -> Result Input.Error a) -> Decoder id a
 value func =
     custom
         (Input.toTree >> Tree.value >> Input.check >> Result.andThen func)

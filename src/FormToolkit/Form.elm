@@ -40,6 +40,7 @@ module FormToolkit.Form exposing
 import Dict exposing (Dict)
 import Dict.Extra as Dict
 import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.Value as Value
 import Html
     exposing
         ( Html
@@ -755,7 +756,8 @@ errorMessage : Input.Error -> Maybe String
 errorMessage err =
     let
         value =
-            Internal.Value.toString >> Result.withDefault ""
+            Value.toString
+                >> Maybe.withDefault ""
     in
     case err of
         Input.TooLarge max ->

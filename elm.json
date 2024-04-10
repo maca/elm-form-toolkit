@@ -4,9 +4,10 @@
         "src"
     ],
     "exposed-modules" : [
-       "FormToolkit.Form",
        "FormToolkit.Decode",
-       "FormToolkit.Input"
+       "FormToolkit.Form",
+       "FormToolkit.Input",
+       "FormToolkit.Value"
     ],
     "elm-version": "0.19.1",
     "dependencies": {

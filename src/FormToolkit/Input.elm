@@ -11,9 +11,6 @@ module FormToolkit.Input exposing
     , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
-    , Value
-    , stringValue, integerValue, floatValue, booleanValue, blankValue
-    , dateValue, monthValue, timeValue
     , Error(..), error, check
     , fromTree, toTree
     )
@@ -41,13 +38,6 @@ module FormToolkit.Input exposing
 @docs inline, noattr
 
 
-# Values
-
-@docs Value
-@docs stringValue, integerValue, floatValue, booleanValue, blankValue
-@docs dateValue, monthValue, timeValue
-
-
 # Validation
 
 @docs Error, error, check
@@ -59,9 +49,10 @@ module FormToolkit.Input exposing
 
 -}
 
+import FormToolkit.Value as Value
 import Internal.Input as Internal
 import Internal.Tree as Tree exposing (Tree)
-import Internal.Value as Value
+import Internal.Value
 import String.Extra as String
 import Time exposing (Posix)
 
@@ -227,8 +218,8 @@ identifier id =
 
 {-| TODO
 -}
-value : Value -> Attribute id
-value (Value inputValue) =
+value : Value.Value -> Attribute id
+value (Value.Value inputValue) =
     Attribute (\input -> { input | value = inputValue })
 
 
@@ -262,13 +253,13 @@ placeholder str =
 
 {-| TODO
 -}
-options : List ( String, Value ) -> Attribute id
+options : List ( String, Value.Value ) -> Attribute id
 options values =
     Attribute
         (\input ->
             { input
                 | options =
-                    List.map (Tuple.mapSecond (\(Value val) -> val))
+                    List.map (Tuple.mapSecond (\(Value.Value val) -> val))
                         values
             }
         )
@@ -276,15 +267,15 @@ options values =
 
 {-| TODO
 -}
-min : Value -> Attribute id
-min (Value val) =
+min : Value.Value -> Attribute id
+min (Value.Value val) =
     Attribute (\input -> { input | min = val })
 
 
 {-| TODO
 -}
-max : Value -> Attribute id
-max (Value val) =
+max : Value.Value -> Attribute id
+max (Value.Value val) =
     Attribute (\input -> { input | max = val })
 
 
@@ -300,70 +291,6 @@ inline bool =
 noattr : Attribute id
 noattr =
     Attribute identity
-
-
-{-| TODO
--}
-type Value
-    = Value Value.Value
-
-
-{-| TODO
--}
-stringValue : String -> Value
-stringValue str =
-    String.nonBlank str
-        |> Maybe.map (Value << Value.Text)
-        |> Maybe.withDefault blankValue
-
-
-{-| TODO
--}
-integerValue : Int -> Value
-integerValue =
-    Value << Value.Integer
-
-
-{-| TODO
--}
-floatValue : Float -> Value
-floatValue =
-    Value << Value.Float
-
-
-{-| TODO
--}
-booleanValue : Bool -> Value
-booleanValue =
-    Value << Value.Boolean
-
-
-{-| TODO
--}
-blankValue : Value
-blankValue =
-    Value Value.Blank
-
-
-{-| TODO
--}
-monthValue : Posix -> Value
-monthValue =
-    Value << Value.Month
-
-
-{-| TODO
--}
-dateValue : Posix -> Value
-dateValue =
-    Value << Value.Date
-
-
-{-| TODO
--}
-timeValue : Posix -> Value
-timeValue =
-    Value << Value.Time
 
 
 {-| TODO
@@ -403,34 +330,34 @@ check input =
 
 checkRequired : Internal.Input id Error -> Result Error Value.Value
 checkRequired input =
-    if input.isRequired && Value.isBlank input.value then
+    if input.isRequired && Internal.Value.isBlank input.value then
         Err IsBlank
 
     else
-        Ok input.value
+        Ok (Value.Value input.value)
 
 
 checkInRange : Internal.Input id Error -> Result Error Value.Value
 checkInRange input =
     case
-        ( Value.compare input.value input.min
-        , Value.compare input.value input.max
+        ( Internal.Value.compare input.value input.min
+        , Internal.Value.compare input.value input.max
         )
     of
         ( Just LT, Just _ ) ->
-            Err (NotInRange ( input.min, input.max ))
+            Err (NotInRange ( Value.Value input.min, Value.Value input.max ))
 
         ( Just _, Just GT ) ->
-            Err (NotInRange ( input.min, input.max ))
+            Err (NotInRange ( Value.Value input.min, Value.Value input.max ))
 
         ( Just LT, Nothing ) ->
-            Err (TooSmall input.min)
+            Err (TooSmall (Value.Value input.min))
 
         ( Nothing, Just GT ) ->
-            Err (TooLarge input.max)
+            Err (TooLarge (Value.Value input.max))
 
         _ ->
-            Ok input.value
+            Ok (Value.Value input.value)
 
 
 {-| -}

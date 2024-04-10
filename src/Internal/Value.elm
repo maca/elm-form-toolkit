@@ -70,7 +70,7 @@ toString value =
         Boolean False ->
             Ok "false"
 
-        _ ->
+        Blank ->
             Err ()
 
 
