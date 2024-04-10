@@ -14,6 +14,7 @@ module FormToolkit.Input exposing
     , Value
     , stringValue, integerValue, floatValue, booleanValue, blankValue
     , dateValue, monthValue, timeValue
+    , Error(..), error, check
     , fromTree, toTree
     )
 
@@ -47,6 +48,11 @@ module FormToolkit.Input exposing
 @docs dateValue, monthValue, timeValue
 
 
+# Validation
+
+@docs Error, error, check
+
+
 # Etc
 
 @docs fromTree, toTree
@@ -63,7 +69,7 @@ import Time exposing (Posix)
 {-| TODO
 -}
 type Input id
-    = Input (Tree (Internal.Input id))
+    = Input (Tree (Internal.Input id Error))
 
 
 {-| TODO
@@ -178,7 +184,7 @@ element id =
 
 
 init :
-    Internal.InputType id
+    Internal.InputType id Error
     -> List (Attribute id)
     -> Input id
 init inputType attributes =
@@ -192,7 +198,9 @@ mapIdentifier func (Input tree) =
     Input (Tree.mapValues (Internal.mapIdentifier func) tree)
 
 
-unwrapAttrs : List (Attribute id) -> List (Internal.Input id -> Internal.Input id)
+unwrapAttrs :
+    List (Attribute id)
+    -> List (Internal.Input id Error -> Internal.Input id Error)
 unwrapAttrs =
     List.map (\(Attribute f) -> f)
 
@@ -200,7 +208,7 @@ unwrapAttrs =
 {-| TODO
 -}
 type Attribute id
-    = Attribute (Internal.Input id -> Internal.Input id)
+    = Attribute (Internal.Input id Error -> Internal.Input id Error)
 
 
 {-| TODO
@@ -358,13 +366,80 @@ timeValue =
     Value << Value.Time
 
 
+{-| TODO
+-}
+type Error
+    = TooLarge Value.Value
+    | TooSmall Value.Value
+    | NotInRange ( Value.Value, Value.Value )
+    | NotInOptions
+    | IsBlank
+    | NotString
+    | NotInt
+    | NotFloat
+    | NotBool
+    | NotPosix
+
+
+{-| TODO
+-}
+error : Internal.Input id Error -> Maybe Error
+error { status } =
+    case status of
+        Internal.WithError err ->
+            Just err
+
+        _ ->
+            Nothing
+
+
+{-| TODO
+-}
+check : Internal.Input id Error -> Result Error Value.Value
+check input =
+    checkRequired input
+        |> Result.andThen (\_ -> checkInRange input)
+
+
+checkRequired : Internal.Input id Error -> Result Error Value.Value
+checkRequired input =
+    if input.isRequired && Value.isBlank input.value then
+        Err IsBlank
+
+    else
+        Ok input.value
+
+
+checkInRange : Internal.Input id Error -> Result Error Value.Value
+checkInRange input =
+    case
+        ( Value.compare input.value input.min
+        , Value.compare input.value input.max
+        )
+    of
+        ( Just LT, Just _ ) ->
+            Err (NotInRange ( input.min, input.max ))
+
+        ( Just _, Just GT ) ->
+            Err (NotInRange ( input.min, input.max ))
+
+        ( Just LT, Nothing ) ->
+            Err (TooSmall input.min)
+
+        ( Nothing, Just GT ) ->
+            Err (TooLarge input.max)
+
+        _ ->
+            Ok input.value
+
+
 {-| -}
-fromTree : Tree (Internal.Input id) -> Input id
+fromTree : Tree (Internal.Input id Error) -> Input id
 fromTree =
     Input
 
 
 {-| -}
-toTree : Input id -> Tree (Internal.Input id)
+toTree : Input id -> Tree (Internal.Input id Error)
 toTree (Input tree) =
     tree

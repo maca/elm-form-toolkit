@@ -37,7 +37,6 @@ decoders and perform decoding operations.
 
 -}
 
-import FormToolkit.Error as Error
 import FormToolkit.Form exposing (Form(..))
 import FormToolkit.Input as Input exposing (Input)
 import Internal.Input
@@ -50,7 +49,7 @@ import Time
 or an error if the decoding fails.
 -}
 type Decoder id a
-    = Decoder (Tree (Internal.Input.Input id) -> Result (Error id) a)
+    = Decoder (Tree (Internal.Input.Input id Input.Error) -> Result (Error id) a)
 
 
 {-| Decoder for a field with the given ID using a provided decoder.
@@ -80,35 +79,35 @@ field id (Decoder decoder) =
 -}
 string : Decoder id String
 string =
-    value (Value.toString >> Result.mapError (\_ -> Error.NotString))
+    value (Value.toString >> Result.mapError (\_ -> Input.NotString))
 
 
 {-| TODO
 -}
 int : Decoder id Int
 int =
-    value (Value.toInt >> Result.mapError (\_ -> Error.NotInt))
+    value (Value.toInt >> Result.mapError (\_ -> Input.NotInt))
 
 
 {-| TODO
 -}
 float : Decoder id Float
 float =
-    value (Value.toFloat >> Result.mapError (\_ -> Error.NotFloat))
+    value (Value.toFloat >> Result.mapError (\_ -> Input.NotFloat))
 
 
 {-| TODO
 -}
 bool : Decoder id Bool
 bool =
-    value (Value.toBoolean >> Result.mapError (\_ -> Error.NotBool))
+    value (Value.toBoolean >> Result.mapError (\_ -> Input.NotBool))
 
 
 {-| TODO
 -}
 posix : Decoder id Time.Posix
 posix =
-    value (Value.toPosix >> Result.mapError (\_ -> Error.NotPosix))
+    value (Value.toPosix >> Result.mapError (\_ -> Input.NotPosix))
 
 
 {-| TODO
@@ -154,19 +153,15 @@ succeed a =
 
 {-| TODO
 -}
-value : (Value -> Result Error.Error a) -> Decoder id a
+value : (Value -> Result Input.Error a) -> Decoder id a
 value func =
     custom
-        (Input.toTree
-            >> Tree.value
-            >> Internal.Input.check
-            >> Result.andThen func
-        )
+        (Input.toTree >> Tree.value >> Input.check >> Result.andThen func)
 
 
 {-| TODO
 -}
-custom : (Input id -> Result Error.Error a) -> Decoder id a
+custom : (Input id -> Result Input.Error a) -> Decoder id a
 custom func =
     Decoder
         (\tree ->
@@ -307,7 +302,7 @@ map8 func a b c d e f g h =
 {-| Represents an error that occurred during decoding.
 -}
 type Error id
-    = InputError (Maybe id) Error.Error
+    = InputError (Maybe id) Input.Error
     | ListError Int (Error id)
     | InputNotFound id
 

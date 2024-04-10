@@ -1,15 +1,15 @@
 module Internal.Input exposing
-    ( Input, InputType(..)
+    ( Input, InputType(..), Status(..)
     , update, updateWithString
-    , resetStatus, validate, check
+    , resetStatus
     , humanValue
-    , error, errorMessage, init, isBlank, root
+    , init, isBlank, root
     , mapIdentifier
     )
 
 {-|
 
-@docs Input, InputType
+@docs Input, InputType, Status
 
 
 # Update
@@ -29,7 +29,7 @@ module Internal.Input exposing
 
 # Errors
 
-@docs error, errorMessage, init, isBlank, root
+@docs init, isBlank, root
 
 
 # Map
@@ -41,20 +41,18 @@ module Internal.Input exposing
 -- import FormToolkit.Value as Value
 
 import Array
-import FormToolkit.Error as Error exposing (Error)
 import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
 import List.Extra as List
-import Result exposing (Result)
 
 
-type Status
+type Status err
     = Unchecked
     | Valid
-    | WithError Error
+    | WithError err
 
 
-type InputType id
+type InputType id err
     = Text
     | TextArea
     | Password
@@ -67,12 +65,12 @@ type InputType id
     | Radio
     | Checkbox
     | Group
-    | Repeatable (Tree (Input id))
+    | Repeatable (Tree (Input id err))
     | Element id
 
 
-type alias Input id =
-    { inputType : InputType id
+type alias Input id err =
+    { inputType : InputType id err
     , name : String
     , value : Value
     , isRequired : Bool
@@ -82,18 +80,18 @@ type alias Input id =
     , min : Value
     , max : Value
     , options : List ( String, Value )
-    , status : Status
     , inline : Bool
     , identifier : Maybe id
+    , status : Status err
     }
 
 
-root : Input id
+root : Input id err
 root =
     init Group []
 
 
-init : InputType id -> List (Input id -> Input id) -> Input id
+init : InputType id err -> List (Input id err -> Input id err) -> Input id err
 init inputType =
     List.foldl (\f i -> f i)
         { inputType = inputType
@@ -101,7 +99,6 @@ init inputType =
         , label = Nothing
         , hint = Nothing
         , placeholder = Nothing
-        , status = Unchecked
         , value = Internal.Value.blank
         , min = Internal.Value.blank
         , max = Internal.Value.blank
@@ -109,15 +106,16 @@ init inputType =
         , options = []
         , inline = False
         , identifier = Nothing
+        , status = Unchecked
         }
 
 
-update : Value -> Input id -> Input id
+update : Value -> Input id err -> Input id err
 update value input =
     { input | value = value }
 
 
-updateWithString : String -> Input id -> Input id
+updateWithString : String -> Input id err -> Input id err
 updateWithString str ({ inputType } as input) =
     case inputType of
         Text ->
@@ -154,7 +152,7 @@ updateWithString str ({ inputType } as input) =
             input
 
 
-getChoice : String -> Input id -> Value
+getChoice : String -> Input id err -> Value
 getChoice str { options } =
     case String.toInt str of
         Just idx ->
@@ -167,47 +165,12 @@ getChoice str { options } =
             Internal.Value.blank
 
 
-error : Input id -> Maybe Error
-error { status } =
-    case status of
-        WithError err ->
-            Just err
-
-        _ ->
-            Nothing
-
-
-validate : Input id -> Input id
-validate input =
-    case check input of
-        Ok _ ->
-            { input | status = Valid }
-
-        Err err ->
-            { input | status = WithError err }
-
-
-resetStatus : Input id -> Input id
+resetStatus : Input id err -> Input id err
 resetStatus input =
     { input | status = Unchecked }
 
 
-check : Input id -> Result Error Value
-check input =
-    checkRequired input
-        |> Result.andThen (\_ -> checkInRange input)
-
-
-checkRequired : Input id -> Result Error Value
-checkRequired { isRequired, value } =
-    if isRequired && Internal.Value.isBlank value then
-        Err Error.IsBlank
-
-    else
-        Ok value
-
-
-isBlank : Input id -> Bool
+isBlank : Input id err -> Bool
 isBlank { value, inputType } =
     case inputType of
         Group ->
@@ -220,56 +183,7 @@ isBlank { value, inputType } =
             Internal.Value.isBlank value
 
 
-checkInRange : Input id -> Result Error Value
-checkInRange { value, min, max } =
-    case
-        ( Internal.Value.compare value min
-        , Internal.Value.compare value max
-        )
-    of
-        ( Just LT, Just _ ) ->
-            Err (Error.NotInRange ( min, max ))
-
-        ( Just _, Just GT ) ->
-            Err (Error.NotInRange ( min, max ))
-
-        ( Just LT, Nothing ) ->
-            Err (Error.TooSmall min)
-
-        ( Nothing, Just GT ) ->
-            Err (Error.TooLarge max)
-
-        _ ->
-            Ok value
-
-
-errorMessage : Status -> Maybe String
-errorMessage status =
-    let
-        value =
-            Internal.Value.toString >> Result.withDefault ""
-    in
-    case status of
-        WithError (Error.TooLarge max) ->
-            Just ("Should be lesser than " ++ value max)
-
-        WithError (Error.TooSmall min) ->
-            Just ("Should be greater than " ++ value min)
-
-        WithError (Error.NotInRange ( min, max )) ->
-            Just ("Should be between " ++ value min ++ " and " ++ value max)
-
-        WithError Error.NotInOptions ->
-            Just "Is not one of the allowed options"
-
-        WithError Error.IsBlank ->
-            Just "Please fill in this input"
-
-        _ ->
-            Nothing
-
-
-humanValue : Input id -> Value
+humanValue : Input id err -> Value
 humanValue input =
     case input.inputType of
         Radio ->
@@ -282,7 +196,7 @@ humanValue input =
             input.value
 
 
-humanValueHelp : Input id -> Value
+humanValueHelp : Input id err -> Value
 humanValueHelp { value, options } =
     List.filter (\( _, v ) -> v == value) options
         |> List.head
@@ -290,7 +204,7 @@ humanValueHelp { value, options } =
         |> Maybe.withDefault Internal.Value.blank
 
 
-mapIdentifier : (a -> b) -> Input a -> Input b
+mapIdentifier : (a -> b) -> Input a err -> Input b err
 mapIdentifier func input =
     { inputType = mapInputType func input.inputType
     , name = input.name
@@ -308,7 +222,7 @@ mapIdentifier func input =
     }
 
 
-mapInputType : (a -> b) -> InputType a -> InputType b
+mapInputType : (a -> b) -> InputType a err -> InputType b err
 mapInputType func inputType =
     case inputType of
         Repeatable tree ->

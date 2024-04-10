@@ -39,7 +39,6 @@ module FormToolkit.Form exposing
 
 import Dict exposing (Dict)
 import Dict.Extra as Dict
-import FormToolkit.Error as Error
 import FormToolkit.Input as Input exposing (Input)
 import Html
     exposing
@@ -126,7 +125,7 @@ type Msg id
 
 
 type alias InputTree id =
-    Tree.Tree (Internal.Input.Input id)
+    Tree.Tree (Internal.Input.Input id Input.Error)
 
 
 {-| TODO
@@ -186,7 +185,15 @@ resetInputStatus =
 
 validateInput : InputTree id -> InputTree id
 validateInput =
-    Tree.updateValue Internal.Input.validate
+    Tree.updateValue
+        (\input ->
+            case Input.check input of
+                Ok _ ->
+                    { input | status = Internal.Input.Valid }
+
+                Err err ->
+                    { input | status = Internal.Input.WithError err }
+        )
 
 
 {-| TODO
@@ -226,7 +233,10 @@ setValues values (Form group) =
     Form (mapInput (Tree.updateValue (setValuesHelp values)) group)
 
 
-setValuesHelp : Dict String Decode.Value -> Internal.Input.Input id -> Internal.Input.Input id
+setValuesHelp :
+    Dict String Decode.Value
+    -> Internal.Input.Input id Input.Error
+    -> Internal.Input.Input id Input.Error
 setValuesHelp values input =
     Dict.get input.name values
         |> Maybe.map
@@ -318,7 +328,7 @@ encodeHelp inputElement acc =
 {-| Error
 -}
 type Error id
-    = InputError (Maybe id) Error.Error
+    = InputError (Maybe id) Input.Error
 
 
 {-| TODO
@@ -331,7 +341,7 @@ errors (Form group) =
                 input =
                     Tree.value v
             in
-            case Internal.Input.error input of
+            case Input.error input of
                 Just err ->
                     InputError input.identifier err :: errs
 
@@ -348,7 +358,18 @@ validate : Form id -> Form id
 validate (Form group) =
     Form
         (Input.fromTree
-            (Tree.mapValues Internal.Input.validate (Input.toTree group))
+            (Tree.mapValues
+                (\input ->
+                    -- Duplicated
+                    case Input.check input of
+                        Ok _ ->
+                            { input | status = Internal.Input.Valid }
+
+                        Err err ->
+                            { input | status = Internal.Input.WithError err }
+                )
+                (Input.toTree group)
+            )
         )
 
 
@@ -362,7 +383,7 @@ check (Form group) =
             in
             Result.andThen
                 (\_ ->
-                    Internal.Input.check input
+                    Input.check input
                         |> Result.map (always ())
                         |> Result.mapError (InputError input.identifier)
                 )
@@ -391,11 +412,7 @@ hasBlankValues (Form group) =
 -}
 hasErrors : Form id -> Bool
 hasErrors (Form group) =
-    Tree.any
-        (\v ->
-            Internal.Input.error (Tree.value v) /= Nothing
-        )
-        (Input.toTree group)
+    Tree.any (\v -> Input.error (Tree.value v) /= Nothing) (Input.toTree group)
 
 
 
@@ -536,7 +553,7 @@ inputToHtml :
     Attributes id msg
     -> String
     -> List Int
-    -> Internal.Input.Input id
+    -> Internal.Input.Input id Input.Error
     -> List (Html.Attribute msg)
     -> Html msg
 inputToHtml attrs inputType path input htmlAttrs =
@@ -550,7 +567,11 @@ inputToHtml attrs inputType path input htmlAttrs =
         []
 
 
-textAreaToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
+textAreaToHtml :
+    Attributes id msg
+    -> List Int
+    -> Internal.Input.Input id Input.Error
+    -> Html msg
 textAreaToHtml attrs path input =
     let
         value =
@@ -570,7 +591,11 @@ textAreaToHtml attrs path input =
         ]
 
 
-checkboxToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
+checkboxToHtml :
+    Attributes id msg
+    -> List Int
+    -> Internal.Input.Input id Input.Error
+    -> Html msg
 checkboxToHtml attrs path input =
     Html.input
         (type_ "checkbox"
@@ -590,7 +615,11 @@ checkboxToHtml attrs path input =
         []
 
 
-selectToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
+selectToHtml :
+    Attributes id msg
+    -> List Int
+    -> Internal.Input.Input id Input.Error
+    -> Html msg
 selectToHtml attrs path { name, isRequired, options, value } =
     Html.select
         [ id (identifier name path)
@@ -612,7 +641,7 @@ selectToHtml attrs path { name, isRequired, options, value } =
         )
 
 
-radioToHtml : Attributes id msg -> List Int -> Internal.Input.Input id -> Html msg
+radioToHtml : Attributes id msg -> List Int -> Internal.Input.Input id Input.Error -> Html msg
 radioToHtml attrs path { name, isRequired, options, value } =
     Html.div
         [ class "radios" ]
@@ -692,8 +721,8 @@ templateHtml attributes path isLast inputElement =
         ]
 
 
-wrapInput : List Int -> Internal.Input.Input id -> Html msg -> Html msg
-wrapInput path { hint, name, status, isRequired, label } inputHtml =
+wrapInput : List Int -> Internal.Input.Input id Input.Error -> Html msg -> Html msg
+wrapInput path ({ hint, name, isRequired, label } as input) inputHtml =
     div
         [ class "field"
         , classList [ ( "required", isRequired ) ]
@@ -704,9 +733,9 @@ wrapInput path { hint, name, status, isRequired, label } inputHtml =
         , div
             [ class "input-wrapper" ]
             [ inputHtml ]
-        , case Internal.Input.errorMessage status of
-            Just msg ->
-                p [ class "error" ] [ Html.text msg ]
+        , case Input.error input |> Maybe.andThen errorMessage of
+            Just message ->
+                p [ class "error" ] [ Html.text message ]
 
             Nothing ->
                 case hint of
@@ -718,6 +747,39 @@ wrapInput path { hint, name, status, isRequired, label } inputHtml =
                     Nothing ->
                         Html.text ""
         ]
+
+
+{-| TODO
+-}
+errorMessage : Input.Error -> Maybe String
+errorMessage err =
+    let
+        value =
+            Internal.Value.toString >> Result.withDefault ""
+    in
+    case err of
+        Input.TooLarge max ->
+            Just ("Should be lesser than " ++ value max)
+
+        Input.TooSmall min ->
+            Just ("Should be greater than " ++ value min)
+
+        Input.NotInRange ( min, max ) ->
+            Just
+                ("Should be between "
+                    ++ value min
+                    ++ " and "
+                    ++ value max
+                )
+
+        Input.NotInOptions ->
+            Just "Is not one of the allowed options"
+
+        Input.IsBlank ->
+            Just "Please fill in this input"
+
+        _ ->
+            Nothing
 
 
 identifier : String -> List Int -> String
@@ -739,7 +801,11 @@ valueAttribute f value =
         |> Result.withDefault (class "")
 
 
-inputAttrs : Attributes id msg -> List Int -> Internal.Input.Input id -> List (Html.Attribute msg)
+inputAttrs :
+    Attributes id msg
+    -> List Int
+    -> Internal.Input.Input id Input.Error
+    -> List (Html.Attribute msg)
 inputAttrs attrs path { name, isRequired, placeholder, min, max } =
     [ id (identifier name path)
     , required isRequired
@@ -790,7 +856,9 @@ onInputBlured attrs path =
 
 
 mapInput :
-    (Tree (Internal.Input.Input id) -> Tree (Internal.Input.Input id))
+    (Tree (Internal.Input.Input id Input.Error)
+     -> Tree (Internal.Input.Input id Input.Error)
+    )
     -> Input id
     -> Input id
 mapInput func input =
