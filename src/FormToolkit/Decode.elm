@@ -42,7 +42,6 @@ import FormToolkit.Input as Input exposing (Input)
 import FormToolkit.Value as Value
 import Internal.Input
 import Internal.Tree as Tree exposing (Tree)
-import Internal.Value
 import Time
 
 

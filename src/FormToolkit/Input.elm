@@ -12,6 +12,7 @@ module FormToolkit.Input exposing
     , options, min, max
     , inline, noattr
     , Error(..), error, check, errorToEnglish
+    , getValue
     , fromTree, toTree
     )
 
@@ -41,6 +42,7 @@ module FormToolkit.Input exposing
 # Validation
 
 @docs Error, error, check, errorToEnglish
+@docs getValue
 
 
 # Etc
@@ -53,8 +55,6 @@ import FormToolkit.Value as Value
 import Internal.Input as Internal
 import Internal.Tree as Tree exposing (Tree)
 import Internal.Value
-import String.Extra as String
-import Time exposing (Posix)
 
 
 {-| TODO
@@ -399,6 +399,12 @@ errorToEnglish err =
 
         _ ->
             "It's not valid"
+
+
+{-| -}
+getValue : Input id -> Value.Value
+getValue (Input tree) =
+    Tree.value tree |> .value |> Value.Value
 
 
 {-| -}

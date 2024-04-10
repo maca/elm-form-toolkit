@@ -535,48 +535,48 @@ treeToHtml attrs path node =
                 ]
 
         Internal.Input.Text ->
-            inputToHtml attrs "text" path input []
-                |> wrapInput attrs path input
+            inputToHtml attrs "text" path node []
+                |> wrapInput attrs path node
 
         Internal.Input.Email ->
-            inputToHtml attrs "email" path input []
-                |> wrapInput attrs path input
+            inputToHtml attrs "email" path node []
+                |> wrapInput attrs path node
 
         Internal.Input.Password ->
-            inputToHtml attrs "password" path input []
-                |> wrapInput attrs path input
+            inputToHtml attrs "password" path node []
+                |> wrapInput attrs path node
 
         Internal.Input.TextArea ->
-            textAreaToHtml attrs path input
-                |> wrapInput attrs path input
+            textAreaToHtml attrs path node
+                |> wrapInput attrs path node
 
         Internal.Input.Integer ->
-            inputToHtml attrs "number" path input [ step "1" ]
-                |> wrapInput attrs path input
+            inputToHtml attrs "number" path node [ step "1" ]
+                |> wrapInput attrs path node
 
         Internal.Input.Float ->
-            inputToHtml attrs "number" path input [ step "1" ]
-                |> wrapInput attrs path input
+            inputToHtml attrs "number" path node [ step "1" ]
+                |> wrapInput attrs path node
 
         Internal.Input.Date ->
-            inputToHtml attrs "date" path input []
-                |> wrapInput attrs path input
+            inputToHtml attrs "date" path node []
+                |> wrapInput attrs path node
 
         Internal.Input.Month ->
-            inputToHtml attrs "month" path input []
-                |> wrapInput attrs path input
+            inputToHtml attrs "month" path node []
+                |> wrapInput attrs path node
 
         Internal.Input.Select ->
-            selectToHtml attrs path input
-                |> wrapInput attrs path input
+            selectToHtml attrs path node
+                |> wrapInput attrs path node
 
         Internal.Input.Radio ->
-            radioToHtml attrs path input
-                |> wrapInput attrs path input
+            radioToHtml attrs path node
+                |> wrapInput attrs path node
 
         Internal.Input.Checkbox ->
-            checkboxToHtml attrs path input
-                |> wrapInput attrs path input
+            checkboxToHtml attrs path node
+                |> wrapInput attrs path node
 
         Internal.Input.Element elementId ->
             attrs.elements
@@ -590,30 +590,31 @@ inputToHtml :
     Attributes id msg
     -> String
     -> List Int
-    -> Internal.Input.Input id Input.Error
+    -> Input id
     -> List (Html.Attribute msg)
     -> Html msg
 inputToHtml attrs inputType path input htmlAttrs =
+    let
+        actualInput =
+            Tree.value (Input.toTree input)
+    in
     Html.input
         (htmlAttrs
             ++ type_ inputType
-            :: valueAttribute value input.value
+            :: valueAttribute value actualInput.value
             :: onInputChanged attrs path
             :: inputAttrs attrs path input
         )
         []
 
 
-textAreaToHtml :
-    Attributes id msg
-    -> List Int
-    -> Internal.Input.Input id Input.Error
-    -> Html msg
+textAreaToHtml : Attributes id msg -> List Int -> Input id -> Html msg
 textAreaToHtml attrs path input =
     let
         value =
-            Internal.Value.toString input.value
-                |> Result.withDefault ""
+            Input.getValue input
+                |> Value.toString
+                |> Maybe.withDefault ""
     in
     div
         [ class "grow-wrap"
@@ -628,17 +629,14 @@ textAreaToHtml attrs path input =
         ]
 
 
-checkboxToHtml :
-    Attributes id msg
-    -> List Int
-    -> Internal.Input.Input id Input.Error
-    -> Html msg
+checkboxToHtml : Attributes id msg -> List Int -> Input id -> Html msg
 checkboxToHtml attrs path input =
     Html.input
         (type_ "checkbox"
-            :: (Internal.Value.toBool input.value
-                    |> Result.map checked
-                    |> Result.withDefault (class "")
+            :: (Input.getValue input
+                    |> Value.toBool
+                    |> Maybe.map checked
+                    |> Maybe.withDefault (class "")
                )
             :: (case attrs.onChange of
                     Just tagger ->
@@ -652,12 +650,12 @@ checkboxToHtml attrs path input =
         []
 
 
-selectToHtml :
-    Attributes id msg
-    -> List Int
-    -> Internal.Input.Input id Input.Error
-    -> Html msg
-selectToHtml attrs path { name, isRequired, options, value } =
+selectToHtml : Attributes id msg -> List Int -> Input id -> Html msg
+selectToHtml attrs path input =
+    let
+        { name, isRequired, options, value } =
+            Tree.value (Input.toTree input)
+    in
     Html.select
         [ id (identifier name path)
         , required isRequired
@@ -678,8 +676,12 @@ selectToHtml attrs path { name, isRequired, options, value } =
         )
 
 
-radioToHtml : Attributes id msg -> List Int -> Internal.Input.Input id Input.Error -> Html msg
-radioToHtml attrs path { name, isRequired, options, value } =
+radioToHtml : Attributes id msg -> List Int -> Input id -> Html msg
+radioToHtml attrs path input =
+    let
+        { name, isRequired, options, value } =
+            Tree.value (Input.toTree input)
+    in
     Html.div
         [ class "radios" ]
         (List.indexedMap
@@ -757,13 +759,12 @@ templateHtml attributes path isLast inputElement =
         ]
 
 
-wrapInput :
-    Attributes id msg
-    -> List Int
-    -> Internal.Input.Input id Input.Error
-    -> Html msg
-    -> Html msg
-wrapInput attrs path ({ hint, name, isRequired, label } as input) inputHtml =
+wrapInput : Attributes id msg -> List Int -> Input id -> Html msg -> Html msg
+wrapInput attrs path input inputHtml =
+    let
+        { hint, name, isRequired, label } =
+            Tree.value (Input.toTree input)
+    in
     div
         [ class "field"
         , classList [ ( "required", isRequired ) ]
@@ -771,9 +772,7 @@ wrapInput attrs path ({ hint, name, isRequired, label } as input) inputHtml =
         [ Html.label
             [ for (identifier name path) ]
             [ Html.text (Maybe.withDefault name label) ]
-        , div
-            [ class "input-wrapper" ]
-            [ inputHtml ]
+        , div [ class "input-wrapper" ] [ inputHtml ]
         , case errorMessage input of
             Just message ->
                 p [ class "error" ] [ attrs.viewCopy message ]
@@ -781,9 +780,7 @@ wrapInput attrs path ({ hint, name, isRequired, label } as input) inputHtml =
             Nothing ->
                 case hint of
                     Just msg ->
-                        div
-                            [ class "hint" ]
-                            [ Markdown.toHtml msg ]
+                        div [ class "hint" ] [ Markdown.toHtml msg ]
 
                     Nothing ->
                         Html.text ""
@@ -792,9 +789,13 @@ wrapInput attrs path ({ hint, name, isRequired, label } as input) inputHtml =
 
 {-| TODO
 -}
-errorMessage : Internal.Input.Input id Input.Error -> Maybe (Copy id)
+errorMessage : Input id -> Maybe (Copy id)
 errorMessage input =
-    Maybe.map (ErrorMessage input.identifier) (Input.error input)
+    let
+        actualInput =
+            Tree.value (Input.toTree input)
+    in
+    Maybe.map (ErrorMessage actualInput.identifier) (Input.error actualInput)
 
 
 identifier : String -> List Int -> String
@@ -816,12 +817,12 @@ valueAttribute f value =
         |> Result.withDefault (class "")
 
 
-inputAttrs :
-    Attributes id msg
-    -> List Int
-    -> Internal.Input.Input id Input.Error
-    -> List (Html.Attribute msg)
-inputAttrs attrs path { name, isRequired, placeholder, min, max } =
+inputAttrs : Attributes id msg -> List Int -> Input id -> List (Html.Attribute msg)
+inputAttrs attrs path input =
+    let
+        { name, isRequired, placeholder, min, max } =
+            Tree.value (Input.toTree input)
+    in
     [ id (identifier name path)
     , required isRequired
     , autocomplete False
