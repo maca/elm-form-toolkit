@@ -175,7 +175,7 @@ updateInputWithBool : Bool -> InputTree id -> InputTree id
 updateInputWithBool bool =
     Tree.updateValue
         (Internal.Input.update
-            (Internal.Value.fromBoolean bool)
+            (Internal.Value.fromBool bool)
         )
 
 
@@ -268,7 +268,7 @@ clear (Form group) =
 valueDecoder : Decode.Decoder Value
 valueDecoder =
     Decode.oneOf
-        [ Decode.map Internal.Value.fromBoolean Decode.bool
+        [ Decode.map Internal.Value.fromBool Decode.bool
         , Decode.map Internal.Value.fromString Decode.string
         , Decode.map Internal.Value.fromInt Decode.int
         , Decode.map Internal.Value.fromFloat Decode.float
@@ -600,7 +600,7 @@ checkboxToHtml :
 checkboxToHtml attrs path input =
     Html.input
         (type_ "checkbox"
-            :: (Internal.Value.toBoolean input.value
+            :: (Internal.Value.toBool input.value
                     |> Result.map checked
                     |> Result.withDefault (class "")
                )
@@ -760,22 +760,19 @@ errorMessage err =
                 >> Maybe.withDefault ""
     in
     case err of
-        Input.TooLarge max ->
+        Input.TooLarge { max } ->
             Just ("Should be lesser than " ++ value max)
 
-        Input.TooSmall min ->
+        Input.TooSmall { min } ->
             Just ("Should be greater than " ++ value min)
 
-        Input.NotInRange ( min, max ) ->
+        Input.NotInRange { min, max } ->
             Just
                 ("Should be between "
                     ++ value min
                     ++ " and "
                     ++ value max
                 )
-
-        Input.NotInOptions ->
-            Just "Is not one of the allowed options"
 
         Input.IsBlank ->
             Just "Please fill in this input"

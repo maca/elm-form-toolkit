@@ -296,16 +296,15 @@ noattr =
 {-| TODO
 -}
 type Error
-    = TooLarge Value.Value
-    | TooSmall Value.Value
-    | NotInRange ( Value.Value, Value.Value )
-    | NotInOptions
+    = TooLarge { actual : Value.Value, max : Value.Value }
+    | TooSmall { actual : Value.Value, min : Value.Value }
+    | NotInRange { actual : Value.Value, min : Value.Value, max : Value.Value }
     | IsBlank
-    | NotString
-    | NotInt
-    | NotFloat
-    | NotBool
-    | NotPosix
+    | NotString Value.Value
+    | NotInt Value.Value
+    | NotFloat Value.Value
+    | NotBool Value.Value
+    | NotPosix Value.Value
 
 
 {-| TODO
@@ -339,25 +338,41 @@ checkRequired input =
 
 checkInRange : Internal.Input id Error -> Result Error Value.Value
 checkInRange input =
+    let
+        actual =
+            Value.Value input.value
+    in
     case
         ( Internal.Value.compare input.value input.min
         , Internal.Value.compare input.value input.max
         )
     of
         ( Just LT, Just _ ) ->
-            Err (NotInRange ( Value.Value input.min, Value.Value input.max ))
+            Err
+                (NotInRange
+                    { actual = actual
+                    , min = Value.Value input.min
+                    , max = Value.Value input.max
+                    }
+                )
 
         ( Just _, Just GT ) ->
-            Err (NotInRange ( Value.Value input.min, Value.Value input.max ))
+            Err
+                (NotInRange
+                    { actual = actual
+                    , min = Value.Value input.min
+                    , max = Value.Value input.max
+                    }
+                )
 
         ( Just LT, Nothing ) ->
-            Err (TooSmall (Value.Value input.min))
+            Err (TooSmall { actual = actual, min = Value.Value input.min })
 
         ( Nothing, Just GT ) ->
-            Err (TooLarge (Value.Value input.max))
+            Err (TooLarge { actual = actual, max = Value.Value input.max })
 
         _ ->
-            Ok (Value.Value input.value)
+            Ok actual
 
 
 {-| -}

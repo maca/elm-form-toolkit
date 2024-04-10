@@ -5,7 +5,7 @@ module Internal.Value exposing
     , dateFromString
     , encode
     , floatFromString
-    , fromBoolean
+    , fromBool
     , fromDate
     , fromFloat
     , fromInt
@@ -16,7 +16,7 @@ module Internal.Value exposing
     , isBlank
     , monthFromString
     , timeFromString
-    , toBoolean
+    , toBool
     , toFloat
     , toHuman
     , toInt
@@ -94,8 +94,8 @@ toFloat value =
             Err ()
 
 
-toBoolean : Value -> Result () Bool
-toBoolean value =
+toBool : Value -> Result () Bool
+toBool value =
     case value of
         Boolean val ->
             Ok val
@@ -209,8 +209,8 @@ fromTime =
     Time
 
 
-fromBoolean : Bool -> Value
-fromBoolean =
+fromBool : Bool -> Value
+fromBool =
     Boolean
 
 

@@ -1,8 +1,8 @@
 module FormToolkit.Value exposing
     ( Value(..)
-    , string, integer, float, boolean, blank
+    , string, int, float, bool, blank
     , date, month, time
-    , toString, toBoolean, toFloat, toInt, toPosix
+    , toString, toBool, toFloat, toInt, toPosix
     )
 
 {-|
@@ -11,13 +11,13 @@ module FormToolkit.Value exposing
 # Init
 
 @docs Value
-@docs string, integer, float, boolean, blank
+@docs string, int, float, bool, blank
 @docs date, month, time
 
 
 # Convert
 
-@docs toString, toBoolean, toFloat, toInt, toPosix
+@docs toString, toBool, toFloat, toInt, toPosix
 
 -}
 
@@ -43,23 +43,23 @@ string str =
 
 {-| TODO
 -}
-integer : Int -> Value
-integer =
-    Value << Internal.Integer
+int : Int -> Value
+int =
+    Value << Internal.fromInt
 
 
 {-| TODO
 -}
 float : Float -> Value
 float =
-    Value << Internal.Float
+    Value << Internal.fromFloat
 
 
 {-| TODO
 -}
-boolean : Bool -> Value
-boolean =
-    Value << Internal.Boolean
+bool : Bool -> Value
+bool =
+    Value << Internal.fromBool
 
 
 {-| TODO
@@ -113,9 +113,9 @@ toFloat (Value value) =
 
 {-| TODO
 -}
-toBoolean : Value -> Maybe Bool
-toBoolean (Value value) =
-    Internal.toBoolean value |> Result.toMaybe
+toBool : Value -> Maybe Bool
+toBool (Value value) =
+    Internal.toBool value |> Result.toMaybe
 
 
 {-| TODO

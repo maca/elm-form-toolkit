@@ -61,7 +61,7 @@ type Decoder id a
             [ Input.text
                 [ Input.label "first-name"
                 , Input.identifier "name"
-                , Input.value (Input.stringValue "Juan")
+                , Input.value (Value.string "Juan")
                 ]
             ]
     decode (field "first-name" string) form == Ok "Juan"
@@ -80,35 +80,35 @@ field id (Decoder decoder) =
 -}
 string : Decoder id String
 string =
-    value (Value.toString >> Result.fromMaybe Input.NotString)
+    value (\val -> Value.toString val |> Result.fromMaybe (Input.NotString val))
 
 
 {-| TODO
 -}
 int : Decoder id Int
 int =
-    value (Value.toInt >> Result.fromMaybe Input.NotInt)
+    value (\val -> Value.toInt val |> Result.fromMaybe (Input.NotInt val))
 
 
 {-| TODO
 -}
 float : Decoder id Float
 float =
-    value (Value.toFloat >> Result.fromMaybe Input.NotFloat)
+    value (\val -> Value.toFloat val |> Result.fromMaybe (Input.NotFloat val))
 
 
 {-| TODO
 -}
 bool : Decoder id Bool
 bool =
-    value (Value.toBoolean >> Result.fromMaybe Input.NotBool)
+    value (\val -> Value.toBool val |> Result.fromMaybe (Input.NotBool val))
 
 
 {-| TODO
 -}
 posix : Decoder id Time.Posix
 posix =
-    value (Value.toPosix >> Result.fromMaybe Input.NotPosix)
+    value (\val -> Value.toPosix val |> Result.fromMaybe (Input.NotPosix val))
 
 
 {-| TODO
