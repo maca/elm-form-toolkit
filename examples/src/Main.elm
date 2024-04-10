@@ -5,7 +5,6 @@ import FormToolkit.Decode as Decode exposing (Decoder)
 import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Form as Form exposing (Form)
 import FormToolkit.Input as Input
-import FormToolkit.Value as Value
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 

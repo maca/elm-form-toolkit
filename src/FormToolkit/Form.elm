@@ -90,7 +90,7 @@ type Form id
 
 type alias Attributes id msg =
     { onSubmit : Maybe msg
-    , onChange : Maybe (Msg -> msg)
+    , onChange : Maybe (Msg id -> msg)
     , elements : List ( id, Html msg )
     }
 
@@ -116,7 +116,7 @@ initAttributes =
 
 {-| TODO
 -}
-type Msg
+type Msg id
     = InputChanged (List Int) String
     | InputChecked (List Int) Bool
     | InputFocused (List Int)
@@ -131,7 +131,7 @@ type alias InputTree id =
 
 {-| TODO
 -}
-update : Msg -> Form id -> Form id
+update : Msg id -> Form id -> Form id
 update msg ((Form group) as form) =
     case msg of
         InputChanged path str ->
@@ -204,7 +204,7 @@ onSubmit tagger =
 
 {-| TODO
 -}
-onChange : (Msg -> msg) -> Attribute id msg
+onChange : (Msg id -> msg) -> Attribute id msg
 onChange tagger =
     Attribute (\attrs -> { attrs | onChange = Just tagger })
 
