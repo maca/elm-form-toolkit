@@ -1,8 +1,10 @@
 module FormToolkit.Form exposing
     ( Form(..), init
     , Msg, update
-    , Attribute, toHtml, onChange, onSubmit, elementHtml, toInputGroup
-    , Error, errors
+    , Attribute, toHtml, onChange, onSubmit
+    , elementHtml, toInputGroup
+    , Copy(..), viewCopy, defaultCopies
+    , Error(..), errors
     , validate, hasBlankValues, hasErrors, isValid, clear
     , encodeValues, setValues
     )
@@ -22,7 +24,9 @@ module FormToolkit.Form exposing
 
 # View
 
-@docs Attribute, toHtml, onChange, onSubmit, elementHtml, toInputGroup
+@docs Attribute, toHtml, onChange, onSubmit
+@docs elementHtml, toInputGroup
+@docs Copy, viewCopy, defaultCopies
 
 
 # Validation
@@ -49,7 +53,7 @@ import Html
         , fieldset
         , p
         )
-import Html.Attributes as A
+import Html.Attributes as Attributes
     exposing
         ( attribute
         , autocomplete
@@ -65,7 +69,7 @@ import Html.Attributes as A
         , type_
         , value
         )
-import Html.Events as Html
+import Html.Events as Events
     exposing
         ( onBlur
         , onFocus
@@ -91,6 +95,7 @@ type Form id
 type alias Attributes id msg =
     { onSubmit : Maybe msg
     , onChange : Maybe (Msg id -> msg)
+    , viewCopy : Copy id -> Html msg
     , elements : List ( id, Html msg )
     }
 
@@ -110,6 +115,7 @@ initAttributes : Attributes id msg
 initAttributes =
     { onSubmit = Nothing
     , onChange = Nothing
+    , viewCopy = defaultCopies
     , elements = []
     }
 
@@ -284,8 +290,38 @@ toInputGroup attributes (Form group) =
         |> Input.group attributes
 
 
+{-| TODO
+-}
+type Copy id
+    = Submit
+    | AddInputs
+    | RemoveInputs
+    | ErrorMessage (Maybe id) Input.Error
 
--- VALUES
+
+{-| TODO
+-}
+viewCopy : (Copy id -> Html msg) -> Attribute id msg
+viewCopy func =
+    Attribute (\attrs -> { attrs | viewCopy = func })
+
+
+{-| TODO
+-}
+defaultCopies : Copy id -> Html msg
+defaultCopies copy =
+    case copy of
+        Submit ->
+            Html.text "Submit"
+
+        AddInputs ->
+            Html.text "Add"
+
+        RemoveInputs ->
+            Html.text "Remove"
+
+        ErrorMessage _ err ->
+            Html.text (Input.errorToEnglish err)
 
 
 {-| TODO
@@ -431,12 +467,12 @@ toHtml attrList (Form group) =
     Html.form
         [ class "indexing-form simple-form"
         , attrs.onSubmit
-            |> Maybe.map Html.onSubmit
+            |> Maybe.map Events.onSubmit
             |> Maybe.withDefault (class "")
         , novalidate True
         ]
         [ fieldset [] [ treeToHtml attrs [] group ]
-        , submitButtonHtml []
+        , submitButtonHtml attrs
         ]
 
 
@@ -500,47 +536,47 @@ treeToHtml attrs path node =
 
         Internal.Input.Text ->
             inputToHtml attrs "text" path input []
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Email ->
             inputToHtml attrs "email" path input []
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Password ->
             inputToHtml attrs "password" path input []
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.TextArea ->
             textAreaToHtml attrs path input
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Integer ->
             inputToHtml attrs "number" path input [ step "1" ]
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Float ->
             inputToHtml attrs "number" path input [ step "1" ]
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Date ->
             inputToHtml attrs "date" path input []
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Month ->
             inputToHtml attrs "month" path input []
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Select ->
             selectToHtml attrs path input
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Radio ->
             radioToHtml attrs path input
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Checkbox ->
             checkboxToHtml attrs path input
-                |> wrapInput path input
+                |> wrapInput attrs path input
 
         Internal.Input.Element elementId ->
             attrs.elements
@@ -585,7 +621,7 @@ textAreaToHtml attrs path input =
         ]
         [ Html.textarea
             (onInputChanged attrs path
-                :: A.value value
+                :: Attributes.value value
                 :: inputAttrs attrs path input
             )
             []
@@ -606,7 +642,7 @@ checkboxToHtml attrs path input =
                )
             :: (case attrs.onChange of
                     Just tagger ->
-                        Html.onCheck (InputChecked path >> tagger)
+                        Events.onCheck (InputChecked path >> tagger)
 
                     Nothing ->
                         class ""
@@ -634,7 +670,7 @@ selectToHtml attrs path { name, isRequired, options, value } =
                 (\index ( optionText, optionValue ) ->
                     Html.option
                         [ selected (optionValue == value)
-                        , A.value (String.fromInt index)
+                        , Attributes.value (String.fromInt index)
                         ]
                         [ Html.text optionText ]
                 )
@@ -657,7 +693,7 @@ radioToHtml attrs path { name, isRequired, options, value } =
                         [ id optionId
                         , checked (optionValue == value)
                         , required isRequired
-                        , A.value (String.fromInt index)
+                        , Attributes.value (String.fromInt index)
                         , onInputChanged attrs path
                         , onInputFocused attrs path
                         , onInputBlured attrs path
@@ -687,7 +723,7 @@ addInputsButton attrs path =
             Nothing ->
                 class ""
         ]
-        [ Html.text "add"
+        [ attrs.viewCopy AddInputs
         ]
 
 
@@ -714,16 +750,20 @@ templateHtml attributes path isLast inputElement =
                     Nothing ->
                         class ""
                 ]
-                [ Html.text "Remove"
-                ]
+                [ attributes.viewCopy RemoveInputs ]
 
           else
             Html.text ""
         ]
 
 
-wrapInput : List Int -> Internal.Input.Input id Input.Error -> Html msg -> Html msg
-wrapInput path ({ hint, name, isRequired, label } as input) inputHtml =
+wrapInput :
+    Attributes id msg
+    -> List Int
+    -> Internal.Input.Input id Input.Error
+    -> Html msg
+    -> Html msg
+wrapInput attrs path ({ hint, name, isRequired, label } as input) inputHtml =
     div
         [ class "field"
         , classList [ ( "required", isRequired ) ]
@@ -734,9 +774,9 @@ wrapInput path ({ hint, name, isRequired, label } as input) inputHtml =
         , div
             [ class "input-wrapper" ]
             [ inputHtml ]
-        , case Input.error input |> Maybe.andThen errorMessage of
+        , case errorMessage input of
             Just message ->
-                p [ class "error" ] [ Html.text message ]
+                p [ class "error" ] [ attrs.viewCopy message ]
 
             Nothing ->
                 case hint of
@@ -752,33 +792,9 @@ wrapInput path ({ hint, name, isRequired, label } as input) inputHtml =
 
 {-| TODO
 -}
-errorMessage : Input.Error -> Maybe String
-errorMessage err =
-    let
-        value =
-            Value.toString
-                >> Maybe.withDefault ""
-    in
-    case err of
-        Input.TooLarge { max } ->
-            Just ("Should be lesser than " ++ value max)
-
-        Input.TooSmall { min } ->
-            Just ("Should be greater than " ++ value min)
-
-        Input.NotInRange { min, max } ->
-            Just
-                ("Should be between "
-                    ++ value min
-                    ++ " and "
-                    ++ value max
-                )
-
-        Input.IsBlank ->
-            Just "Please fill in this input"
-
-        _ ->
-            Nothing
+errorMessage : Internal.Input.Input id Input.Error -> Maybe (Copy id)
+errorMessage input =
+    Maybe.map (ErrorMessage input.identifier) (Input.error input)
 
 
 identifier : String -> List Int -> String
@@ -811,17 +827,15 @@ inputAttrs attrs path { name, isRequired, placeholder, min, max } =
     , autocomplete False
     , onInputFocused attrs path
     , onInputBlured attrs path
-    , A.placeholder (Maybe.withDefault "" placeholder)
-    , valueAttribute A.min min
-    , valueAttribute A.max max
+    , Attributes.placeholder (Maybe.withDefault "" placeholder)
+    , valueAttribute Attributes.min min
+    , valueAttribute Attributes.max max
     ]
 
 
-submitButtonHtml : List (Html.Attribute msg) -> Html msg
+submitButtonHtml : Attributes id msg -> Html msg
 submitButtonHtml attrs =
-    button
-        (id "form-submit-button" :: attrs)
-        [ Html.text "Submit" ]
+    button [ id "form-submit-button" ] [ attrs.viewCopy Submit ]
 
 
 onInputChanged : Attributes id msg -> List Int -> Html.Attribute msg

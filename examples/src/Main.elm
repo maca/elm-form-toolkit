@@ -2,9 +2,8 @@ module Main exposing (..)
 
 import Browser
 import FormToolkit.Decode as Decode exposing (Decoder)
-import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Form as Form exposing (Form)
-import FormToolkit.Input as Input
+import FormToolkit.Input as Input exposing (Error)
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 
@@ -98,7 +97,7 @@ recordForm =
                 ]
             ]
         , Input.repeatable [ Input.identifier Authors ] personFields []
-        , Input.element Element
+        , Input.elementPlaceholder Element
         ]
 
 
@@ -107,7 +106,7 @@ recordForm =
 
 
 type Msg
-    = FormChanged Form.Msg
+    = FormChanged (Form.Msg Fields)
 
 
 update : Msg -> Model -> Model

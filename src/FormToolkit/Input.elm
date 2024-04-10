@@ -4,14 +4,14 @@ module FormToolkit.Input exposing
     , integer, float
     , date, month
     , select, radio, checkbox
-    , element
     , group, repeatable
+    , elementPlaceholder
     , mapIdentifier
     , Attribute
     , name, identifier, value, required, label, hint, placeholder
     , options, min, max
     , inline, noattr
-    , Error(..), error, check
+    , Error(..), error, check, errorToEnglish
     , fromTree, toTree
     )
 
@@ -25,8 +25,8 @@ module FormToolkit.Input exposing
 @docs integer, float
 @docs date, month
 @docs select, radio, checkbox
-@docs element
 @docs group, repeatable
+@docs elementPlaceholder
 @docs mapIdentifier
 
 
@@ -40,7 +40,7 @@ module FormToolkit.Input exposing
 
 # Validation
 
-@docs Error, error, check
+@docs Error, error, check, errorToEnglish
 
 
 # Etc
@@ -169,8 +169,8 @@ repeatable attributes template inputs =
 
 {-| TODO
 -}
-element : id -> Input id
-element id =
+elementPlaceholder : id -> Input id
+elementPlaceholder id =
     init (Internal.Element id) []
 
 
@@ -373,6 +373,32 @@ checkInRange input =
 
         _ ->
             Ok actual
+
+
+{-| TODO
+-}
+errorToEnglish : Error -> String
+errorToEnglish err =
+    let
+        toString =
+            Value.toString
+                >> Maybe.withDefault ""
+    in
+    case err of
+        TooLarge data ->
+            "Should be lesser than " ++ toString data.max
+
+        TooSmall data ->
+            "Should be greater than " ++ toString data.min
+
+        NotInRange data ->
+            "Should be between " ++ toString data.min ++ " and " ++ toString data.max
+
+        IsBlank ->
+            "Should be provided"
+
+        _ ->
+            "It's not valid"
 
 
 {-| -}
