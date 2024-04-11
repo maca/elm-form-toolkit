@@ -41,9 +41,9 @@ module Internal.Input exposing
 -- import FormToolkit.Value as Value
 
 import Array
-import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
 import List.Extra as List
+import RoseTree.Tree as Tree exposing (Tree)
 
 
 type Status err

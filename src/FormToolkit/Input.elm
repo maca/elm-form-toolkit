@@ -53,8 +53,8 @@ module FormToolkit.Input exposing
 
 import FormToolkit.Value as Value
 import Internal.Input as Internal
-import Internal.Tree as Tree exposing (Tree)
 import Internal.Value
+import RoseTree.Tree as Tree exposing (Tree)
 
 
 {-| TODO

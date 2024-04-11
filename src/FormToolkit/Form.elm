@@ -78,12 +78,12 @@ import Html.Events as Events
         )
 import Internal.Input
 import Internal.Markdown as Markdown
-import Internal.Tree as Tree exposing (Tree)
 import Internal.Value exposing (Value)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import List.Extra as List
 import Result
+import RoseTree.Tree as Tree exposing (Tree)
 
 
 {-| Form
@@ -154,7 +154,7 @@ update msg ((Form group) as form) =
 
         InputsAdded path ->
             case
-                Tree.getValue path (Input.toTree group)
+                Tree.getValueAt path (Input.toTree group)
                     |> Maybe.map .inputType
             of
                 Just (Internal.Input.Repeatable template) ->
@@ -164,12 +164,12 @@ update msg ((Form group) as form) =
                     Form group
 
         InputsRemoved path ->
-            Form (Input.fromTree (Tree.remove path (Input.toTree group)))
+            Form (Input.fromTree (Tree.removeAt path (Input.toTree group)))
 
 
 updateHelp : List Int -> (InputTree id -> InputTree id) -> Form id -> Form id
 updateHelp path func (Form group) =
-    Form (Input.fromTree (Tree.update path func (Input.toTree group)))
+    Form (Input.fromTree (Tree.updateAt path func (Input.toTree group)))
 
 
 updateInput : String -> InputTree id -> InputTree id

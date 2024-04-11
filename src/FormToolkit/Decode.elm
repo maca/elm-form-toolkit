@@ -41,7 +41,7 @@ import FormToolkit.Form exposing (Form(..))
 import FormToolkit.Input as Input exposing (Input)
 import FormToolkit.Value as Value
 import Internal.Input
-import Internal.Tree as Tree exposing (Tree)
+import RoseTree.Tree as Tree exposing (Tree)
 import Time
 
 
@@ -69,7 +69,7 @@ type Decoder id a
 field : id -> Decoder id a -> Decoder id a
 field id (Decoder decoder) =
     Decoder
-        (Tree.find (Tree.value >> .identifier >> (==) (Just id))
+        (Tree.findl (Tree.value >> .identifier >> (==) (Just id))
             >> Maybe.map decoder
             >> Maybe.withDefault (Err (InputNotFound id))
         )
