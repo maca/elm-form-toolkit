@@ -37,7 +37,6 @@ decoders and perform decoding operations.
 
 -}
 
-import FormToolkit.Form exposing (Form(..))
 import FormToolkit.Input as Input exposing (Input)
 import FormToolkit.Value as Value
 import Internal.Input
@@ -309,6 +308,6 @@ type Error id
 
 {-| TODO
 -}
-decode : Decoder id a -> Form id -> Result (Error id) a
-decode (Decoder decoder) (Form root) =
-    decoder (Input.toTree root)
+decode : Decoder id a -> Input id -> Result (Error id) a
+decode (Decoder decoder) input =
+    decoder (Input.toTree input)
