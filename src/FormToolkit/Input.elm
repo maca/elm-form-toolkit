@@ -18,7 +18,7 @@ module FormToolkit.Input exposing
     , Error(..), error, check, errorToEnglish
     , clear
     , getValue
-    , encodeValues, setValues
+    , toJSON
     , fromTree, toTree
     )
 
@@ -66,7 +66,7 @@ module FormToolkit.Input exposing
 
 # JSON
 
-@docs encodeValues, setValues
+@docs toJSON
 
 
 # Etc
@@ -837,15 +837,14 @@ resetStatus =
 {-| TODO
 -}
 type Error
-    = TooLarge { actual : Value.Value, max : Value.Value }
-    | TooSmall { actual : Value.Value, min : Value.Value }
-    | NotInRange { actual : Value.Value, min : Value.Value, max : Value.Value }
+    = TooLarge { value : Value.Value, max : Value.Value }
+    | TooSmall { value : Value.Value, min : Value.Value }
+    | NotInRange
+        { value : Value.Value
+        , min : Value.Value
+        , max : Value.Value
+        }
     | IsBlank
-    | NotString Value.Value
-    | NotInt Value.Value
-    | NotFloat Value.Value
-    | NotBool Value.Value
-    | NotPosix Value.Value
 
 
 {-| TODO
@@ -895,7 +894,7 @@ checkInRange input =
         ( Just LT, Just _ ) ->
             Err
                 (NotInRange
-                    { actual = actual
+                    { value = actual
                     , min = Value.Value input.min
                     , max = Value.Value input.max
                     }
@@ -904,7 +903,7 @@ checkInRange input =
         ( Just _, Just GT ) ->
             Err
                 (NotInRange
-                    { actual = actual
+                    { value = actual
                     , min = Value.Value input.min
                     , max = Value.Value input.max
                     }
@@ -913,7 +912,7 @@ checkInRange input =
         ( Just LT, Nothing ) ->
             Err
                 (TooSmall
-                    { actual = actual
+                    { value = actual
                     , min = Value.Value input.min
                     }
                 )
@@ -921,7 +920,7 @@ checkInRange input =
         ( Nothing, Just GT ) ->
             Err
                 (TooLarge
-                    { actual = actual
+                    { value = actual
                     , max = Value.Value input.max
                     }
                 )
@@ -951,9 +950,6 @@ errorToEnglish _ err =
 
         IsBlank ->
             "Should be provided"
-
-        _ ->
-            "It's not valid"
 
 
 {-| -}
@@ -1018,8 +1014,8 @@ updateAt path func input =
 
 {-| TODO
 -}
-encodeValues : Input id -> Encode.Value
-encodeValues input =
+toJSON : Input id -> Encode.Value
+toJSON input =
     Encode.object (encodeHelp input [])
 
 
@@ -1052,28 +1048,6 @@ encodeHelp inputElement acc =
 
         _ ->
             ( input.name, Internal.Value.encode input.value ) :: acc
-
-
-{-| TODO
--}
-setValues : Dict String Decode.Value -> Input id -> Input id
-setValues values input =
-    map (Tree.updateValue (setValuesHelp values)) input
-
-
-setValuesHelp : Dict String Decode.Value -> Internal.Input id Error -> Internal.Input id Error
-setValuesHelp values input =
-    Dict.get input.name values
-        |> Maybe.map
-            (\val ->
-                case Decode.decodeValue valueDecoder val of
-                    Ok inputValue ->
-                        Internal.update inputValue input
-
-                    Err _ ->
-                        input
-            )
-        |> Maybe.withDefault input
 
 
 valueDecoder : Decode.Decoder Internal.Value.Value

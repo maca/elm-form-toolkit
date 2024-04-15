@@ -92,35 +92,35 @@ field id (Decoder decoder) =
 -}
 string : Decoder id String
 string =
-    value (\val -> Value.toString val |> Result.fromMaybe (Input.NotString val))
+    value Value.toString
 
 
 {-| TODO
 -}
 int : Decoder id Int
 int =
-    value (\val -> Value.toInt val |> Result.fromMaybe (Input.NotInt val))
+    value Value.toInt
 
 
 {-| TODO
 -}
 float : Decoder id Float
 float =
-    value (\val -> Value.toFloat val |> Result.fromMaybe (Input.NotFloat val))
+    value Value.toFloat
 
 
 {-| TODO
 -}
 bool : Decoder id Bool
 bool =
-    value (\val -> Value.toBool val |> Result.fromMaybe (Input.NotBool val))
+    value Value.toBool
 
 
 {-| TODO
 -}
 posix : Decoder id Time.Posix
 posix =
-    value (\val -> Value.toPosix val |> Result.fromMaybe (Input.NotPosix val))
+    value Value.toPosix
 
 
 {-| TODO
@@ -178,32 +178,27 @@ succeed a =
 
 {-| TODO
 -}
-value : (Value.Value -> Result Input.Error a) -> Decoder id a
+value : (Value.Value -> Maybe a) -> Decoder id a
 value func =
     custom
-        (Input.toTree
-            >> Tree.value
-            >> Input.check
-            >> Result.andThen func
+        (\tree ->
+            let
+                input =
+                    Input.toTree tree |> Tree.value
+            in
+            input
+                |> Input.check
+                |> Result.mapError (InputError input.identifier)
+                |> Result.andThen
+                    (func >> Result.fromMaybe (ParseError Nothing))
         )
 
 
 {-| TODO
 -}
-custom : (Input id -> Result Input.Error a) -> Decoder id a
+custom : (Input id -> Result (Error id) a) -> Decoder id a
 custom func =
-    Decoder
-        (\tree ->
-            let
-                result =
-                    Result.mapError
-                        (InputError
-                            (.identifier (Tree.value tree))
-                        )
-                        (func (Input.fromTree tree))
-            in
-            Partial result
-        )
+    Decoder (\tree -> Partial (func (Input.fromTree tree)))
 
 
 {-| TODO
@@ -356,6 +351,7 @@ map8 func a b c d e f g h =
 -}
 type Error id
     = InputError (Maybe id) Input.Error
+    | ParseError (Maybe id)
     | ListError Int (Error id)
     | InputNotFound id
 
