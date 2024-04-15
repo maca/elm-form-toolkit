@@ -75,7 +75,6 @@ module FormToolkit.Input exposing
 
 -}
 
-import Dict exposing (Dict)
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attributes
@@ -1048,13 +1047,3 @@ encodeHelp inputElement acc =
 
         _ ->
             ( input.name, Internal.Value.encode input.value ) :: acc
-
-
-valueDecoder : Decode.Decoder Internal.Value.Value
-valueDecoder =
-    Decode.oneOf
-        [ Decode.map Internal.Value.fromBool Decode.bool
-        , Decode.map Internal.Value.fromString Decode.string
-        , Decode.map Internal.Value.fromInt Decode.int
-        , Decode.map Internal.Value.fromFloat Decode.float
-        ]
