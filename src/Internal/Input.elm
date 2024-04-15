@@ -1,44 +1,15 @@
 module Internal.Input exposing
-    ( Input, InputType(..), Status(..)
-    , update, updateWithString
-    , resetStatus
-    , humanValue
-    , init, isBlank, root
+    ( Input
+    , InputType(..)
+    , Status(..)
+    , init
+    , isBlank
     , mapIdentifier
+    , resetStatus
+    , root
+    , update
+    , updateWithString
     )
-
-{-|
-
-@docs Input, InputType, Status
-
-
-# Update
-
-@docs update, updateWithString
-
-
-# Validation
-
-@docs resetStatus, validate, check
-
-
-# Value
-
-@docs humanValue
-
-
-# Errors
-
-@docs init, isBlank, root
-
-
-# Map
-
-@docs mapIdentifier
-
--}
-
--- import FormToolkit.Value as Value
 
 import Array
 import Internal.Value exposing (Value)
@@ -181,27 +152,6 @@ isBlank { value, inputType } =
 
         _ ->
             Internal.Value.isBlank value
-
-
-humanValue : Input id err -> Value
-humanValue input =
-    case input.inputType of
-        Radio ->
-            humanValueHelp input
-
-        Select ->
-            humanValueHelp input
-
-        _ ->
-            input.value
-
-
-humanValueHelp : Input id err -> Value
-humanValueHelp { value, options } =
-    List.filter (\( _, v ) -> v == value) options
-        |> List.head
-        |> Maybe.map (Tuple.first >> Internal.Value.fromString)
-        |> Maybe.withDefault Internal.Value.blank
 
 
 mapIdentifier : (a -> b) -> Input a err -> Input b err
