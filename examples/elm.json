@@ -22,6 +22,7 @@
             "elm-community/array-extra": "2.6.0",
             "elm-community/list-extra": "8.6.0",
             "elm-community/string-extra": "4.0.1",
+            "maca/elm-rose-tree": "1.2.0",
             "pablohirafuji/elm-markdown": "2.0.5",
             "rtfeldman/elm-iso8601-date-strings": "1.1.4"
         },

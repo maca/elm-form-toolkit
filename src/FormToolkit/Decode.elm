@@ -2,11 +2,10 @@ module FormToolkit.Decode exposing
     ( Decoder
     , field
     , string, int, float, bool, posix, maybe, list
-    , succeed
-    , custom
+    , succeed, fail, custom
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
-    , Error(..), decode
+    , decode
     )
 
 {-| This module contains a set of decoders that are useful when working with
@@ -21,8 +20,7 @@ decoders and perform decoding operations.
 
 @docs field
 @docs string, int, float, bool, posix, maybe, list
-@docs succeed
-@docs custom
+@docs succeed, fail, custom
 
 
 # Maps and combinators
@@ -33,33 +31,35 @@ decoders and perform decoding operations.
 
 # Decoding
 
-@docs Error, decode
+@docs decode
 
 -}
 
 import FormToolkit.Input as Input exposing (Input)
 import FormToolkit.Value as Value
 import Internal.Input
+import Internal.Value
 import RoseTree.Tree as Tree exposing (Tree)
 import Time
-
-
-type Partial id a
-    = Partial (Result (Error id) a)
 
 
 {-| A decoder that takes a tree of input data and returns a decoded result
 or an error if the decoding fails.
 -}
 type Decoder id a
-    = Decoder (Tree (Internal.Input.Input id Input.Error) -> Partial id a)
+    = Decoder (Tree (Internal.Input.Input id (Input.Error id)) -> Partial id a)
+
+
+type alias Partial id a =
+    Result (Input.Error id) a
 
 
 {-| Decoder for a field with the given ID using a provided decoder.
 
-    form : Form String
+    form : Input String
     form =
-        Form.init
+        Input.group
+            []
             [ Input.text
                 [ Input.label "first-name"
                 , Input.identifier "name"
@@ -73,18 +73,11 @@ field : id -> Decoder id a -> Decoder id a
 field id (Decoder decoder) =
     Decoder
         (\tree ->
-            let
-                result =
-                    tree
-                        |> Tree.findl
-                            (Tree.value
-                                >> .identifier
-                                >> (==) (Just id)
-                            )
-                        |> Maybe.map (decoder >> toResult)
-                        |> Maybe.withDefault (Err (InputNotFound id))
-            in
-            Partial result
+            tree
+                |> Tree.findl
+                    (Tree.value >> .identifier >> (==) (Just id))
+                |> Maybe.map decoder
+                |> Maybe.withDefault (Err (Input.InputNotFound id))
         )
 
 
@@ -92,35 +85,42 @@ field id (Decoder decoder) =
 -}
 string : Decoder id String
 string =
-    value Value.toString
+    parseValue Value.toString
 
 
 {-| TODO
 -}
 int : Decoder id Int
 int =
-    value Value.toInt
+    parseValue Value.toInt
 
 
 {-| TODO
 -}
 float : Decoder id Float
 float =
-    value Value.toFloat
+    parseValue Value.toFloat
 
 
 {-| TODO
 -}
 bool : Decoder id Bool
 bool =
-    value Value.toBool
+    parseValue Value.toBool
 
 
 {-| TODO
 -}
 posix : Decoder id Time.Posix
 posix =
-    value Value.toPosix
+    parseValue Value.toPosix
+
+
+{-| TODO
+-}
+value : Decoder id Value.Value
+value =
+    parseValue Just
 
 
 {-| TODO
@@ -129,15 +129,11 @@ maybe : Decoder id a -> Decoder id (Maybe a)
 maybe (Decoder decoder) =
     Decoder
         (\tree ->
-            let
-                result =
-                    if Internal.Input.isBlank (Tree.value tree) then
-                        Ok Nothing
+            if Internal.Input.isBlank (Tree.value tree) then
+                Ok Nothing
 
-                    else
-                        Result.map Just (decoder tree |> toResult)
-            in
-            Partial result
+            else
+                Result.map Just (decoder tree)
         )
 
 
@@ -147,25 +143,21 @@ list : Decoder id a -> Decoder id (List a)
 list (Decoder decoder) =
     Decoder
         (\tree ->
-            let
-                result =
-                    Tree.children tree
-                        |> List.foldl
-                            (\e ( prev, i ) ->
-                                ( Result.map2 (::)
-                                    (Result.mapError
-                                        (ListError i)
-                                        (decoder e |> toResult)
-                                    )
-                                    prev
-                                , i + 1
-                                )
+            Tree.children tree
+                |> List.foldl
+                    (\e ( prev, i ) ->
+                        ( Result.map2 (::)
+                            (Result.mapError
+                                (Input.ListError i)
+                                (decoder e)
                             )
-                            ( Ok [], 0 )
-                        |> Tuple.first
-                        |> Result.map List.reverse
-            in
-            Partial result
+                            prev
+                        , i + 1
+                        )
+                    )
+                    ( Ok [], 0 )
+                |> Tuple.first
+                |> Result.map List.reverse
         )
 
 
@@ -173,32 +165,54 @@ list (Decoder decoder) =
 -}
 succeed : a -> Decoder id a
 succeed a =
-    Decoder (\_ -> Partial (Ok a))
+    Decoder (\_ -> Ok a)
 
 
 {-| TODO
 -}
-value : (Value.Value -> Maybe a) -> Decoder id a
-value func =
+fail : Input.Error id -> Decoder id a
+fail error =
+    Decoder (\_ -> Err error)
+
+
+{-| TODO
+-}
+parseValue : (Value.Value -> Maybe a) -> Decoder id a
+parseValue func =
     custom
         (\tree ->
-            let
-                input =
-                    Input.toTree tree |> Tree.value
-            in
-            input
-                |> Input.check
-                |> Result.mapError (InputError input.identifier)
-                |> Result.andThen
-                    (func >> Result.fromMaybe (ParseError Nothing))
+            Input.toTree tree
+                |> Tree.value
+                |> .value
+                |> Value.Value
+                |> func
+                |> Result.fromMaybe (Input.ParseError Nothing)
         )
+        |> validate checkRequired
 
 
 {-| TODO
 -}
-custom : (Input id -> Result (Error id) a) -> Decoder id a
+custom : (Input id -> Result (Input.Error id) a) -> Decoder id a
 custom func =
-    Decoder (\tree -> Partial (func (Input.fromTree tree)))
+    Decoder (\tree -> func (Input.fromTree tree))
+
+
+validate :
+    (Input id -> Result (Input.Error id) Value.Value)
+    -> Decoder id a
+    -> Decoder id a
+validate func decoder =
+    Decoder
+        (\tree ->
+            case func (Input.fromTree tree) of
+                Ok val ->
+                    Ok val
+
+                Err err ->
+                    Err err
+        )
+        |> andThen (always decoder)
 
 
 {-| TODO
@@ -207,19 +221,15 @@ andThen : (a -> Decoder id b) -> Decoder id a -> Decoder id b
 andThen func (Decoder decoder) =
     Decoder
         (\tree ->
-            let
-                result =
-                    Result.andThen
-                        (\res ->
-                            let
-                                (Decoder partial) =
-                                    func res
-                            in
-                            toResult (partial tree)
-                        )
-                        (decoder tree |> toResult)
-            in
-            Partial result
+            Result.andThen
+                (\res ->
+                    let
+                        (Decoder partial) =
+                            func res
+                    in
+                    partial tree
+                )
+                (decoder tree)
         )
 
 
@@ -227,30 +237,14 @@ andThen func (Decoder decoder) =
 -}
 andMap : Decoder id a -> Decoder id (a -> b) -> Decoder id b
 andMap (Decoder decoder) (Decoder partial) =
-    Decoder
-        (\tree ->
-            let
-                result =
-                    Result.map2 (|>)
-                        (decoder tree |> toResult)
-                        (partial tree |> toResult)
-            in
-            Partial result
-        )
+    Decoder (\tree -> Result.map2 (|>) (decoder tree) (partial tree))
 
 
 {-| TODO
 -}
 map : (a -> b) -> Decoder id a -> Decoder id b
 map func (Decoder decoder) =
-    Decoder
-        (\tree ->
-            let
-                result =
-                    Result.map func (decoder tree |> toResult)
-            in
-            Partial result
-        )
+    Decoder (\tree -> Result.map func (decoder tree))
 
 
 {-| TODO
@@ -347,22 +341,88 @@ map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
-{-| Represents an error that occurred during decoding.
--}
-type Error id
-    = InputError (Maybe id) Input.Error
-    | ParseError (Maybe id)
-    | ListError Int (Error id)
-    | InputNotFound id
-
-
 {-| TODO
 -}
-decode : Decoder id a -> Input id -> Result (Error id) a
+decode : Decoder id a -> Input id -> Result (Input.Error id) a
 decode (Decoder decoder) input =
-    decoder (Input.toTree input) |> toResult
+    decoder (Input.toTree input)
 
 
-toResult : Partial id a -> Result (Error id) a
-toResult (Partial result) =
-    result
+
+-- {-| TODO
+-- -}
+-- validate : Tree (Internal.Input id error) -> Tree (Internal.Input id error)
+-- validate =
+--     Tree.updateValue
+--         (\node ->
+--             case check node of
+--                 Ok _ ->
+--                     { node | status = Internal.Valid }
+--                 Err err ->
+--                     { node | status = Internal.WithError err }
+--         )
+
+
+checkRequired : Input id -> Result (Input.Error id) Value.Value
+checkRequired (Input.Input tree) =
+    let
+        input =
+            Tree.value tree
+    in
+    if input.isRequired && Internal.Value.isBlank input.value then
+        Err Input.IsBlank
+
+    else
+        Ok (Value.Value input.value)
+
+
+checkInRange : Input id -> Result (Input.Error id) Value.Value
+checkInRange (Input.Input tree) =
+    let
+        input =
+            Tree.value tree
+
+        actual =
+            Value.Value input.value
+    in
+    case
+        ( Internal.Value.compare input.value input.min
+        , Internal.Value.compare input.value input.max
+        )
+    of
+        ( Just LT, Just _ ) ->
+            Err
+                (Input.NotInRange
+                    { value = actual
+                    , min = Value.Value input.min
+                    , max = Value.Value input.max
+                    }
+                )
+
+        ( Just _, Just GT ) ->
+            Err
+                (Input.NotInRange
+                    { value = actual
+                    , min = Value.Value input.min
+                    , max = Value.Value input.max
+                    }
+                )
+
+        ( Just LT, Nothing ) ->
+            Err
+                (Input.TooSmall
+                    { value = actual
+                    , min = Value.Value input.min
+                    }
+                )
+
+        ( Nothing, Just GT ) ->
+            Err
+                (Input.TooLarge
+                    { value = actual
+                    , max = Value.Value input.max
+                    }
+                )
+
+        _ ->
+            Ok actual

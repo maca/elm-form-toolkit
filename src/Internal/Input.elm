@@ -17,10 +17,9 @@ import List.Extra as List
 import RoseTree.Tree as Tree exposing (Tree)
 
 
-type Status err
-    = Unchecked
-    | Valid
-    | WithError err
+type Status
+    = Pristine
+    | Touched
 
 
 type InputType id err
@@ -53,7 +52,8 @@ type alias Input id err =
     , options : List ( String, Value )
     , inline : Bool
     , identifier : Maybe id
-    , status : Status err
+    , status : Status
+    , errors : List err
     }
 
 
@@ -77,7 +77,8 @@ init inputType =
         , options = []
         , inline = False
         , identifier = Nothing
-        , status = Unchecked
+        , status = Pristine
+        , errors = []
         }
 
 
@@ -138,7 +139,7 @@ getChoice str { options } =
 
 resetStatus : Input id err -> Input id err
 resetStatus input =
-    { input | status = Unchecked }
+    { input | status = Pristine }
 
 
 isBlank : Input id err -> Bool
@@ -158,17 +159,18 @@ mapIdentifier : (a -> b) -> Input a err -> Input b err
 mapIdentifier func input =
     { inputType = mapInputType func input.inputType
     , name = input.name
+    , value = input.value
+    , isRequired = input.isRequired
     , label = input.label
     , hint = input.hint
     , placeholder = input.placeholder
-    , status = input.status
-    , value = input.value
     , min = input.min
     , max = input.max
-    , isRequired = input.isRequired
     , options = input.options
     , inline = input.inline
     , identifier = Maybe.map func input.identifier
+    , status = input.status
+    , errors = []
     }
 
 

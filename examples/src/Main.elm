@@ -1,9 +1,8 @@
 module Main exposing (..)
 
 import Browser
-import FormToolkit.Decode as Decode exposing (Decoder)
-import FormToolkit.Form as Form exposing (Form)
-import FormToolkit.Input as Input exposing (Error)
+import FormToolkit.Decode as Decode
+import FormToolkit.Input as Input
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 
@@ -43,7 +42,7 @@ type alias Record =
 
 
 type alias Model =
-    { form : Form Fields }
+    { form : Input.Input Fields (Decode.Error Fields) }
 
 
 type Fields
@@ -81,9 +80,9 @@ init =
     { form = recordForm }
 
 
-recordForm : Form Fields
+recordForm : Input.Input Fields (Decode.Error Fields)
 recordForm =
-    Form.init
+    Input.group []
         [ Input.group []
             [ Input.text
                 [ Input.label "Title"
@@ -106,14 +105,14 @@ recordForm =
 
 
 type Msg
-    = FormChanged (Form.Msg Fields)
+    = FormChanged (Input.Msg Fields)
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
         FormChanged formMsg ->
-            { model | form = Form.update formMsg model.form }
+            { model | form = Input.update formMsg model.form }
 
 
 
@@ -129,22 +128,22 @@ view model =
     in
     div
         []
-        [ Form.toHtml
-            [ Form.onChange FormChanged
-            , Form.elementHtml Element (text "hello")
+        [ Input.toHtml
+            [ Input.onChange FormChanged
+            , Input.elementHtml Element (text "hello")
             ]
             model.form
         ]
 
 
-recordDecoder : Decoder Fields Record
+recordDecoder : Decode.Decoder Fields Record
 recordDecoder =
     Decode.map2 Record
         (Decode.field Title Decode.string)
         (Decode.field Authors (Decode.list authorDecoder))
 
 
-authorDecoder : Decoder Fields Author
+authorDecoder : Decode.Decoder Fields Author
 authorDecoder =
     Decode.succeed Author
         |> Decode.andMap (Decode.field FirstName Decode.string)
