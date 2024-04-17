@@ -2,10 +2,11 @@ module Internal.Input exposing
     ( Input
     , InputType(..)
     , Status(..)
+    , blur
+    , focus
     , init
     , isBlank
     , mapIdentifier
-    , resetStatus
     , root
     , update
     , updateWithString
@@ -19,6 +20,7 @@ import RoseTree.Tree as Tree exposing (Tree)
 
 type Status
     = Pristine
+    | Focused
     | Touched
 
 
@@ -137,9 +139,14 @@ getChoice str { options } =
             Internal.Value.blank
 
 
-resetStatus : Input id err -> Input id err
-resetStatus input =
-    { input | status = Pristine }
+focus : Input id err -> Input id err
+focus input =
+    { input | status = Focused }
+
+
+blur : Input id err -> Input id err
+blur input =
+    { input | status = Touched }
 
 
 isBlank : Input id err -> Bool

@@ -813,13 +813,11 @@ update msg input =
             updateAt path (updateInputWithBool bool) input
 
         InputFocused path ->
-            updateAt path resetStatus input
+            updateAt path (Tree.updateValue Internal.focus) input
 
         InputBlured path ->
-            input
+            updateAt path (Tree.updateValue Internal.blur) input
 
-        -- Debug.todo "crash"
-        -- updateAt path validate input
         InputsAdded path ->
             case
                 Tree.getValueAt path (toTree input)
@@ -849,11 +847,6 @@ updateInputWithBool :
     -> Tree (Internal.Input id (Error id))
 updateInputWithBool bool =
     Tree.updateValue (Internal.update (Internal.Value.fromBool bool))
-
-
-resetStatus : Tree (Internal.Input id (Error id)) -> Tree (Internal.Input id (Error id))
-resetStatus =
-    Tree.updateValue Internal.resetStatus
 
 
 {-| TODO

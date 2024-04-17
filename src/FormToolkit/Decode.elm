@@ -47,11 +47,10 @@ import Time
 or an error if the decoding fails.
 -}
 type Decoder id a
-    = Decoder (Tree (Internal.Input.Input id (Input.Error id)) -> Partial id a)
-
-
-type alias Partial id a =
-    Result (Input.Error id) a
+    = Decoder
+        (Tree (Internal.Input.Input id (Input.Error id))
+         -> Result (Input.Error id) a
+        )
 
 
 {-| Decoder for a field with the given ID using a provided decoder.
