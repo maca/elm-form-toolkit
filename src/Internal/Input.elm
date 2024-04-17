@@ -47,8 +47,8 @@ type alias Input id err =
     , value : Value
     , isRequired : Bool
     , label : Maybe String
-    , hint : Maybe String
     , placeholder : Maybe String
+    , hint : Maybe String
     , min : Value
     , max : Value
     , options : List ( String, Value )
@@ -169,8 +169,8 @@ mapIdentifier func input =
     , value = input.value
     , isRequired = input.isRequired
     , label = input.label
-    , hint = input.hint
     , placeholder = input.placeholder
+    , hint = input.hint
     , min = input.min
     , max = input.max
     , options = input.options

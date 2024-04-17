@@ -8,7 +8,7 @@ module FormToolkit.Input exposing
     , elementPlaceholder
     , mapIdentifier
     , Attribute
-    , name, identifier, value, required, label, hint, placeholder
+    , name, identifier, value, required, label, placeholder, hint
     , options, min, max
     , inline, noattr
     , HtmlAttribute, toHtml, onChange
@@ -39,7 +39,7 @@ module FormToolkit.Input exposing
 # Attributes
 
 @docs Attribute
-@docs name, identifier, value, required, label, hint, placeholder
+@docs name, identifier, value, required, label, placeholder, hint
 @docs options, min, max
 @docs inline, noattr
 
@@ -272,16 +272,16 @@ label str =
 
 {-| TODO
 -}
-hint : String -> Attribute id
-hint str =
-    Attribute (\input -> { input | hint = Just str })
+placeholder : String -> Attribute id
+placeholder str =
+    Attribute (\input -> { input | placeholder = Just str })
 
 
 {-| TODO
 -}
-placeholder : String -> Attribute id
-placeholder str =
-    Attribute (\input -> { input | placeholder = Just str })
+hint : String -> Attribute id
+hint str =
+    Attribute (\input -> { input | hint = Just str })
 
 
 {-| TODO
@@ -910,10 +910,7 @@ toJSON input =
     Encode.object (encodeHelp input [])
 
 
-encodeHelp :
-    Input id
-    -> List ( String, Encode.Value )
-    -> List ( String, Encode.Value )
+encodeHelp : Input id -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
 encodeHelp inputElement acc =
     let
         tree =
