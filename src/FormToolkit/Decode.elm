@@ -39,7 +39,7 @@ import FormToolkit.Input as Input exposing (Input)
 import FormToolkit.Value as Value
 import Internal.Input
 import Internal.Value
-import RoseTree.Tree as Tree exposing (Tree)
+import RoseTree.Tree as Tree
 import Time
 
 
@@ -47,10 +47,16 @@ import Time
 or an error if the decoding fails.
 -}
 type Decoder id a
-    = Decoder
-        (Tree (Internal.Input.Input id (Input.Error id))
-         -> Result (Input.Error id) a
-        )
+    = Decoder (Tree id -> Result (Input.Error id) a)
+
+
+type alias Tree id =
+    Tree.Tree (Internal.Input.Input id (Input.Error id))
+
+
+type Partial id a
+    = Succ (Tree id) a
+    | Fail (Tree id) (Input.Error id)
 
 
 {-| Decoder for a field with the given ID using a provided decoder.
@@ -204,12 +210,7 @@ validate :
 validate func decoder =
     Decoder
         (\tree ->
-            case func (Input.fromTree tree) of
-                Ok val ->
-                    Ok val
-
-                Err err ->
-                    Err err
+            func (Input.fromTree tree)
         )
         |> andThen (always decoder)
 
@@ -222,11 +223,7 @@ andThen func (Decoder decoder) =
         (\tree ->
             Result.andThen
                 (\res ->
-                    let
-                        (Decoder partial) =
-                            func res
-                    in
-                    partial tree
+                    apply (func res) tree
                 )
                 (decoder tree)
         )
@@ -343,8 +340,13 @@ map8 func a b c d e f g h =
 {-| TODO
 -}
 decode : Decoder id a -> Input id -> Result (Input.Error id) a
-decode (Decoder decoder) input =
-    decoder (Input.toTree input)
+decode decoder input =
+    apply decoder (Input.toTree input)
+
+
+apply : Decoder id a -> Tree id -> Result (Input.Error id) a
+apply (Decoder decoder) =
+    decoder
 
 
 
