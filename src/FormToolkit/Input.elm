@@ -17,8 +17,7 @@ module FormToolkit.Input exposing
     , Error(..), errorToHtmlMap
     , Msg, update
     , toJSON
-    , getValue
-    , fromTree, toTree
+    , getValue, clear
     )
 
 {-|
@@ -68,8 +67,7 @@ module FormToolkit.Input exposing
 
 # Etc
 
-@docs getValue
-@docs fromTree, toTree
+@docs getValue, clear
 
 -}
 
@@ -86,7 +84,7 @@ import RoseTree.Tree as Tree exposing (Tree)
 
 
 type alias Data id =
-    Tree (Internal.Input id (Error id))
+    Tree (Internal.Input id Error)
 
 
 {-| TODO
@@ -206,7 +204,7 @@ elementPlaceholder id =
     init (Internal.Element id) []
 
 
-init : Internal.InputType id (Error id) -> List (Attribute id) -> Input id
+init : Internal.InputType id Error -> List (Attribute id) -> Input id
 init inputType attributes =
     Input (Tree.leaf (Internal.init inputType (unwrapAttrs attributes)))
 
@@ -215,16 +213,18 @@ init inputType attributes =
 -}
 mapIdentifier : (a -> b) -> Input a -> Input b
 mapIdentifier func (Input tree) =
-    Debug.todo "crash"
-
-
-
--- Input (Tree.mapValues (Internal.mapIdentifier func) tree)
+    Input
+        (Tree.mapValues
+            (\input ->
+                Internal.mapIdentifier func input
+            )
+            tree
+        )
 
 
 unwrapAttrs :
     List (Attribute id)
-    -> List (Internal.Input id (Error id) -> Internal.Input id (Error id))
+    -> List (Internal.Input id Error -> Internal.Input id Error)
 unwrapAttrs =
     List.map (\(Attribute f) -> f)
 
@@ -232,7 +232,7 @@ unwrapAttrs =
 {-| TODO
 -}
 type Attribute id
-    = Attribute (Internal.Input id (Error id) -> Internal.Input id (Error id))
+    = Attribute (Internal.Input id Error -> Internal.Input id Error)
 
 
 {-| TODO
@@ -338,7 +338,7 @@ type alias HtmlAttributes id msg =
     { onChange : Maybe (Msg id -> msg)
     , addInputsButtonContent : Maybe id -> Html msg
     , removeInputsButtonContent : Maybe id -> Html msg
-    , errorToHtmlMap : Maybe id -> Error id -> Html msg
+    , errorToHtmlMap : Maybe id -> Error -> Html msg
     , elements : List ( id, Html msg )
     }
 
@@ -383,7 +383,7 @@ removeInputsButtonContent func =
 
 {-| TODO
 -}
-errorToHtmlMap : (Maybe id -> Error id -> Html msg) -> HtmlAttribute id msg
+errorToHtmlMap : (Maybe id -> Error -> Html msg) -> HtmlAttribute id msg
 errorToHtmlMap mapFunc =
     HtmlAttribute (\attrs -> { attrs | errorToHtmlMap = mapFunc })
 
@@ -416,7 +416,7 @@ toHtmlHelp attrs path node =
                     Tree.children tree
                         |> List.indexedMap
                             (\idx ->
-                                fromTree >> toHtmlHelp attrs (path ++ [ idx ])
+                                Input >> toHtmlHelp attrs (path ++ [ idx ])
                             )
 
                 inputLabel =
@@ -445,7 +445,7 @@ toHtmlHelp attrs path node =
                     children
                         |> List.indexedMap
                             (\idx ->
-                                fromTree
+                                Input
                                     >> templateHtml attrs
                                         (path ++ [ idx ])
                                         (List.length children /= (idx + 1))
@@ -830,28 +830,28 @@ update msg input =
                     input
 
         InputsRemoved path ->
-            fromTree (Tree.removeAt path (toTree input))
+            Input (Tree.removeAt path (toTree input))
 
 
 updateInput :
     String
-    -> Tree (Internal.Input id (Error id))
-    -> Tree (Internal.Input id (Error id))
+    -> Tree (Internal.Input id Error)
+    -> Tree (Internal.Input id Error)
 updateInput string =
     Tree.updateValue (Internal.updateWithString string)
 
 
 updateInputWithBool :
     Bool
-    -> Tree (Internal.Input id (Error id))
-    -> Tree (Internal.Input id (Error id))
+    -> Tree (Internal.Input id Error)
+    -> Tree (Internal.Input id Error)
 updateInputWithBool bool =
     Tree.updateValue (Internal.update (Internal.Value.fromBool bool))
 
 
 {-| TODO
 -}
-errors : Input id -> List (Error id)
+errors : Input id -> List Error
 errors input =
     Tree.value (toTree input) |> .errors
 
@@ -863,13 +863,7 @@ getValue (Input tree) =
 
 
 {-| -}
-fromTree : Tree (Internal.Input id (Error id)) -> Input id
-fromTree =
-    Input
-
-
-{-| -}
-toTree : Input id -> Tree (Internal.Input id (Error id))
+toTree : Input id -> Tree (Internal.Input id Error)
 toTree (Input tree) =
     tree
 
@@ -887,20 +881,20 @@ clear =
 
 
 map :
-    (Tree (Internal.Input id (Error id)) -> Tree (Internal.Input id (Error id)))
+    (Tree (Internal.Input id Error) -> Tree (Internal.Input id Error))
     -> Input id
     -> Input id
 map func input =
-    fromTree (Tree.map func (toTree input))
+    Input (Tree.map func (toTree input))
 
 
 updateAt :
     List Int
-    -> (Tree (Internal.Input id (Error id)) -> Tree (Internal.Input id (Error id)))
+    -> (Tree (Internal.Input id Error) -> Tree (Internal.Input id Error))
     -> Input id
     -> Input id
 updateAt path func input =
-    fromTree (Tree.updateAt path func (toTree input))
+    Input (Tree.updateAt path func (toTree input))
 
 
 {-| TODO
@@ -924,12 +918,12 @@ encodeHelp inputElement acc =
     in
     case input.inputType of
         Internal.Group ->
-            List.foldl (encodeHelp << fromTree) acc children
+            List.foldl (encodeHelp << Input) acc children
 
         Internal.Repeatable _ ->
             ( input.name
             , Encode.list
-                (\e -> Encode.object (encodeHelp (fromTree e) []))
+                (\e -> Encode.object (encodeHelp (Input e) []))
                 children
             )
                 :: acc
@@ -940,23 +934,23 @@ encodeHelp inputElement acc =
 
 {-| Represents an error that occurred during decoding.
 -}
-type Error id
-    = TooLarge { value : Value.Value, max : Value.Value }
-    | TooSmall { value : Value.Value, min : Value.Value }
-    | NotInRange
+type Error
+    = ValueTooLarge { value : Value.Value, max : Value.Value }
+    | ValueTooSmall { value : Value.Value, min : Value.Value }
+    | ValueNotInRange
         { value : Value.Value
         , min : Value.Value
         , max : Value.Value
         }
     | IsBlank
-    | ParseError (Maybe id)
-    | ListError Int (Error id)
-    | InputNotFound id
+    | ParseError
+    | ListError Int Error
+    | InputNotFound
 
 
 {-| TODO
 -}
-errorToHtml : Maybe id -> Error id -> Html msg
+errorToHtml : Maybe id -> Error -> Html msg
 errorToHtml _ err =
     let
         toString =
@@ -965,13 +959,13 @@ errorToHtml _ err =
     in
     Html.text
         (case err of
-            TooLarge data ->
+            ValueTooLarge data ->
                 "Should be lesser than " ++ toString data.max
 
-            TooSmall data ->
+            ValueTooSmall data ->
                 "Should be greater than " ++ toString data.min
 
-            NotInRange data ->
+            ValueNotInRange data ->
                 "Should be between " ++ toString data.min ++ " and " ++ toString data.max
 
             IsBlank ->
