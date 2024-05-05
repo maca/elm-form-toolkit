@@ -25,7 +25,7 @@ module FormToolkit exposing
 
 -- import Json.Encode as Encode
 
-import FormToolkit.Decode exposing (Error(..))
+import FormToolkit.Decode exposing (Decoder, Error(..))
 import FormToolkit.Input as Input exposing (Attribute(..), Input(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
@@ -515,34 +515,39 @@ type Msg id
 
 {-| TODO
 -}
-update : Msg id -> Input id (Error id) -> Input id (Error id)
-update msg input =
-    case msg of
-        InputChanged path str ->
-            updateAt path (updateInput str) input
+update :
+    Msg id
+    -> Decoder id a
+    -> Input id (Error id)
+    -> ( Input id (Error id), Result (List (Error id)) a )
+update msg decoder input =
+    FormToolkit.Decode.validateAndDecode decoder <|
+        case msg of
+            InputChanged path str ->
+                updateAt path (updateInput str) input
 
-        InputChecked path bool ->
-            updateAt path (updateInputWithBool bool) input
+            InputChecked path bool ->
+                updateAt path (updateInputWithBool bool) input
 
-        InputFocused path ->
-            updateAt path (Tree.updateValue Internal.focus) input
+            InputFocused path ->
+                updateAt path (Tree.updateValue Internal.focus) input
 
-        InputBlured path ->
-            updateAt path (Tree.updateValue Internal.blur) input
+            InputBlured path ->
+                updateAt path (Tree.updateValue Internal.blur) input
 
-        InputsAdded path ->
-            case
-                Tree.getValueAt path (toTree input)
-                    |> Maybe.map .inputType
-            of
-                Just (Internal.Repeatable template) ->
-                    updateAt path (Tree.push template) input
+            InputsAdded path ->
+                case
+                    Tree.getValueAt path (toTree input)
+                        |> Maybe.map .inputType
+                of
+                    Just (Internal.Repeatable template) ->
+                        updateAt path (Tree.push template) input
 
-                _ ->
-                    input
+                    _ ->
+                        input
 
-        InputsRemoved path ->
-            Input (Tree.removeAt path (toTree input))
+            InputsRemoved path ->
+                Input (Tree.removeAt path (toTree input))
 
 
 updateInput :
