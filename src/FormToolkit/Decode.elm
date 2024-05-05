@@ -6,7 +6,6 @@ module FormToolkit.Decode exposing
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     , decode, validateAndDecode
-    , Error(..)
     )
 
 {-| This module contains a set of decoders that are useful when working with
@@ -34,14 +33,9 @@ decoders and perform decoding operations.
 
 @docs decode, validateAndDecode
 
-
-# Errors
-
-@docs Error
-
 -}
 
-import FormToolkit.Input as Input exposing (Input(..))
+import FormToolkit.Input as Input exposing (Error(..), Input(..))
 import FormToolkit.Value as Value
 import Internal.Input
 import Internal.Value
@@ -295,7 +289,7 @@ parseValue func =
 
 {-| TODO
 -}
-custom : (Input id (Error id) -> Result (Error id) a) -> Decoder id a
+custom : (Input id -> Result (Error id) a) -> Decoder id a
 custom func =
     Decoder
         (\tree ->
@@ -309,7 +303,7 @@ custom func =
 
 
 validate :
-    (Input id (Error id) -> Result (Error id) Value.Value)
+    (Input id -> Result (Error id) Value.Value)
     -> Decoder id a
     -> Decoder id a
 validate func decoder =
@@ -478,7 +472,7 @@ map8 func a b c d e f g h =
 
 {-| TODO
 -}
-decode : Decoder id a -> Input id (Error id) -> Result (List (Error id)) a
+decode : Decoder id a -> Input id -> Result (List (Error id)) a
 decode decoder =
     validateAndDecode decoder >> Tuple.second
 
@@ -487,8 +481,8 @@ decode decoder =
 -}
 validateAndDecode :
     Decoder id a
-    -> Input id (Error id)
-    -> ( Input id (Error id), Result (List (Error id)) a )
+    -> Input id
+    -> ( Input id, Result (List (Error id)) a )
 validateAndDecode decoder (Input.Input tree) =
     case apply decoder tree of
         Success tree2 a ->
@@ -503,23 +497,7 @@ apply (Decoder decoder) =
     decoder
 
 
-{-| Represents an error that occurred during decoding.
--}
-type Error id
-    = ValueTooLarge { value : Value.Value, max : Value.Value }
-    | ValueTooSmall { value : Value.Value, min : Value.Value }
-    | ValueNotInRange
-        { value : Value.Value
-        , min : Value.Value
-        , max : Value.Value
-        }
-    | IsBlank
-    | ParseError
-    | ListError Int (Error id)
-    | InputNotFound id
-
-
-checkRequired : Input id (Error id) -> Result (Error id) Value.Value
+checkRequired : Input id -> Result (Error id) Value.Value
 checkRequired (Input.Input tree) =
     let
         input =
@@ -532,7 +510,7 @@ checkRequired (Input.Input tree) =
         Ok (Value.Value input.value)
 
 
-checkInRange : Input id (Error id) -> Result (Error id) Value.Value
+checkInRange : Input id -> Result (Error id) Value.Value
 checkInRange (Input.Input tree) =
     let
         input =

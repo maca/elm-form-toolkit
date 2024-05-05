@@ -162,9 +162,9 @@ isBlank { value, inputType } =
             Internal.Value.isBlank value
 
 
-mapIdentifier : (a -> b) -> Input a err -> Input b err
-mapIdentifier func input =
-    { inputType = mapInputType func input.inputType
+mapIdentifier : (a -> b) -> (err1 -> err2) -> Input a err1 -> Input b err2
+mapIdentifier func errToErr input =
+    { inputType = mapInputType func errToErr input.inputType
     , name = input.name
     , value = input.value
     , isRequired = input.isRequired
@@ -177,15 +177,15 @@ mapIdentifier func input =
     , inline = input.inline
     , identifier = Maybe.map func input.identifier
     , status = input.status
-    , errors = []
+    , errors = List.map errToErr input.errors
     }
 
 
-mapInputType : (a -> b) -> InputType a err -> InputType b err
-mapInputType func inputType =
+mapInputType : (a -> b) -> (err1 -> err2) -> InputType a err1 -> InputType b err2
+mapInputType func errToErr inputType =
     case inputType of
         Repeatable tree ->
-            Repeatable (Tree.mapValues (mapIdentifier func) tree)
+            Repeatable (Tree.mapValues (mapIdentifier func errToErr) tree)
 
         Element id ->
             Element (func id)

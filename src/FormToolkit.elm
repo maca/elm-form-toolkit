@@ -25,8 +25,8 @@ module FormToolkit exposing
 
 -- import Json.Encode as Encode
 
-import FormToolkit.Decode exposing (Decoder, Error(..))
-import FormToolkit.Input as Input exposing (Attribute(..), Input(..))
+import FormToolkit.Decode exposing (Decoder)
+import FormToolkit.Input as Input exposing (Attribute(..), Error(..), Input(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attributes
@@ -57,7 +57,7 @@ type alias ViewAttributes id msg =
 
 {-| TODO
 -}
-toHtml : List (ViewAttribute id msg) -> Input id (Error id) -> Html msg
+toHtml : List (ViewAttribute id msg) -> Input id -> Html msg
 toHtml attributes =
     toHtmlHelp
         (List.foldl (\(ViewAttribute func) params -> func params)
@@ -112,7 +112,7 @@ elementHtml id html =
 
 {-| TODO
 -}
-toHtmlHelp : ViewAttributes id msg -> List Int -> Input id (Error id) -> Html msg
+toHtmlHelp : ViewAttributes id msg -> List Int -> Input id -> Html msg
 toHtmlHelp attrs path node =
     let
         tree =
@@ -225,7 +225,7 @@ inputToHtml :
     ViewAttributes id msg
     -> String
     -> List Int
-    -> Input id (Error id)
+    -> Input id
     -> List (Html.Attribute msg)
     -> Html msg
 inputToHtml attrs inputType path input htmlAttrs =
@@ -243,7 +243,7 @@ inputToHtml attrs inputType path input htmlAttrs =
         []
 
 
-textAreaToHtml : ViewAttributes id msg -> List Int -> Input id (Error id) -> Html msg
+textAreaToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
 textAreaToHtml attrs path input =
     let
         valueStr =
@@ -264,7 +264,7 @@ textAreaToHtml attrs path input =
         ]
 
 
-selectToHtml : ViewAttributes id msg -> List Int -> Input id (Error id) -> Html msg
+selectToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
 selectToHtml attrs path input =
     let
         data =
@@ -290,7 +290,7 @@ selectToHtml attrs path input =
         )
 
 
-radioToHtml : ViewAttributes id msg -> List Int -> Input id (Error id) -> Html msg
+radioToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
 radioToHtml attrs path input =
     let
         data =
@@ -327,7 +327,7 @@ radioToHtml attrs path input =
         )
 
 
-checkboxToHtml : ViewAttributes id msg -> List Int -> Input id (Error id) -> Html msg
+checkboxToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
 checkboxToHtml attrs path input =
     Html.input
         (Attributes.type_ "checkbox"
@@ -361,7 +361,7 @@ valueAttribute f inputValue =
 inputAttrs :
     ViewAttributes id msg
     -> List Int
-    -> Input id (Error id)
+    -> Input id
     -> List (Html.Attribute msg)
 inputAttrs attrs path input =
     let
@@ -409,7 +409,7 @@ onInputBlured attrs path =
             Attributes.class ""
 
 
-wrapInput : ViewAttributes id msg -> List Int -> Input id (Error id) -> Html msg -> Html msg
+wrapInput : ViewAttributes id msg -> List Int -> Input id -> Html msg -> Html msg
 wrapInput attrs path input inputHtml =
     let
         data =
@@ -448,7 +448,7 @@ templateHtml :
     ViewAttributes id msg
     -> List Int
     -> Bool
-    -> Input id (Error id)
+    -> Input id
     -> Html msg
 templateHtml attributes path isLast inputElement =
     Html.div
@@ -518,8 +518,8 @@ type Msg id
 update :
     Msg id
     -> Decoder id a
-    -> Input id (Error id)
-    -> ( Input id (Error id), Result (List (Error id)) a )
+    -> Input id
+    -> ( Input id, Result (List (Error id)) a )
 update msg decoder input =
     FormToolkit.Decode.validateAndDecode decoder <|
         case msg of
@@ -568,26 +568,26 @@ updateInputWithBool bool =
 
 {-| TODO
 -}
-errors : Input id (Error id) -> List (Error id)
+errors : Input id -> List (Error id)
 errors input =
     Tree.value (toTree input) |> .errors
 
 
 {-| -}
-toTree : Input id (Error id) -> Tree.Tree (Internal.Input id (Error id))
+toTree : Input id -> Tree.Tree (Internal.Input id (Error id))
 toTree (Input tree) =
     tree
 
 
-toId : Input id (Error id) -> Maybe id
+toId : Input id -> Maybe id
 toId (Input input) =
     Tree.value input |> .identifier
 
 
 map :
     (Tree.Tree (Internal.Input id (Error id)) -> Tree.Tree (Internal.Input id (Error id)))
-    -> Input id (Error id)
-    -> Input id (Error id)
+    -> Input id
+    -> Input id
 map func input =
     Input (Tree.map func (toTree input))
 
@@ -595,8 +595,8 @@ map func input =
 updateAt :
     List Int
     -> (Tree.Tree (Internal.Input id (Error id)) -> Tree.Tree (Internal.Input id (Error id)))
-    -> Input id (Error id)
-    -> Input id (Error id)
+    -> Input id
+    -> Input id
 updateAt path func input =
     Input (Tree.updateAt path func (toTree input))
 
