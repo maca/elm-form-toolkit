@@ -1,11 +1,12 @@
 module FormToolkit.Decode exposing
     ( Decoder
     , field
-    , string, int, float, bool, posix, maybe, list
+    , string, int, float, bool, posix, maybe, list, value
     , succeed, fail, custom
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     , decode
+    , Error(..)
     )
 
 {-| This module contains a set of decoders that are useful when working with
@@ -19,7 +20,7 @@ decoders and perform decoding operations.
 # Decoding functions
 
 @docs field
-@docs string, int, float, bool, posix, maybe, list
+@docs string, int, float, bool, posix, maybe, list, value
 @docs succeed, fail, custom
 
 
@@ -33,13 +34,17 @@ decoders and perform decoding operations.
 
 @docs decode
 
+
+# Errors
+
+@docs Error
+
 -}
 
-import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.Input as Input exposing (Input(..))
 import FormToolkit.Value as Value
 import Internal.Input
 import Internal.Value
-import Json.Decode exposing (succeed)
 import RoseTree.Tree as Tree
 import Time
 
@@ -57,7 +62,7 @@ type Decoder id a
 
 
 type alias Tree id =
-    Tree.Tree (Internal.Input.Input id Input.Error)
+    Tree.Tree (Internal.Input.Input id (Error id))
 
 
 {-| Decoder for a field with the given ID using a provided decoder.
@@ -87,7 +92,7 @@ field id decoder =
                     Failure (Tree.replaceAt path node tree)
 
                 ( Nothing, _ ) ->
-                    Failure (setError Input.InputNotFound tree)
+                    Failure (setError (InputNotFound id) tree)
         )
 
 
@@ -209,12 +214,12 @@ succeed a =
 
 {-| TODO
 -}
-fail : Input.Error -> Decoder id a
+fail : Error id -> Decoder id a
 fail error =
     Decoder (Failure << setError error)
 
 
-setError : Input.Error -> Tree id -> Tree id
+setError : Error id -> Tree id -> Tree id
 setError error =
     Tree.updateValue (\input -> { input | errors = error :: input.errors })
 
@@ -235,7 +240,7 @@ parseValue func =
                 |> .value
                 |> Value.Value
                 |> func
-                |> Result.fromMaybe Input.ParseError
+                |> Result.fromMaybe ParseError
         )
         |> validate checkRequired
         |> validate checkInRange
@@ -243,7 +248,7 @@ parseValue func =
 
 {-| TODO
 -}
-custom : (Input id -> Result Input.Error a) -> Decoder id a
+custom : (Input id (Error id) -> Result (Error id) a) -> Decoder id a
 custom func =
     Decoder
         (\tree ->
@@ -257,7 +262,7 @@ custom func =
 
 
 validate :
-    (Input id -> Result Input.Error Value.Value)
+    (Input id (Error id) -> Result (Error id) Value.Value)
     -> Decoder id a
     -> Decoder id a
 validate func decoder =
@@ -426,13 +431,14 @@ map8 func a b c d e f g h =
 
 {-| TODO
 -}
-decode : Decoder id a -> Input id -> ( Input id, Result (List Input.Error) a )
-decode _ _ =
-    Debug.todo "crash"
+decode : Decoder id a -> Input id (Error id) -> ( Input id (Error id), Result () a )
+decode decoder (Input.Input tree) =
+    case apply decoder tree of
+        Success tree2 a ->
+            ( Input.Input tree2, Ok a )
 
-
-
--- apply decoder (Input.toTree input)
+        Failure tree2 ->
+            ( Input.Input tree2, Err () )
 
 
 apply : Decoder id a -> Tree id -> Partial id a
@@ -440,20 +446,35 @@ apply (Decoder decoder) =
     decoder
 
 
-checkRequired : Input id -> Result Input.Error Value.Value
+{-| Represents an error that occurred during decoding.
+-}
+type Error id
+    = ValueTooLarge { value : Value.Value, max : Value.Value }
+    | ValueTooSmall { value : Value.Value, min : Value.Value }
+    | ValueNotInRange
+        { value : Value.Value
+        , min : Value.Value
+        , max : Value.Value
+        }
+    | IsBlank
+    | ParseError
+    | InputNotFound id
+
+
+checkRequired : Input id (Error id) -> Result (Error id) Value.Value
 checkRequired (Input.Input tree) =
     let
         input =
             Tree.value tree
     in
     if input.isRequired && Internal.Value.isBlank input.value then
-        Err Input.IsBlank
+        Err IsBlank
 
     else
         Ok (Value.Value input.value)
 
 
-checkInRange : Input id -> Result Input.Error Value.Value
+checkInRange : Input id (Error id) -> Result (Error id) Value.Value
 checkInRange (Input.Input tree) =
     let
         input =
@@ -469,7 +490,7 @@ checkInRange (Input.Input tree) =
     of
         ( Just LT, Just _ ) ->
             Err
-                (Input.ValueNotInRange
+                (ValueNotInRange
                     { value = actual
                     , min = Value.Value input.min
                     , max = Value.Value input.max
@@ -478,7 +499,7 @@ checkInRange (Input.Input tree) =
 
         ( Just _, Just GT ) ->
             Err
-                (Input.ValueNotInRange
+                (ValueNotInRange
                     { value = actual
                     , min = Value.Value input.min
                     , max = Value.Value input.max
@@ -487,7 +508,7 @@ checkInRange (Input.Input tree) =
 
         ( Just LT, Nothing ) ->
             Err
-                (Input.ValueTooSmall
+                (ValueTooSmall
                     { value = actual
                     , min = Value.Value input.min
                     }
@@ -495,7 +516,7 @@ checkInRange (Input.Input tree) =
 
         ( Nothing, Just GT ) ->
             Err
-                (Input.ValueTooLarge
+                (ValueTooLarge
                     { value = actual
                     , max = Value.Value input.max
                     }
@@ -503,3 +524,31 @@ checkInRange (Input.Input tree) =
 
         _ ->
             Ok actual
+
+
+
+-- toJSON : Input id (Error id) -> Encode.Value
+-- toJSON input =
+--     Encode.object (encodeHelp input [])
+-- encodeHelp : Input id (Error id) -> List ( String, Encode.Value ) -> List ( String, Encode.Value )
+-- encodeHelp inputElement acc =
+--     let
+--         tree =
+--             toTree inputElement
+--         input =
+--             Tree.value tree
+--         children =
+--             Tree.children tree
+--     in
+--     case input.inputType of
+--         Internal.Group ->
+--             List.foldl (encodeHelp << Input) acc children
+--         Internal.Repeatable _ ->
+--             ( input.name
+--             , Encode.list
+--                 (\e -> Encode.object (encodeHelp (Input e) []))
+--                 children
+--             )
+--                 :: acc
+--         _ ->
+--             ( input.name, Internal.Value.encode input.value ) :: acc
