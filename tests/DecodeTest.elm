@@ -4,6 +4,8 @@ import Expect
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input exposing (Error(..))
 import FormToolkit.Value as Value
+import Json.Decode
+import Json.Encode
 import Test exposing (..)
 import Time
 
@@ -11,28 +13,28 @@ import Time
 suite : Test
 suite =
     describe "Decoding"
-        [ describe "success"
-            [ test "decodes string" <|
+        [ describe "succeeds"
+            [ test "decoding string" <|
                 \_ ->
                     Decode.decode Decode.string stringInput
                         |> Expect.equal (Ok "A string")
-            , test "decodes int" <|
+            , test "decoding int" <|
                 \_ ->
                     Decode.decode Decode.int intInput
                         |> Expect.equal (Ok 1)
-            , test "decodes float" <|
+            , test "decoding float" <|
                 \_ ->
                     Decode.decode Decode.float floatInput
                         |> Expect.equal (Ok 1.1)
-            , test "decodes bool" <|
+            , test "decoding bool" <|
                 \_ ->
                     Decode.decode Decode.bool boolInput
                         |> Expect.equal (Ok True)
-            , test "decodes posix" <|
+            , test "decoding posix" <|
                 \_ ->
                     Decode.decode Decode.posix posixInput
                         |> Expect.equal (Ok (Time.millisToPosix 0))
-            , test "decodes field by id" <|
+            , test "decoding field by id" <|
                 \_ ->
                     Input.group [] [ stringInput ]
                         |> Decode.decode
@@ -71,6 +73,56 @@ suite =
                             |> Input.errors
                             |> Expect.equal [ ParseError (Just StringField) ]
                 ]
+            ]
+        , describe "encode json"
+            [ test "string" <|
+                \_ ->
+                    Decode.decode Decode.json stringInput
+                        |> Result.withDefault (Json.Encode.string "")
+                        |> Json.Decode.decodeValue
+                            (Json.Decode.field "string-field" Json.Decode.string)
+                        |> Expect.equal (Ok "A string")
+            , test "group with no name" <|
+                \_ ->
+                    Decode.decode Decode.json
+                        (Input.group [] [ stringInput, intInput ])
+                        |> Result.withDefault Json.Encode.null
+                        |> Json.Decode.decodeValue simpleJsonDecoder
+                        |> Expect.equal (Ok ( "A string", 1 ))
+            , test "group name" <|
+                \_ ->
+                    Decode.decode Decode.json groupWithName
+                        |> Result.withDefault Json.Encode.null
+                        |> Json.Decode.decodeValue groupWithNameDecoder
+                        |> Expect.equal (Ok ( "A string", 1 ))
+            , test "repeatable and group with name" <|
+                \_ ->
+                    Decode.decode Decode.json
+                        (Input.repeatable [ Input.name "repeatable" ]
+                            groupWithName
+                            [ groupWithName, groupWithName ]
+                        )
+                        |> Result.withDefault Json.Encode.null
+                        |> Json.Decode.decodeValue
+                            (Json.Decode.field "repeatable"
+                                (Json.Decode.list groupWithNameDecoder)
+                            )
+                        |> Expect.equal
+                            (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
+            , test "repeatable and group with noname" <|
+                \_ ->
+                    Decode.decode Decode.json
+                        (Input.repeatable [ Input.name "repeatable" ]
+                            groupWithNoName
+                            [ groupWithNoName, groupWithNoName ]
+                        )
+                        |> Result.withDefault Json.Encode.null
+                        |> Json.Decode.decodeValue
+                            (Json.Decode.field "repeatable"
+                                (Json.Decode.list simpleJsonDecoder)
+                            )
+                        |> Expect.equal
+                            (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
             ]
         , describe "validates"
             [ let
@@ -125,6 +177,7 @@ stringInput =
     Input.text
         [ Input.label "Enter your string"
         , Input.identifier StringField
+        , Input.name "string-field"
         , Input.value (Value.string "A string")
         ]
 
@@ -134,6 +187,7 @@ intInput =
     Input.text
         [ Input.label "Enter your int"
         , Input.identifier IntField
+        , Input.name "int-field"
         , Input.value (Value.int 1)
         ]
 
@@ -172,3 +226,25 @@ blankInput =
         , Input.required True
         , Input.identifier BlankField
         ]
+
+
+groupWithName : Input.Input Field
+groupWithName =
+    Input.group [ Input.name "group" ] [ stringInput, intInput ]
+
+
+groupWithNoName : Input.Input Field
+groupWithNoName =
+    Input.group [] [ stringInput, intInput ]
+
+
+simpleJsonDecoder : Json.Decode.Decoder ( String, Int )
+simpleJsonDecoder =
+    Json.Decode.map2 Tuple.pair
+        (Json.Decode.field "string-field" Json.Decode.string)
+        (Json.Decode.field "int-field" Json.Decode.int)
+
+
+groupWithNameDecoder : Json.Decode.Decoder ( String, Int )
+groupWithNameDecoder =
+    Json.Decode.field "group" simpleJsonDecoder

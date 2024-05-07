@@ -43,7 +43,7 @@ type InputType id err
 
 type alias Input id err =
     { inputType : InputType id err
-    , name : String
+    , name : Maybe String
     , value : Value
     , isRequired : Bool
     , label : Maybe String
@@ -68,7 +68,7 @@ init : InputType id err -> List (Input id err -> Input id err) -> Input id err
 init inputType =
     List.foldl (\f i -> f i)
         { inputType = inputType
-        , name = ""
+        , name = Nothing
         , label = Nothing
         , hint = Nothing
         , placeholder = Nothing

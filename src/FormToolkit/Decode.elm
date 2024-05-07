@@ -147,47 +147,6 @@ posix =
 
 {-| TODO
 -}
-value : Decoder id Value.Value
-value =
-    parseValue Just
-
-
-{-| TODO
--}
-json : Decoder id Json.Decode.Value
-json =
-    custom
-        (\(Input.Input tree) ->
-            Ok (Json.Encode.object (encodeHelp tree []))
-        )
-
-
-encodeHelp : Tree id -> List ( String, Json.Decode.Value ) -> List ( String, Json.Decode.Value )
-encodeHelp tree acc =
-    let
-        input =
-            Tree.value tree
-
-        children =
-            Tree.children tree
-    in
-    case input.inputType of
-        Internal.Input.Group ->
-            List.foldl encodeHelp acc children
-
-        Internal.Input.Repeatable _ ->
-            ( input.name
-            , Json.Encode.list (\e -> Json.Encode.object (encodeHelp e []))
-                children
-            )
-                :: acc
-
-        _ ->
-            ( input.name, Internal.Value.encode input.value ) :: acc
-
-
-{-| TODO
--}
 maybe : Decoder id a -> Decoder id (Maybe a)
 maybe decoder =
     Decoder
@@ -251,6 +210,67 @@ listHelp decoder =
 
 {-| TODO
 -}
+value : Decoder id Value.Value
+value =
+    parseValue Just
+
+
+{-| TODO
+-}
+json : Decoder id Json.Decode.Value
+json =
+    custom (\(Input.Input tree) -> jsonEncodeObject tree)
+
+
+jsonEncodeHelp :
+    Tree id
+    -> List ( String, Json.Decode.Value )
+    -> Result (Error id) (List ( String, Json.Decode.Value ))
+jsonEncodeHelp tree acc =
+    let
+        input =
+            Tree.value tree
+
+        accumulate jsonValue =
+            case input.name of
+                Just name ->
+                    Ok (( name, jsonValue ) :: acc)
+
+                Nothing ->
+                    Err (NoName input.identifier)
+    in
+    case input.inputType of
+        Internal.Input.Group ->
+            case input.name of
+                Nothing ->
+                    Tree.children tree
+                        |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
+                            (Ok acc)
+
+                _ ->
+                    Tree.children tree
+                        |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
+                            (Ok [])
+                        |> Result.map Json.Encode.object
+                        |> Result.andThen accumulate
+
+        Internal.Input.Repeatable _ ->
+            Tree.children tree
+                |> List.foldr (\e -> Result.map2 (::) (jsonEncodeObject e)) (Ok [])
+                |> Result.map (Json.Encode.list identity)
+                |> Result.andThen accumulate
+
+        _ ->
+            accumulate (Internal.Value.encode input.value)
+
+
+jsonEncodeObject : Tree id -> Result (Error id) Json.Encode.Value
+jsonEncodeObject tree =
+    jsonEncodeHelp tree [] |> Result.map Json.Encode.object
+
+
+{-| TODO
+-}
 succeed : a -> Decoder id a
 succeed a =
     custom (always (Ok a))
@@ -261,28 +281,6 @@ succeed a =
 fail : Error id -> Decoder id a
 fail error =
     custom (always (Err error))
-
-
-setError : Error id -> Tree id -> Tree id
-setError error =
-    Tree.updateValue (\input -> { input | errors = error :: input.errors })
-
-
-{-| TODO
--}
-parseValue : (Value.Value -> Maybe a) -> Decoder id a
-parseValue func =
-    custom
-        (\(Input.Input tree) ->
-            let
-                input =
-                    Tree.value tree
-            in
-            .value input
-                |> Value.Value
-                |> func
-                |> Result.fromMaybe (ParseError input.identifier)
-        )
 
 
 {-| TODO
@@ -354,6 +352,28 @@ validateHelp func tree =
         []
         treeOfTuples
     )
+
+
+{-| TODO
+-}
+parseValue : (Value.Value -> Maybe a) -> Decoder id a
+parseValue func =
+    custom
+        (\(Input.Input tree) ->
+            let
+                input =
+                    Tree.value tree
+            in
+            .value input
+                |> Value.Value
+                |> func
+                |> Result.fromMaybe (ParseError input.identifier)
+        )
+
+
+setError : Error id -> Tree id -> Tree id
+setError error =
+    Tree.updateValue (\input -> { input | errors = error :: input.errors })
 
 
 inputFromInternal : Internal.Input.Input id (Error id) -> Input id

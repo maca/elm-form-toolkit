@@ -2,7 +2,6 @@ module FormToolkit exposing
     ( Msg, update
     , ViewAttribute, toHtml, onChange
     , addInputsButtonContent, removeInputsButtonContent
-    , errorToHtmlMap
     , elementHtml
     )
 
@@ -18,7 +17,6 @@ module FormToolkit exposing
 
 @docs ViewAttribute, toHtml, onChange
 @docs addInputsButtonContent, removeInputsButtonContent
-@docs errorToHtmlMap
 @docs elementHtml
 
 -}
@@ -50,7 +48,6 @@ type alias ViewAttributes id msg =
     { onChange : Maybe (Msg id -> msg)
     , addInputsButtonContent : Maybe id -> Html msg
     , removeInputsButtonContent : Maybe id -> Html msg
-    , errorToHtmlMap : Error id -> Html msg
     , elements : List ( id, Html msg )
     }
 
@@ -64,7 +61,6 @@ toHtml attributes =
             { onChange = Nothing
             , addInputsButtonContent = \_ -> Html.text "Add"
             , removeInputsButtonContent = \_ -> Html.text "Remove"
-            , errorToHtmlMap = errorToHtml
             , elements = []
             }
             attributes
@@ -91,13 +87,6 @@ addInputsButtonContent func =
 removeInputsButtonContent : (Maybe id -> Html msg) -> ViewAttribute id msg
 removeInputsButtonContent func =
     ViewAttribute (\attrs -> { attrs | removeInputsButtonContent = func })
-
-
-{-| TODO
--}
-errorToHtmlMap : (Error id -> Html msg) -> ViewAttribute id msg
-errorToHtmlMap mapFunc =
-    ViewAttribute (\attrs -> { attrs | errorToHtmlMap = mapFunc })
 
 
 {-| TODO
@@ -140,7 +129,7 @@ toHtmlHelp attrs path node =
                             Html.text ""
             in
             Html.fieldset
-                [ Attributes.id (identifierString input.name path)
+                [ Attributes.id (inputId node path)
                 , Attributes.classList
                     [ ( "inline", input.inline )
                     , ( "stacked", not input.inline )
@@ -164,54 +153,54 @@ toHtmlHelp attrs path node =
                             )
             in
             Html.fieldset
-                [ Attributes.id (identifierString input.name path) ]
+                [ Attributes.id (inputId node path) ]
                 [ Html.div [] (legend input.label :: inputs)
                 , addInputsButton attrs (Tree.value data |> .identifier) path
                 ]
 
         Internal.Text ->
             inputToHtml attrs "text" path node []
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Email ->
             inputToHtml attrs "email" path node []
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Password ->
             inputToHtml attrs "password" path node []
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.TextArea ->
             textAreaToHtml attrs path node
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Integer ->
             inputToHtml attrs "number" path node [ Attributes.step "1" ]
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Float ->
             inputToHtml attrs "number" path node [ Attributes.step "1" ]
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Date ->
             inputToHtml attrs "date" path node []
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Month ->
             inputToHtml attrs "month" path node []
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Select ->
             selectToHtml attrs path node
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Radio ->
             radioToHtml attrs path node
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Checkbox ->
             checkboxToHtml attrs path node
-                |> wrapInput attrs path node
+                |> wrapInput path node
 
         Internal.Element elementId ->
             attrs.elements
@@ -271,7 +260,7 @@ selectToHtml attrs path input =
             Tree.value (toTree input)
     in
     Html.select
-        [ Attributes.id (identifierString data.name path)
+        [ Attributes.id (inputId input path)
         , Attributes.required data.isRequired
         , onInputChanged attrs path
         , onInputFocused attrs path
@@ -302,7 +291,8 @@ radioToHtml attrs path input =
             (\index ( optionText, optionValue ) ->
                 let
                     optionId =
-                        identifierString (data.name ++ String.fromInt index)
+                        identifierString
+                            (Maybe.map ((++) (String.fromInt index)) data.name)
                             path
                 in
                 Html.div
@@ -368,7 +358,7 @@ inputAttrs attrs path input =
         data =
             Tree.value (toTree input)
     in
-    [ Attributes.id (identifierString data.name path)
+    [ Attributes.id (inputId input path)
     , Attributes.required data.isRequired
     , Attributes.autocomplete False
     , Attributes.placeholder (Maybe.withDefault "" data.placeholder)
@@ -409,35 +399,55 @@ onInputBlured attrs path =
             Attributes.class ""
 
 
-wrapInput : ViewAttributes id msg -> List Int -> Input id -> Html msg -> Html msg
-wrapInput attrs path input inputHtml =
+wrapInput : List Int -> Input id -> Html msg -> Html msg
+wrapInput path input inputHtml =
     let
-        data =
+        { hint, name, label, isRequired } =
             Tree.value (toTree input)
     in
+    fieldView
+        { isRequired = isRequired
+        , label =
+            case label of
+                Just str ->
+                    Html.label
+                        [ Attributes.for (inputId input path) ]
+                        [ Html.text str
+                        ]
+
+                Nothing ->
+                    Html.text ""
+        , field = inputHtml
+        , errors = inputErrors input
+        , hint = hint
+        }
+
+
+fieldView :
+    { isRequired : Bool
+    , label : Html msg
+    , field : Html msg
+    , errors : List (Error id)
+    , hint : Maybe String
+    }
+    -> Html msg
+fieldView { isRequired, label, field, errors, hint } =
     Html.div
         [ Attributes.class "field"
-        , Attributes.classList [ ( "required", data.isRequired ) ]
+        , Attributes.classList [ ( "required", isRequired ) ]
         ]
-        [ Html.label
-            [ Attributes.for (identifierString data.name path) ]
-            [ Html.text (Maybe.withDefault data.name data.label) ]
-        , Html.div
-            [ Attributes.class "input-wrapper" ]
-            [ inputHtml ]
-        , case ( status input, errors input ) of
-            ( Touched, message :: _ ) ->
-                Html.p
-                    [ Attributes.class "error" ]
-                    [ attrs.errorToHtmlMap message
-                    ]
+        [ label
+        , Html.div [ Attributes.class "input-wrapper" ] [ field ]
+        , case errors of
+            message :: _ ->
+                Html.p [ Attributes.class "error" ] [ errorToHtml message ]
 
-            _ ->
-                case data.hint of
-                    Just msg ->
+            [] ->
+                case hint of
+                    Just hintText ->
                         Html.div
                             [ Attributes.class "hint" ]
-                            [ Markdown.toHtml msg ]
+                            [ Html.text hintText ]
 
                     Nothing ->
                         Html.text ""
@@ -491,9 +501,19 @@ addInputsButton attrs id path =
         ]
 
 
-identifierString : String -> List Int -> String
-identifierString nameStr path =
-    String.join "-" (nameStr :: List.map String.fromInt path)
+inputId : Input id -> List Int -> String
+inputId (Input input) path =
+    identifierString (Tree.value input |> .name) path
+
+
+identifierString : Maybe String -> List Int -> String
+identifierString maybe path =
+    case maybe of
+        Just str ->
+            String.join "-" (str :: List.map String.fromInt path)
+
+        Nothing ->
+            String.join "-" (List.map String.fromInt path)
 
 
 legend : Maybe String -> Html msg
@@ -568,14 +588,18 @@ updateInputWithBool bool =
 
 {-| TODO
 -}
-errors : Input id -> List (Error id)
-errors input =
-    Tree.value (toTree input) |> .errors
+inputErrors : Input id -> List (Error id)
+inputErrors input =
+    let
+        { errors, status } =
+            Tree.value (toTree input)
+    in
+    case status of
+        Touched ->
+            errors
 
-
-status : Input id -> Status
-status input =
-    Tree.value (toTree input) |> .status
+        _ ->
+            []
 
 
 {-| -}
