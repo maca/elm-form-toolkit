@@ -24,13 +24,12 @@ module FormToolkit exposing
 -- import Json.Encode as Encode
 
 import FormToolkit.Decode exposing (Decoder)
-import FormToolkit.Input as Input exposing (Attribute(..), Error(..), Input(..))
+import FormToolkit.Input exposing (Attribute(..), Error(..), Input(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
 import Internal.Input as Internal exposing (Status(..))
-import Internal.Markdown as Markdown
 import Internal.Value
 import Json.Decode
 import RoseTree.Tree as Tree
@@ -233,12 +232,13 @@ inputToHtml attrs inputType path input htmlAttrs =
 
 
 textAreaToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-textAreaToHtml attrs path input =
+textAreaToHtml attrs path (Input input) =
     let
         valueStr =
-            Input.getValue input
-                |> Value.toString
-                |> Maybe.withDefault ""
+            Tree.value input
+                |> .value
+                |> Internal.Value.toString
+                |> Result.withDefault ""
     in
     Html.div
         [ Attributes.class "grow-wrap"
@@ -247,7 +247,7 @@ textAreaToHtml attrs path input =
         [ Html.textarea
             (onInputChanged attrs path
                 :: Attributes.value valueStr
-                :: inputAttrs attrs path input
+                :: inputAttrs attrs path (Input input)
             )
             []
         ]
@@ -318,13 +318,14 @@ radioToHtml attrs path input =
 
 
 checkboxToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-checkboxToHtml attrs path input =
+checkboxToHtml attrs path (Input input) =
     Html.input
         (Attributes.type_ "checkbox"
-            :: (Input.getValue input
-                    |> Value.toBool
-                    |> Maybe.map Attributes.checked
-                    |> Maybe.withDefault (Attributes.class "")
+            :: (Tree.value input
+                    |> .value
+                    |> Internal.Value.toBool
+                    |> Result.map Attributes.checked
+                    |> Result.withDefault (Attributes.class "")
                )
             :: (case attrs.onChange of
                     Just tagger ->
@@ -333,7 +334,7 @@ checkboxToHtml attrs path input =
                     Nothing ->
                         Attributes.class ""
                )
-            :: inputAttrs attrs path input
+            :: inputAttrs attrs path (Input input)
         )
         []
 
@@ -402,7 +403,7 @@ onInputBlured attrs path =
 wrapInput : List Int -> Input id -> Html msg -> Html msg
 wrapInput path input inputHtml =
     let
-        { hint, name, label, isRequired } =
+        { hint, label, isRequired } =
             Tree.value (toTree input)
     in
     fieldView

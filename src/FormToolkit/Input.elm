@@ -12,7 +12,6 @@ module FormToolkit.Input exposing
     , inline, noattr
     , Error(..), errors
     , mapIdentifier
-    , getValue, clear
     )
 
 {-|
@@ -42,16 +41,14 @@ module FormToolkit.Input exposing
 @docs Error, errors
 
 
-# Etc
+# Advanced
 
 @docs mapIdentifier
-@docs getValue, clear
 
 -}
 
 import FormToolkit.Value as Value
 import Internal.Input as Internal
-import Internal.Value
 import RoseTree.Tree as Tree
 
 
@@ -291,6 +288,37 @@ noattr =
     Attribute identity
 
 
+{-| Represents an error that occurred during decoding or validation.
+-}
+type Error id
+    = ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
+    | ValueTooSmall (Maybe id) { value : Value.Value, min : Value.Value }
+    | ValueNotInRange
+        (Maybe id)
+        { value : Value.Value
+        , min : Value.Value
+        , max : Value.Value
+        }
+    | IsBlank (Maybe id)
+    | ParseError (Maybe id)
+    | ListError (Maybe id) { index : Int, error : Error id }
+    | RepeatableHasNoName (Maybe id)
+    | InputNotFound id
+
+
+{-| -}
+errors : Input id -> List (Error id)
+errors (Input tree) =
+    case Tree.children tree of
+        [] ->
+            Tree.value tree |> .errors
+
+        children ->
+            (Tree.value tree |> .errors)
+                :: List.map (errors << Input) children
+                |> List.concat
+
+
 {-| TODO
 -}
 mapIdentifier : (a -> b) -> Input a -> Input b
@@ -327,52 +355,3 @@ mapError func error =
 
         InputNotFound id ->
             InputNotFound (func id)
-
-
-{-| -}
-getValue : Input id -> Value.Value
-getValue (Input tree) =
-    Tree.value tree |> .value |> Value.Value
-
-
-{-| Represents an error that occurred during decoding or validation.
--}
-type Error id
-    = ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
-    | ValueTooSmall (Maybe id) { value : Value.Value, min : Value.Value }
-    | ValueNotInRange
-        (Maybe id)
-        { value : Value.Value
-        , min : Value.Value
-        , max : Value.Value
-        }
-    | IsBlank (Maybe id)
-    | ParseError (Maybe id)
-    | ListError (Maybe id) { index : Int, error : Error id }
-    | RepeatableHasNoName (Maybe id)
-    | InputNotFound id
-
-
-{-| -}
-errors : Input id -> List (Error id)
-errors (Input tree) =
-    case Tree.children tree of
-        [] ->
-            Tree.value tree |> .errors
-
-        children ->
-            (Tree.value tree |> .errors)
-                :: List.map (errors << Input) children
-                |> List.concat
-
-
-{-| TODO
--}
-clear : Input id -> Input id
-clear =
-    map (Tree.updateValue (Internal.update Internal.Value.blank))
-
-
-map : (Tree id -> Tree id) -> Input id -> Input id
-map func input =
-    Input (Tree.map func (toTree input))

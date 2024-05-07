@@ -219,7 +219,7 @@ value =
 -}
 json : Decoder id Json.Decode.Value
 json =
-    custom (\(Input.Input tree) -> jsonEncodeObject tree)
+    custom (\(Input tree) -> jsonEncodeObject tree)
 
 
 jsonEncodeHelp :
@@ -294,7 +294,7 @@ custom : (Input id -> Result (Error id) a) -> Decoder id a
 custom func =
     Decoder
         (\tree ->
-            case func (Input.Input tree) of
+            case func (Input tree) of
                 Ok a ->
                     Success tree a
 
@@ -362,7 +362,7 @@ validateHelp func tree =
 parseValue : (Value.Value -> Maybe a) -> Decoder id a
 parseValue func =
     custom
-        (\(Input.Input tree) ->
+        (\(Input tree) ->
             let
                 input =
                     Tree.value tree
@@ -548,7 +548,7 @@ validateAndDecode :
     Decoder id a
     -> Input id
     -> ( Input id, Result (List (Error id)) a )
-validateAndDecode decoder (Input.Input tree) =
+validateAndDecode decoder (Input tree) =
     case
         apply
             (decoder
@@ -558,10 +558,10 @@ validateAndDecode decoder (Input.Input tree) =
             tree
     of
         Success tree2 a ->
-            ( Input.Input tree2, Ok a )
+            ( Input tree2, Ok a )
 
         Failure tree2 errors ->
-            ( Input.Input tree2, Err errors )
+            ( Input tree2, Err errors )
 
 
 apply : Decoder id a -> Tree id -> Partial id a
@@ -570,7 +570,7 @@ apply (Decoder decoder) =
 
 
 checkRequired : Input id -> Result (Error id) Value.Value
-checkRequired (Input.Input tree) =
+checkRequired (Input tree) =
     let
         input =
             Tree.value tree
@@ -583,7 +583,7 @@ checkRequired (Input.Input tree) =
 
 
 checkInRange : Input id -> Result (Error id) Value.Value
-checkInRange (Input.Input tree) =
+checkInRange (Input tree) =
     let
         input =
             Tree.value tree
