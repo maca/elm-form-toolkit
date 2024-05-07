@@ -156,7 +156,10 @@ value =
 -}
 json : Decoder id Json.Decode.Value
 json =
-    Decoder (\tree -> Success tree (Json.Encode.object (encodeHelp tree [])))
+    custom
+        (\(Input.Input tree) ->
+            Ok (Json.Encode.object (encodeHelp tree []))
+        )
 
 
 encodeHelp : Tree id -> List ( String, Json.Decode.Value ) -> List ( String, Json.Decode.Value )
@@ -250,24 +253,19 @@ listHelp decoder =
 -}
 succeed : a -> Decoder id a
 succeed a =
-    Decoder (\tree -> Success tree a)
+    custom (always (Ok a))
 
 
 {-| TODO
 -}
 fail : Error id -> Decoder id a
 fail error =
-    Decoder (\tree -> Failure (setError error tree) [ error ])
+    custom (always (Err error))
 
 
 setError : Error id -> Tree id -> Tree id
 setError error =
     Tree.updateValue (\input -> { input | errors = error :: input.errors })
-
-
-setValue : Value.Value -> Tree id -> Tree id
-setValue (Value.Value val) =
-    Tree.updateValue (\input -> { input | value = val })
 
 
 {-| TODO
@@ -283,8 +281,6 @@ parseValue func =
                 |> func
                 |> Result.fromMaybe ParseError
         )
-        |> validate checkRequired
-        |> validate checkInRange
 
 
 {-| TODO
@@ -300,6 +296,8 @@ custom func =
                 Err err ->
                     Failure (setError err tree) [ err ]
         )
+        |> validate checkRequired
+        |> validate checkInRange
 
 
 validate :
@@ -309,14 +307,56 @@ validate :
 validate func decoder =
     Decoder
         (\tree ->
-            case func (Input.Input tree) of
-                Ok val ->
-                    Success (setValue val tree) ()
+            case validateHelp (func << inputFromInternal) tree of
+                ( tree2, [] ) ->
+                    Success tree2 ()
 
-                Err err ->
-                    Failure (setError err tree) [ err ]
+                ( tree2, errors ) ->
+                    Failure tree2 errors
         )
         |> andThen (\() -> decoder)
+
+
+validateHelp :
+    (Internal.Input.Input id (Error id) -> Result (Error id) Value.Value)
+    -> Tree id
+    -> ( Tree id, List (Error id) )
+validateHelp func tree =
+    let
+        treeOfTuples =
+            Tree.mapValues
+                (\input ->
+                    case func input of
+                        Ok (Value.Value val) ->
+                            ( { input | value = val }
+                            , Nothing
+                            )
+
+                        Err error ->
+                            ( { input | errors = error :: input.errors }
+                            , Just error
+                            )
+                )
+                tree
+    in
+    ( Tree.mapValues Tuple.first treeOfTuples
+    , Tree.foldr
+        (\node acc ->
+            case Tree.value node |> Tuple.second of
+                Just e ->
+                    e :: acc
+
+                Nothing ->
+                    acc
+        )
+        []
+        treeOfTuples
+    )
+
+
+inputFromInternal : Internal.Input.Input id (Error id) -> Input id
+inputFromInternal node =
+    Input (Tree.leaf node)
 
 
 {-| TODO

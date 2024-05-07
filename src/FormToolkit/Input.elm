@@ -10,7 +10,7 @@ module FormToolkit.Input exposing
     , name, identifier, value, required, label, placeholder, hint
     , options, min, max
     , inline, noattr
-    , Error(..)
+    , Error(..), errors
     , mapIdentifier
     , getValue, clear
     )
@@ -39,7 +39,7 @@ module FormToolkit.Input exposing
 
 # Errors
 
-@docs Error
+@docs Error, errors
 
 
 # Etc
@@ -329,18 +329,6 @@ getValue (Input tree) =
     Tree.value tree |> .value |> Value.Value
 
 
-{-| TODO
--}
-clear : Input id -> Input id
-clear =
-    map (Tree.updateValue (Internal.update Internal.Value.blank))
-
-
-map : (Tree id -> Tree id) -> Input id -> Input id
-map func input =
-    Input (Tree.map func (toTree input))
-
-
 {-| Represents an error that occurred during decoding.
 -}
 type Error id
@@ -355,3 +343,28 @@ type Error id
     | ParseError
     | ListError Int (Error id)
     | InputNotFound id
+
+
+{-| -}
+errors : Input id -> List (Error id)
+errors (Input tree) =
+    case Tree.children tree of
+        [] ->
+            Tree.value tree |> .errors
+
+        children ->
+            (Tree.value tree |> .errors)
+                :: List.map (errors << Input) children
+                |> List.concat
+
+
+{-| TODO
+-}
+clear : Input id -> Input id
+clear =
+    map (Tree.updateValue (Internal.update Internal.Value.blank))
+
+
+map : (Tree id -> Tree id) -> Input id -> Input id
+map func input =
+    Input (Tree.map func (toTree input))

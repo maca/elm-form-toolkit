@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Browser
+import FormToolkit
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input
 import Html exposing (Html, button, div, text)
@@ -42,7 +43,7 @@ type alias Record =
 
 
 type alias Model =
-    { form : Input.Input Fields (Decode.Error Fields) }
+    { form : Input.Input Fields }
 
 
 type Fields
@@ -80,7 +81,7 @@ init =
     { form = recordForm }
 
 
-recordForm : Input.Input Fields (Decode.Error Fields)
+recordForm : Input.Input Fields
 recordForm =
     Input.group []
         [ Input.group []
@@ -105,14 +106,18 @@ recordForm =
 
 
 type Msg
-    = FormChanged (Input.Msg Fields)
+    = FormChanged (FormToolkit.Msg Fields)
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
         FormChanged formMsg ->
-            { model | form = Input.update formMsg model.form }
+            let
+                ( form, _ ) =
+                    FormToolkit.update formMsg (Decode.succeed ()) model.form
+            in
+            { model | form = form }
 
 
 
@@ -128,9 +133,9 @@ view model =
     in
     div
         []
-        [ Input.toHtml
-            [ Input.onChange FormChanged
-            , Input.elementHtml Element (text "hello")
+        [ FormToolkit.toHtml
+            [ FormToolkit.onChange FormChanged
+            , FormToolkit.elementHtml Element (text "hello")
             ]
             model.form
         ]

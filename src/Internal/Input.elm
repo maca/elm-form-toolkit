@@ -86,7 +86,7 @@ init inputType =
 
 update : Value -> Input id err -> Input id err
 update value input =
-    { input | value = value }
+    { input | value = value, errors = [] }
 
 
 updateWithString : String -> Input id err -> Input id err

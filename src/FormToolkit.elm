@@ -31,7 +31,7 @@ import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
-import Internal.Input as Internal
+import Internal.Input as Internal exposing (Status(..))
 import Internal.Markdown as Markdown
 import Internal.Value
 import Json.Decode
@@ -425,14 +425,14 @@ wrapInput attrs path input inputHtml =
         , Html.div
             [ Attributes.class "input-wrapper" ]
             [ inputHtml ]
-        , case errors input of
-            message :: _ ->
+        , case ( status input, errors input ) of
+            ( Touched, message :: _ ) ->
                 Html.p
                     [ Attributes.class "error" ]
                     [ attrs.errorToHtmlMap (toId input) message
                     ]
 
-            [] ->
+            _ ->
                 case data.hint of
                     Just msg ->
                         Html.div
@@ -571,6 +571,11 @@ updateInputWithBool bool =
 errors : Input id -> List (Error id)
 errors input =
     Tree.value (toTree input) |> .errors
+
+
+status : Input id -> Status
+status input =
+    Tree.value (toTree input) |> .status
 
 
 {-| -}
