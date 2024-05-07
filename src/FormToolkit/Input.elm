@@ -301,23 +301,26 @@ mapIdentifier func (Input tree) =
 mapError : (a -> b) -> Error a -> Error b
 mapError func error =
     case error of
-        ValueTooLarge params ->
-            ValueTooLarge params
+        ValueTooLarge id params ->
+            ValueTooLarge (Maybe.map func id) params
 
-        ValueTooSmall params ->
-            ValueTooSmall params
+        ValueTooSmall id params ->
+            ValueTooSmall (Maybe.map func id) params
 
-        ValueNotInRange params ->
-            ValueNotInRange params
+        ValueNotInRange id params ->
+            ValueNotInRange (Maybe.map func id) params
 
-        IsBlank ->
-            IsBlank
+        IsBlank id ->
+            IsBlank (Maybe.map func id)
 
-        ParseError ->
-            ParseError
+        ParseError id ->
+            ParseError (Maybe.map func id)
 
-        ListError idx error2 ->
-            ListError idx (mapError func error2)
+        ListError id params ->
+            ListError (Maybe.map func id)
+                { index = params.index
+                , error = mapError func params.error
+                }
 
         InputNotFound id ->
             InputNotFound (func id)
@@ -329,19 +332,20 @@ getValue (Input tree) =
     Tree.value tree |> .value |> Value.Value
 
 
-{-| Represents an error that occurred during decoding.
+{-| Represents an error that occurred during decoding or validation.
 -}
 type Error id
-    = ValueTooLarge { value : Value.Value, max : Value.Value }
-    | ValueTooSmall { value : Value.Value, min : Value.Value }
+    = ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
+    | ValueTooSmall (Maybe id) { value : Value.Value, min : Value.Value }
     | ValueNotInRange
+        (Maybe id)
         { value : Value.Value
         , min : Value.Value
         , max : Value.Value
         }
-    | IsBlank
-    | ParseError
-    | ListError Int (Error id)
+    | IsBlank (Maybe id)
+    | ParseError (Maybe id)
+    | ListError (Maybe id) { index : Int, error : Error id }
     | InputNotFound id
 
 

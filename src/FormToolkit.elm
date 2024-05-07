@@ -50,7 +50,7 @@ type alias ViewAttributes id msg =
     { onChange : Maybe (Msg id -> msg)
     , addInputsButtonContent : Maybe id -> Html msg
     , removeInputsButtonContent : Maybe id -> Html msg
-    , errorToHtmlMap : Maybe id -> Error id -> Html msg
+    , errorToHtmlMap : Error id -> Html msg
     , elements : List ( id, Html msg )
     }
 
@@ -95,7 +95,7 @@ removeInputsButtonContent func =
 
 {-| TODO
 -}
-errorToHtmlMap : (Maybe id -> Error id -> Html msg) -> ViewAttribute id msg
+errorToHtmlMap : (Error id -> Html msg) -> ViewAttribute id msg
 errorToHtmlMap mapFunc =
     ViewAttribute (\attrs -> { attrs | errorToHtmlMap = mapFunc })
 
@@ -429,7 +429,7 @@ wrapInput attrs path input inputHtml =
             ( Touched, message :: _ ) ->
                 Html.p
                     [ Attributes.class "error" ]
-                    [ attrs.errorToHtmlMap (toId input) message
+                    [ attrs.errorToHtmlMap message
                     ]
 
             _ ->
@@ -589,14 +589,6 @@ toId (Input input) =
     Tree.value input |> .identifier
 
 
-map :
-    (Tree.Tree (Internal.Input id (Error id)) -> Tree.Tree (Internal.Input id (Error id)))
-    -> Input id
-    -> Input id
-map func input =
-    Input (Tree.map func (toTree input))
-
-
 updateAt :
     List Int
     -> (Tree.Tree (Internal.Input id (Error id)) -> Tree.Tree (Internal.Input id (Error id)))
@@ -608,8 +600,8 @@ updateAt path func input =
 
 {-| TODO
 -}
-errorToHtml : Maybe id -> Error id -> Html msg
-errorToHtml _ err =
+errorToHtml : Error id -> Html msg
+errorToHtml err =
     let
         toString =
             Value.toString
@@ -617,16 +609,16 @@ errorToHtml _ err =
     in
     Html.text
         (case err of
-            ValueTooLarge data ->
+            ValueTooLarge _ data ->
                 "Should be lesser than " ++ toString data.max
 
-            ValueTooSmall data ->
+            ValueTooSmall _ data ->
                 "Should be greater than " ++ toString data.min
 
-            ValueNotInRange data ->
+            ValueNotInRange _ data ->
                 "Should be between " ++ toString data.min ++ " and " ++ toString data.max
 
-            IsBlank ->
+            IsBlank _ ->
                 "Should be provided"
 
             _ ->

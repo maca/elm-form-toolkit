@@ -273,13 +273,15 @@ setError error =
 parseValue : (Value.Value -> Maybe a) -> Decoder id a
 parseValue func =
     custom
-        (\(Input.Input node) ->
-            node
-                |> Tree.value
-                |> .value
+        (\(Input.Input tree) ->
+            let
+                input =
+                    Tree.value tree
+            in
+            .value input
                 |> Value.Value
                 |> func
-                |> Result.fromMaybe ParseError
+                |> Result.fromMaybe (ParseError input.identifier)
         )
 
 
@@ -544,7 +546,7 @@ checkRequired (Input.Input tree) =
             Tree.value tree
     in
     if input.isRequired && Internal.Value.isBlank input.value then
-        Err IsBlank
+        Err (IsBlank input.identifier)
 
     else
         Ok (Value.Value input.value)
@@ -566,7 +568,7 @@ checkInRange (Input.Input tree) =
     of
         ( Just LT, Just _ ) ->
             Err
-                (ValueNotInRange
+                (ValueNotInRange input.identifier
                     { value = actual
                     , min = Value.Value input.min
                     , max = Value.Value input.max
@@ -575,7 +577,7 @@ checkInRange (Input.Input tree) =
 
         ( Just _, Just GT ) ->
             Err
-                (ValueNotInRange
+                (ValueNotInRange input.identifier
                     { value = actual
                     , min = Value.Value input.min
                     , max = Value.Value input.max
@@ -584,7 +586,7 @@ checkInRange (Input.Input tree) =
 
         ( Just LT, Nothing ) ->
             Err
-                (ValueTooSmall
+                (ValueTooSmall input.identifier
                     { value = actual
                     , min = Value.Value input.min
                     }
@@ -592,7 +594,7 @@ checkInRange (Input.Input tree) =
 
         ( Nothing, Just GT ) ->
             Err
-                (ValueTooLarge
+                (ValueTooLarge input.identifier
                     { value = actual
                     , max = Value.Value input.max
                     }

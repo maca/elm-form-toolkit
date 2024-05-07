@@ -45,13 +45,14 @@ suite =
                     \_ ->
                         Decode.validateAndDecode Decode.int stringInput
                             |> Tuple.second
-                            |> Expect.equal (Err [ ParseError ])
+                            |> Expect.equal
+                                (Err [ ParseError (Just StringField) ])
                 , test "validates input" <|
                     \_ ->
                         Decode.validateAndDecode Decode.int stringInput
                             |> Tuple.first
                             |> Input.errors
-                            |> Expect.equal [ ParseError ]
+                            |> Expect.equal [ ParseError (Just StringField) ]
                 ]
             , let
                 result =
@@ -63,12 +64,12 @@ suite =
                 [ test "produces error" <|
                     \_ ->
                         Tuple.second result
-                            |> Expect.equal (Err [ ParseError ])
+                            |> Expect.equal (Err [ ParseError (Just StringField) ])
                 , test "validates input" <|
                     \_ ->
                         Tuple.first result
                             |> Input.errors
-                            |> Expect.equal [ ParseError ]
+                            |> Expect.equal [ ParseError (Just StringField) ]
                 ]
             ]
         , describe "validates"
@@ -80,12 +81,13 @@ suite =
                 [ test "produces error" <|
                     \_ ->
                         Tuple.second result
-                            |> Expect.equal (Err [ IsBlank ])
+                            |> Expect.equal
+                                (Err [ IsBlank (Just BlankField) ])
                 , test "validates input" <|
                     \_ ->
                         Tuple.first result
                             |> Input.errors
-                            |> Expect.equal [ IsBlank ]
+                            |> Expect.equal [ IsBlank (Just BlankField) ]
                 ]
             , let
                 result =
@@ -96,12 +98,12 @@ suite =
                 [ test "produces error" <|
                     \_ ->
                         Tuple.second result
-                            |> Expect.equal (Err [ IsBlank ])
+                            |> Expect.equal (Err [ IsBlank (Just BlankField) ])
                 , test "validates input" <|
                     \_ ->
                         Tuple.first result
                             |> Input.errors
-                            |> Expect.equal [ IsBlank ]
+                            |> Expect.equal [ IsBlank (Just BlankField) ]
                 ]
 
             -- , describe "and errors are presented in the correct order" []
