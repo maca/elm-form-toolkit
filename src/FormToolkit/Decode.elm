@@ -237,7 +237,7 @@ jsonEncodeHelp tree acc =
                     Ok (( name, jsonValue ) :: acc)
 
                 Nothing ->
-                    Err (NoName input.identifier)
+                    Err (RepeatableHasNoName input.identifier)
     in
     case input.inputType of
         Internal.Input.Group ->
@@ -261,7 +261,12 @@ jsonEncodeHelp tree acc =
                 |> Result.andThen accumulate
 
         _ ->
-            accumulate (Internal.Value.encode input.value)
+            case input.name of
+                Just name ->
+                    Ok (( name, Internal.Value.encode input.value ) :: acc)
+
+                Nothing ->
+                    Ok acc
 
 
 jsonEncodeObject : Tree id -> Result (Error id) Json.Encode.Value
@@ -296,8 +301,6 @@ custom func =
                 Err err ->
                     Failure (setError err tree) [ err ]
         )
-        |> validate checkRequired
-        |> validate checkInRange
 
 
 validate :
@@ -546,7 +549,14 @@ validateAndDecode :
     -> Input id
     -> ( Input id, Result (List (Error id)) a )
 validateAndDecode decoder (Input.Input tree) =
-    case apply decoder tree of
+    case
+        apply
+            (decoder
+                |> validate checkRequired
+                |> validate checkInRange
+            )
+            tree
+    of
         Success tree2 a ->
             ( Input.Input tree2, Ok a )
 

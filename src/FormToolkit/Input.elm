@@ -322,8 +322,8 @@ mapError func error =
                 , error = mapError func params.error
                 }
 
-        NoName id ->
-            NoName (Maybe.map func id)
+        RepeatableHasNoName id ->
+            RepeatableHasNoName (Maybe.map func id)
 
         InputNotFound id ->
             InputNotFound (func id)
@@ -349,7 +349,7 @@ type Error id
     | IsBlank (Maybe id)
     | ParseError (Maybe id)
     | ListError (Maybe id) { index : Int, error : Error id }
-    | NoName (Maybe id)
+    | RepeatableHasNoName (Maybe id)
     | InputNotFound id
 
 

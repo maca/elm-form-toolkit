@@ -6,6 +6,7 @@ import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
+import Json.Encode
 
 
 main =
@@ -63,15 +64,18 @@ personFields =
             [ Input.label "First Name"
             , Input.required True
             , Input.identifier FirstName
+            , Input.name "first-name"
             ]
         , Input.text
             [ Input.label "Middle Name"
             , Input.identifier MiddleName
+            , Input.name "middle-name"
             ]
         , Input.text
             [ Input.label "Last Name"
             , Input.required True
             , Input.identifier LastName
+            , Input.name "last-name"
             ]
         ]
 
@@ -89,14 +93,21 @@ recordForm =
                 [ Input.label "Title"
                 , Input.required True
                 , Input.identifier Title
+                , Input.name "title"
                 ]
             , Input.date
                 [ Input.label "Release"
                 , Input.required True
                 , Input.identifier Release
+                , Input.name "release"
                 ]
             ]
-        , Input.repeatable [ Input.identifier Authors ] personFields []
+        , Input.repeatable
+            [ Input.identifier Authors
+            , Input.name "authors"
+            ]
+            personFields
+            []
         , Input.elementPlaceholder Element
         ]
 
@@ -114,8 +125,20 @@ update msg model =
     case msg of
         FormChanged formMsg ->
             let
-                ( form, _ ) =
-                    FormToolkit.update formMsg (Decode.succeed ()) model.form
+                ( form, decoded ) =
+                    FormToolkit.update formMsg recordDecoder model.form
+
+                _ =
+                    Debug.log "author" decoded
+
+                _ =
+                    Decode.decode (Decode.succeed ()) form
+                        |> Debug.log "succ"
+
+                _ =
+                    Decode.decode Decode.json form
+                        |> Result.map (Json.Encode.encode 0)
+                        |> Debug.log "json"
             in
             { model | form = form }
 
@@ -126,11 +149,6 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    let
-        _ =
-            Decode.decode recordDecoder model.form
-                |> Debug.log "Author"
-    in
     div
         []
         [ FormToolkit.toHtml
