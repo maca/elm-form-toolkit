@@ -2,7 +2,8 @@ module FormToolkit exposing
     ( Msg, update
     , View, initView
     , toHtml
-    , withErrorsView, withGroupView, withRepeatableView, withInputView
+    , withInputView, withErrorsView
+    , withGroupView, withRepeatableView, withTemplateView
     )
 
 {-|
@@ -21,7 +22,8 @@ module FormToolkit exposing
 
 # View customizations
 
-@docs withErrorsView, withGroupView, withRepeatableView, withInputView
+@docs withInputView, withErrorsView
+@docs withGroupView, withRepeatableView, withTemplateView
 
 -}
 
@@ -109,6 +111,7 @@ type alias ViewAttributes id msg =
     , errorsView : Error id -> Html msg
     , groupView : GroupView msg -> Html msg
     , repeatableView : RepeatableView msg -> Html msg
+    , templateView : TemplateView msg -> Html msg
     , inputView : InputView msg -> Html msg
     }
 
@@ -128,8 +131,26 @@ initView onChange input =
         , errorsView = errorsView
         , groupView = groupView
         , repeatableView = repeatableView
+        , templateView = templateView
         , inputView = inputView
         }
+
+
+{-| TODO
+-}
+withInputView :
+    ({ isRequired : Bool
+     , labelHtml : Html msg
+     , inputHtml : Html msg
+     , errorsHtml : List (Html msg)
+     , hint : Maybe String
+     }
+     -> Html msg
+    )
+    -> View id msg
+    -> View id msg
+withInputView viewFunc (View input params) =
+    View input { params | inputView = viewFunc }
 
 
 {-| TODO
@@ -169,19 +190,18 @@ withRepeatableView viewFunc (View input params) =
 
 {-| TODO
 -}
-withInputView :
-    ({ isRequired : Bool
-     , labelHtml : Html msg
-     , inputHtml : Html msg
-     , errorsHtml : List (Html msg)
-     , hint : Maybe String
+withTemplateView :
+    ({ onRemoveAttribute : Html.Attribute msg
+     , removeButtonText : String
+     , showRemoveButton : Bool
+     , inputsHtml : Html msg
      }
      -> Html msg
     )
     -> View id msg
     -> View id msg
-withInputView viewFunc (View input params) =
-    View input { params | inputView = viewFunc }
+withTemplateView viewFunc (View input params) =
+    View input { params | templateView = viewFunc }
 
 
 {-| TODO
@@ -498,7 +518,7 @@ wrapInput attrs path input inputHtml =
 
 templateHtml : ViewAttributes id msg -> List Int -> Bool -> Input id -> Html msg
 templateHtml attributes path isLast node =
-    templateView
+    attributes.templateView
         { onRemoveAttribute =
             Events.preventDefaultOn "click"
                 (Json.Decode.succeed
