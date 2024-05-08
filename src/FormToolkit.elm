@@ -1,6 +1,8 @@
 module FormToolkit exposing
     ( Msg, update
-    , View, initView, toHtml
+    , View, initView
+    , toHtml
+    , withErrorsView, withGroupView, withRepeatableView, withInputView
     )
 
 {-|
@@ -13,7 +15,13 @@ module FormToolkit exposing
 
 # View
 
-@docs View, initView, toHtml
+@docs View, initView
+@docs toHtml
+
+
+# View customizations
+
+@docs withErrorsView, withGroupView, withRepeatableView, withInputView
 
 -}
 
@@ -122,6 +130,58 @@ initView onChange input =
         , repeatableView = repeatableView
         , inputView = inputView
         }
+
+
+{-| TODO
+-}
+withErrorsView : (Error id -> Html msg) -> View id msg -> View id msg
+withErrorsView viewFunc (View input params) =
+    View input { params | errorsView = viewFunc }
+
+
+{-| TODO
+-}
+withGroupView :
+    ({ inline : Bool, legendHtml : Html msg, inputsHtml : List (Html msg) }
+     -> Html msg
+    )
+    -> View id msg
+    -> View id msg
+withGroupView viewFunc (View input params) =
+    View input { params | groupView = viewFunc }
+
+
+{-| TODO
+-}
+withRepeatableView :
+    ({ onAddAttribute : Html.Attribute msg
+     , legendHtml : Html msg
+     , inputsHtml : List (Html msg)
+     , addButtonText : String
+     }
+     -> Html msg
+    )
+    -> View id msg
+    -> View id msg
+withRepeatableView viewFunc (View input params) =
+    View input { params | repeatableView = viewFunc }
+
+
+{-| TODO
+-}
+withInputView :
+    ({ isRequired : Bool
+     , labelHtml : Html msg
+     , inputHtml : Html msg
+     , errorsHtml : List (Html msg)
+     , hint : Maybe String
+     }
+     -> Html msg
+    )
+    -> View id msg
+    -> View id msg
+withInputView viewFunc (View input params) =
+    View input { params | inputView = viewFunc }
 
 
 {-| TODO
