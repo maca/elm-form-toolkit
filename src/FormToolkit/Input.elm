@@ -5,7 +5,6 @@ module FormToolkit.Input exposing
     , date, month
     , select, radio, checkbox
     , group, repeatable
-    , elementPlaceholder
     , Attribute
     , name, identifier, value, required, label, placeholder, hint
     , options, min, max
@@ -25,7 +24,6 @@ module FormToolkit.Input exposing
 @docs date, month
 @docs select, radio, checkbox
 @docs group, repeatable
-@docs elementPlaceholder
 
 
 # Attributes
@@ -164,13 +162,6 @@ repeatable attributes template inputs =
              else
                 List.map toTree inputs
             )
-
-
-{-| TODO
--}
-elementPlaceholder : id -> Input id
-elementPlaceholder id =
-    init (Internal.Element id) []
 
 
 init : Internal.InputType id (Error id) -> List (Attribute id) -> Input id

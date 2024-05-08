@@ -6,26 +6,19 @@ module Internal.Value exposing
     , encode
     , floatFromString
     , fromBool
-    , fromDate
     , fromFloat
     , fromInt
-    , fromMonth
     , fromString
-    , fromTime
     , intFromString
     , isBlank
     , monthFromString
-    , timeFromString
     , toBool
     , toFloat
-    , toHuman
     , toInt
     , toPosix
     , toString
-    , transformString
     )
 
-import Internal.Time exposing (dateMonthToHuman, dateToHuman)
 import Iso8601
 import Json.Encode as Encode
 import String.Extra as String
@@ -120,16 +113,6 @@ toPosix value =
             Err ()
 
 
-toMaybe : (Value -> Result () a) -> Value -> Result () (Maybe a)
-toMaybe f value =
-    case value of
-        Blank ->
-            Ok Nothing
-
-        _ ->
-            f value |> Result.map Just
-
-
 encode : Value -> Encode.Value
 encode value =
     case value of
@@ -151,32 +134,6 @@ encode value =
                 |> Result.withDefault Encode.null
 
 
-toHuman : Value -> String
-toHuman value =
-    case value of
-        Month posix ->
-            dateMonthToHuman posix
-
-        Date posix ->
-            dateToHuman posix
-
-        Time posix ->
-            Iso8601.fromTime posix
-
-        _ ->
-            Result.withDefault "?" (toString value)
-
-
-transformString : (String -> String) -> Value -> Value
-transformString f value =
-    case value of
-        Text val ->
-            Text (f val)
-
-        _ ->
-            value
-
-
 fromString : String -> Value
 fromString str =
     String.nonBlank str
@@ -192,21 +149,6 @@ fromInt =
 fromFloat : Float -> Value
 fromFloat =
     Float
-
-
-fromMonth : Posix -> Value
-fromMonth =
-    Month
-
-
-fromDate : Posix -> Value
-fromDate =
-    Date
-
-
-fromTime : Posix -> Value
-fromTime =
-    Time
 
 
 fromBool : Bool -> Value
@@ -243,14 +185,6 @@ dateFromString : String -> Value
 dateFromString str =
     Iso8601.toTime (String.slice 0 10 str ++ "T00:00")
         |> Result.map Date
-        |> Result.toMaybe
-        |> Maybe.withDefault Blank
-
-
-timeFromString : String -> Value
-timeFromString str =
-    Iso8601.toTime str
-        |> Result.map Time
         |> Result.toMaybe
         |> Maybe.withDefault Blank
 

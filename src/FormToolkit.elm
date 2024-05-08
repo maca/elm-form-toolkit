@@ -1,8 +1,6 @@
 module FormToolkit exposing
     ( Msg, update
-    , ViewAttribute, toHtml, onChange
-    , addInputsButtonContent, removeInputsButtonContent
-    , elementHtml
+    , View, initView, toHtml
     )
 
 {-|
@@ -15,13 +13,9 @@ module FormToolkit exposing
 
 # View
 
-@docs ViewAttribute, toHtml, onChange
-@docs addInputsButtonContent, removeInputsButtonContent
-@docs elementHtml
+@docs View, initView, toHtml
 
 -}
-
--- import Json.Encode as Encode
 
 import FormToolkit.Decode exposing (Decoder)
 import FormToolkit.Input exposing (Attribute(..), Error(..), Input(..))
@@ -37,494 +31,6 @@ import RoseTree.Tree as Tree
 
 {-| TODO
 -}
-type ViewAttribute id msg
-    = ViewAttribute (ViewAttributes id msg -> ViewAttributes id msg)
-
-
-{-| TODO
--}
-type alias ViewAttributes id msg =
-    { onChange : Maybe (Msg id -> msg)
-    , addInputsButtonContent : Maybe id -> Html msg
-    , removeInputsButtonContent : Maybe id -> Html msg
-    , elements : List ( id, Html msg )
-    }
-
-
-{-| TODO
--}
-toHtml : List (ViewAttribute id msg) -> Input id -> Html msg
-toHtml attributes =
-    toHtmlHelp
-        (List.foldl (\(ViewAttribute func) params -> func params)
-            { onChange = Nothing
-            , addInputsButtonContent = \_ -> Html.text "Add"
-            , removeInputsButtonContent = \_ -> Html.text "Remove"
-            , elements = []
-            }
-            attributes
-        )
-        []
-
-
-{-| TODO
--}
-onChange : (Msg id -> msg) -> ViewAttribute id msg
-onChange tagger =
-    ViewAttribute (\attrs -> { attrs | onChange = Just tagger })
-
-
-{-| TODO
--}
-addInputsButtonContent : (Maybe id -> Html msg) -> ViewAttribute id msg
-addInputsButtonContent func =
-    ViewAttribute (\attrs -> { attrs | addInputsButtonContent = func })
-
-
-{-| TODO
--}
-removeInputsButtonContent : (Maybe id -> Html msg) -> ViewAttribute id msg
-removeInputsButtonContent func =
-    ViewAttribute (\attrs -> { attrs | removeInputsButtonContent = func })
-
-
-{-| TODO
--}
-elementHtml : id -> Html msg -> ViewAttribute id msg
-elementHtml id html =
-    ViewAttribute
-        (\attrs ->
-            { attrs | elements = ( id, html ) :: attrs.elements }
-        )
-
-
-{-| TODO
--}
-toHtmlHelp : ViewAttributes id msg -> List Int -> Input id -> Html msg
-toHtmlHelp attrs path node =
-    let
-        tree =
-            toTree node
-
-        input =
-            Tree.value tree
-    in
-    case input.inputType of
-        Internal.Group ->
-            let
-                children =
-                    Tree.children tree
-                        |> List.indexedMap
-                            (\idx ->
-                                Input >> toHtmlHelp attrs (path ++ [ idx ])
-                            )
-
-                inputLabel =
-                    case input.label of
-                        Just labelStr ->
-                            Html.legend [] [ Html.text labelStr ]
-
-                        Nothing ->
-                            Html.text ""
-            in
-            Html.fieldset
-                [ Attributes.id (inputId node path)
-                , Attributes.classList
-                    [ ( "inline", input.inline )
-                    , ( "stacked", not input.inline )
-                    ]
-                ]
-                (inputLabel :: children)
-
-        Internal.Repeatable data ->
-            let
-                children =
-                    Tree.children tree
-
-                inputs =
-                    children
-                        |> List.indexedMap
-                            (\idx ->
-                                Input
-                                    >> templateHtml attrs
-                                        (path ++ [ idx ])
-                                        (List.length children /= (idx + 1))
-                            )
-            in
-            Html.fieldset
-                [ Attributes.id (inputId node path) ]
-                [ Html.div [] (legend input.label :: inputs)
-                , addInputsButton attrs (Tree.value data |> .identifier) path
-                ]
-
-        Internal.Text ->
-            inputToHtml attrs "text" path node []
-                |> wrapInput path node
-
-        Internal.Email ->
-            inputToHtml attrs "email" path node []
-                |> wrapInput path node
-
-        Internal.Password ->
-            inputToHtml attrs "password" path node []
-                |> wrapInput path node
-
-        Internal.TextArea ->
-            textAreaToHtml attrs path node
-                |> wrapInput path node
-
-        Internal.Integer ->
-            inputToHtml attrs "number" path node [ Attributes.step "1" ]
-                |> wrapInput path node
-
-        Internal.Float ->
-            inputToHtml attrs "number" path node [ Attributes.step "1" ]
-                |> wrapInput path node
-
-        Internal.Date ->
-            inputToHtml attrs "date" path node []
-                |> wrapInput path node
-
-        Internal.Month ->
-            inputToHtml attrs "month" path node []
-                |> wrapInput path node
-
-        Internal.Select ->
-            selectToHtml attrs path node
-                |> wrapInput path node
-
-        Internal.Radio ->
-            radioToHtml attrs path node
-                |> wrapInput path node
-
-        Internal.Checkbox ->
-            checkboxToHtml attrs path node
-                |> wrapInput path node
-
-        Internal.Element elementId ->
-            attrs.elements
-                |> List.filter (Tuple.first >> (==) elementId)
-                |> List.head
-                |> Maybe.map Tuple.second
-                |> Maybe.withDefault (Html.text "")
-
-
-inputToHtml :
-    ViewAttributes id msg
-    -> String
-    -> List Int
-    -> Input id
-    -> List (Html.Attribute msg)
-    -> Html msg
-inputToHtml attrs inputType path input htmlAttrs =
-    let
-        actualInput =
-            Tree.value (toTree input)
-    in
-    Html.input
-        (htmlAttrs
-            ++ Attributes.type_ inputType
-            :: valueAttribute Attributes.value actualInput.value
-            :: onInputChanged attrs path
-            :: inputAttrs attrs path input
-        )
-        []
-
-
-textAreaToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-textAreaToHtml attrs path (Input input) =
-    let
-        valueStr =
-            Tree.value input
-                |> .value
-                |> Internal.Value.toString
-                |> Result.withDefault ""
-    in
-    Html.div
-        [ Attributes.class "grow-wrap"
-        , Attributes.attribute "data-replicated-value" valueStr
-        ]
-        [ Html.textarea
-            (onInputChanged attrs path
-                :: Attributes.value valueStr
-                :: inputAttrs attrs path (Input input)
-            )
-            []
-        ]
-
-
-selectToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-selectToHtml attrs path input =
-    let
-        data =
-            Tree.value (toTree input)
-    in
-    Html.select
-        [ Attributes.id (inputId input path)
-        , Attributes.required data.isRequired
-        , onInputChanged attrs path
-        , onInputFocused attrs path
-        , onInputBlured attrs path
-        ]
-        (Html.option [] []
-            :: List.indexedMap
-                (\index ( optionText, optionValue ) ->
-                    Html.option
-                        [ Attributes.selected (optionValue == data.value)
-                        , Attributes.value (String.fromInt index)
-                        ]
-                        [ Html.text optionText ]
-                )
-                data.options
-        )
-
-
-radioToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-radioToHtml attrs path input =
-    let
-        data =
-            Tree.value (toTree input)
-    in
-    Html.div
-        [ Attributes.class "radios" ]
-        (List.indexedMap
-            (\index ( optionText, optionValue ) ->
-                let
-                    optionId =
-                        identifierString
-                            (Maybe.map ((++) (String.fromInt index)) data.name)
-                            path
-                in
-                Html.div
-                    []
-                    [ Html.input
-                        [ Attributes.id optionId
-                        , Attributes.checked (optionValue == data.value)
-                        , Attributes.required data.isRequired
-                        , Attributes.value (String.fromInt index)
-                        , Attributes.type_ "radio"
-                        , onInputChanged attrs path
-                        , onInputFocused attrs path
-                        , onInputBlured attrs path
-                        ]
-                        []
-                    , Html.label
-                        [ Attributes.for optionId ]
-                        [ Html.text optionText ]
-                    ]
-            )
-            data.options
-        )
-
-
-checkboxToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-checkboxToHtml attrs path (Input input) =
-    Html.input
-        (Attributes.type_ "checkbox"
-            :: (Tree.value input
-                    |> .value
-                    |> Internal.Value.toBool
-                    |> Result.map Attributes.checked
-                    |> Result.withDefault (Attributes.class "")
-               )
-            :: (case attrs.onChange of
-                    Just tagger ->
-                        Events.onCheck (InputChecked path >> tagger)
-
-                    Nothing ->
-                        Attributes.class ""
-               )
-            :: inputAttrs attrs path (Input input)
-        )
-        []
-
-
-valueAttribute :
-    (String -> Html.Attribute msg)
-    -> Internal.Value.Value
-    -> Html.Attribute msg
-valueAttribute f inputValue =
-    Internal.Value.toString inputValue
-        |> Result.map f
-        |> Result.withDefault (Attributes.class "")
-
-
-inputAttrs :
-    ViewAttributes id msg
-    -> List Int
-    -> Input id
-    -> List (Html.Attribute msg)
-inputAttrs attrs path input =
-    let
-        data =
-            Tree.value (toTree input)
-    in
-    [ Attributes.id (inputId input path)
-    , Attributes.required data.isRequired
-    , Attributes.autocomplete False
-    , Attributes.placeholder (Maybe.withDefault "" data.placeholder)
-    , onInputFocused attrs path
-    , onInputBlured attrs path
-    , valueAttribute Attributes.min data.min
-    , valueAttribute Attributes.max data.max
-    ]
-
-
-onInputChanged : ViewAttributes id msg -> List Int -> Html.Attribute msg
-onInputChanged attrs path =
-    case attrs.onChange of
-        Just tagger ->
-            Events.onInput (InputChanged path >> tagger)
-
-        Nothing ->
-            Attributes.class ""
-
-
-onInputFocused : ViewAttributes id msg -> List Int -> Html.Attribute msg
-onInputFocused attrs path =
-    case attrs.onChange of
-        Just tagger ->
-            Events.onFocus (tagger (InputFocused path))
-
-        Nothing ->
-            Attributes.class ""
-
-
-onInputBlured : ViewAttributes id msg -> List Int -> Html.Attribute msg
-onInputBlured attrs path =
-    case attrs.onChange of
-        Just tagger ->
-            Events.onBlur (tagger (InputBlured path))
-
-        Nothing ->
-            Attributes.class ""
-
-
-wrapInput : List Int -> Input id -> Html msg -> Html msg
-wrapInput path input inputHtml =
-    let
-        { hint, label, isRequired } =
-            Tree.value (toTree input)
-    in
-    fieldView
-        { isRequired = isRequired
-        , label =
-            case label of
-                Just str ->
-                    Html.label
-                        [ Attributes.for (inputId input path) ]
-                        [ Html.text str
-                        ]
-
-                Nothing ->
-                    Html.text ""
-        , field = inputHtml
-        , errors = inputErrors input
-        , hint = hint
-        }
-
-
-fieldView :
-    { isRequired : Bool
-    , label : Html msg
-    , field : Html msg
-    , errors : List (Error id)
-    , hint : Maybe String
-    }
-    -> Html msg
-fieldView { isRequired, label, field, errors, hint } =
-    Html.div
-        [ Attributes.class "field"
-        , Attributes.classList [ ( "required", isRequired ) ]
-        ]
-        [ label
-        , Html.div [ Attributes.class "input-wrapper" ] [ field ]
-        , case errors of
-            message :: _ ->
-                Html.p [ Attributes.class "error" ] [ errorToHtml message ]
-
-            [] ->
-                case hint of
-                    Just hintText ->
-                        Html.div
-                            [ Attributes.class "hint" ]
-                            [ Html.text hintText ]
-
-                    Nothing ->
-                        Html.text ""
-        ]
-
-
-templateHtml :
-    ViewAttributes id msg
-    -> List Int
-    -> Bool
-    -> Input id
-    -> Html msg
-templateHtml attributes path isLast inputElement =
-    Html.div
-        [ Attributes.class "group-repeat" ]
-        [ toHtmlHelp attributes path inputElement
-        , if isLast then
-            Html.button
-                [ Attributes.class "remove-fields"
-                , case attributes.onChange of
-                    Just tagger ->
-                        Events.preventDefaultOn "click"
-                            (Json.Decode.succeed
-                                ( tagger (InputsRemoved path), True )
-                            )
-
-                    Nothing ->
-                        Attributes.class ""
-                ]
-                [ attributes.removeInputsButtonContent (toId inputElement)
-                ]
-
-          else
-            Html.text ""
-        ]
-
-
-addInputsButton : ViewAttributes id msg -> Maybe id -> List Int -> Html msg
-addInputsButton attrs id path =
-    Html.button
-        [ Attributes.class "add-fields"
-        , case attrs.onChange of
-            Just tagger ->
-                Events.preventDefaultOn "click"
-                    (Json.Decode.succeed ( tagger (InputsAdded path), True ))
-
-            Nothing ->
-                Attributes.class ""
-        ]
-        [ attrs.addInputsButtonContent id
-        ]
-
-
-inputId : Input id -> List Int -> String
-inputId (Input input) path =
-    identifierString (Tree.value input |> .name) path
-
-
-identifierString : Maybe String -> List Int -> String
-identifierString maybe path =
-    case maybe of
-        Just str ->
-            String.join "-" (str :: List.map String.fromInt path)
-
-        Nothing ->
-            String.join "-" (List.map String.fromInt path)
-
-
-legend : Maybe String -> Html msg
-legend =
-    Maybe.map (\t -> Html.legend [] [ Html.text t ])
-        >> Maybe.withDefault (Html.text "")
-
-
-{-| TODO
--}
 type Msg id
     = InputChanged (List Int) String
     | InputChecked (List Int) Bool
@@ -532,6 +38,10 @@ type Msg id
     | InputBlured (List Int)
     | InputsAdded (List Int)
     | InputsRemoved (List Int)
+
+
+type alias Tree id =
+    Tree.Tree (Internal.Input id (Error id))
 
 
 {-| TODO
@@ -571,20 +81,394 @@ update msg decoder input =
                 Input (Tree.removeAt path (toTree input))
 
 
-updateInput :
-    String
-    -> Tree.Tree (Internal.Input id (Error id))
-    -> Tree.Tree (Internal.Input id (Error id))
+updateInput : String -> Tree id -> Tree id
 updateInput string =
     Tree.updateValue (Internal.updateWithString string)
 
 
-updateInputWithBool :
-    Bool
-    -> Tree.Tree (Internal.Input id (Error id))
-    -> Tree.Tree (Internal.Input id (Error id))
+updateInputWithBool : Bool -> Tree id -> Tree id
 updateInputWithBool bool =
     Tree.updateValue (Internal.update (Internal.Value.fromBool bool))
+
+
+updateAt : List Int -> (Tree id -> Tree id) -> Input id -> Input id
+updateAt path func input =
+    Input (Tree.updateAt path func (toTree input))
+
+
+type alias ViewAttributes id msg =
+    { onChange : Msg id -> msg
+    , errorsView : Error id -> Html msg
+    , groupView : GroupView msg -> Html msg
+    , repeatableView : RepeatableView msg -> Html msg
+    , inputView : InputView msg -> Html msg
+    }
+
+
+{-| TODO
+-}
+type View id msg
+    = View (Input id) (ViewAttributes id msg)
+
+
+{-| TODO
+-}
+initView : (Msg id -> msg) -> Input id -> View id msg
+initView onChange input =
+    View input
+        { onChange = onChange
+        , errorsView = errorsView
+        , groupView = groupView
+        , repeatableView = repeatableView
+        , inputView = inputView
+        }
+
+
+{-| TODO
+-}
+toHtml : View id msg -> Html msg
+toHtml (View input attributes) =
+    toHtmlHelp attributes [] input
+
+
+{-| TODO
+-}
+toHtmlHelp : ViewAttributes id msg -> List Int -> Input id -> Html msg
+toHtmlHelp attributes path node =
+    case Tree.value (toTree node) |> .inputType of
+        Internal.Group ->
+            groupToHtml attributes path node
+
+        Internal.Repeatable _ ->
+            repeatableToHtml attributes path node
+
+        Internal.Text ->
+            inputToHtml attributes "text" path node []
+                |> wrapInput attributes path node
+
+        Internal.Email ->
+            inputToHtml attributes "email" path node []
+                |> wrapInput attributes path node
+
+        Internal.Password ->
+            inputToHtml attributes "password" path node []
+                |> wrapInput attributes path node
+
+        Internal.TextArea ->
+            textAreaToHtml attributes path node
+                |> wrapInput attributes path node
+
+        Internal.Integer ->
+            inputToHtml attributes "number" path node [ Attributes.step "1" ]
+                |> wrapInput attributes path node
+
+        Internal.Float ->
+            inputToHtml attributes "number" path node [ Attributes.step "1" ]
+                |> wrapInput attributes path node
+
+        Internal.Date ->
+            inputToHtml attributes "date" path node []
+                |> wrapInput attributes path node
+
+        Internal.Month ->
+            inputToHtml attributes "month" path node []
+                |> wrapInput attributes path node
+
+        Internal.Select ->
+            selectToHtml attributes path node
+                |> wrapInput attributes path node
+
+        Internal.Radio ->
+            radioToHtml attributes path node
+                |> wrapInput attributes path node
+
+        Internal.Checkbox ->
+            checkboxToHtml attributes path node
+                |> wrapInput attributes path node
+
+
+groupToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
+groupToHtml attributes path node =
+    let
+        tree =
+            toTree node
+
+        input =
+            Tree.value tree
+    in
+    attributes.groupView
+        { inline = input.inline
+        , legendHtml =
+            case input.label of
+                Just labelStr ->
+                    Html.legend [] [ Html.text labelStr ]
+
+                Nothing ->
+                    Html.text ""
+        , inputsHtml =
+            Tree.children tree
+                |> List.indexedMap
+                    (\idx ->
+                        Input >> toHtmlHelp attributes (path ++ [ idx ])
+                    )
+        }
+
+
+repeatableToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
+repeatableToHtml attributes path node =
+    let
+        tree =
+            toTree node
+
+        input =
+            Tree.value tree
+
+        children =
+            Tree.children tree
+    in
+    repeatableView
+        { onAddAttribute =
+            Events.preventDefaultOn "click"
+                (Json.Decode.succeed
+                    ( attributes.onChange (InputsAdded path), True )
+                )
+        , legendHtml = legend input.label
+        , inputsHtml =
+            children
+                |> List.indexedMap
+                    (\idx ->
+                        Input
+                            >> templateHtml attributes
+                                (path ++ [ idx ])
+                                (List.length children /= (idx + 1))
+                    )
+        , addButtonText = "Add"
+        }
+
+
+inputToHtml :
+    ViewAttributes id msg
+    -> String
+    -> List Int
+    -> Input id
+    -> List (Html.Attribute msg)
+    -> Html msg
+inputToHtml { onChange } inputType path input htmlAttrs =
+    let
+        actualInput =
+            Tree.value (toTree input)
+    in
+    Html.input
+        (htmlAttrs
+            ++ Attributes.type_ inputType
+            :: valueAttribute Attributes.value actualInput.value
+            :: onInputChanged onChange path
+            :: inputAttrs onChange path input
+        )
+        []
+
+
+textAreaToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
+textAreaToHtml { onChange } path (Input input) =
+    let
+        valueStr =
+            Tree.value input
+                |> .value
+                |> Internal.Value.toString
+                |> Result.withDefault ""
+    in
+    Html.div
+        [ Attributes.class "grow-wrap"
+        , Attributes.attribute "data-replicated-value" valueStr
+        ]
+        [ Html.textarea
+            (onInputChanged onChange path
+                :: Attributes.value valueStr
+                :: inputAttrs onChange path (Input input)
+            )
+            []
+        ]
+
+
+selectToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
+selectToHtml { onChange } path input =
+    let
+        data =
+            Tree.value (toTree input)
+    in
+    Html.select
+        [ Attributes.id (inputId input path)
+        , Attributes.required data.isRequired
+        , onInputChanged onChange path
+        , onInputFocused onChange path
+        , onInputBlured onChange path
+        ]
+        (Html.option [] []
+            :: List.indexedMap
+                (\index ( optionText, optionValue ) ->
+                    Html.option
+                        [ Attributes.selected (optionValue == data.value)
+                        , Attributes.value (String.fromInt index)
+                        ]
+                        [ Html.text optionText ]
+                )
+                data.options
+        )
+
+
+radioToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
+radioToHtml { onChange } path input =
+    let
+        data =
+            Tree.value (toTree input)
+    in
+    Html.div
+        [ Attributes.class "radios" ]
+        (List.indexedMap
+            (\index ( optionText, optionValue ) ->
+                let
+                    optionId =
+                        identifierString
+                            (Maybe.map ((++) (String.fromInt index)) data.name)
+                            path
+                in
+                Html.div
+                    []
+                    [ Html.input
+                        [ Attributes.id optionId
+                        , Attributes.checked (optionValue == data.value)
+                        , Attributes.required data.isRequired
+                        , Attributes.value (String.fromInt index)
+                        , Attributes.type_ "radio"
+                        , onInputChanged onChange path
+                        , onInputFocused onChange path
+                        , onInputBlured onChange path
+                        ]
+                        []
+                    , Html.label
+                        [ Attributes.for optionId ]
+                        [ Html.text optionText ]
+                    ]
+            )
+            data.options
+        )
+
+
+checkboxToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
+checkboxToHtml { onChange } path (Input input) =
+    Html.input
+        (Attributes.type_ "checkbox"
+            :: (Tree.value input
+                    |> .value
+                    |> Internal.Value.toBool
+                    |> Result.map Attributes.checked
+                    |> Result.withDefault (Attributes.class "")
+               )
+            :: Events.onCheck (InputChecked path >> onChange)
+            :: inputAttrs onChange path (Input input)
+        )
+        []
+
+
+valueAttribute :
+    (String -> Html.Attribute msg)
+    -> Internal.Value.Value
+    -> Html.Attribute msg
+valueAttribute f inputValue =
+    Internal.Value.toString inputValue
+        |> Result.map f
+        |> Result.withDefault (Attributes.class "")
+
+
+inputAttrs : (Msg id -> msg) -> List Int -> Input id -> List (Html.Attribute msg)
+inputAttrs attrs path input =
+    let
+        data =
+            Tree.value (toTree input)
+    in
+    [ Attributes.id (inputId input path)
+    , Attributes.required data.isRequired
+    , Attributes.autocomplete False
+    , Attributes.placeholder (Maybe.withDefault "" data.placeholder)
+    , onInputFocused attrs path
+    , onInputBlured attrs path
+    , valueAttribute Attributes.min data.min
+    , valueAttribute Attributes.max data.max
+    ]
+
+
+onInputChanged : (Msg id -> msg) -> List Int -> Html.Attribute msg
+onInputChanged tagger path =
+    Events.onInput (InputChanged path >> tagger)
+
+
+onInputFocused : (Msg id -> msg) -> List Int -> Html.Attribute msg
+onInputFocused tagger path =
+    Events.onFocus (tagger (InputFocused path))
+
+
+onInputBlured : (Msg id -> msg) -> List Int -> Html.Attribute msg
+onInputBlured tagger path =
+    Events.onBlur (tagger (InputBlured path))
+
+
+wrapInput : ViewAttributes id msg -> List Int -> Input id -> Html msg -> Html msg
+wrapInput attrs path input inputHtml =
+    let
+        { hint, label, isRequired } =
+            Tree.value (toTree input)
+    in
+    inputView
+        { isRequired = isRequired
+        , labelHtml =
+            case label of
+                Just str ->
+                    Html.label
+                        [ Attributes.for (inputId input path) ]
+                        [ Html.text str
+                        ]
+
+                Nothing ->
+                    Html.text ""
+        , inputHtml = inputHtml
+        , errorsHtml = inputErrors input |> List.map attrs.errorsView
+        , hint = hint
+        }
+
+
+templateHtml : ViewAttributes id msg -> List Int -> Bool -> Input id -> Html msg
+templateHtml attributes path isLast node =
+    templateView
+        { onRemoveAttribute =
+            Events.preventDefaultOn "click"
+                (Json.Decode.succeed
+                    ( attributes.onChange (InputsRemoved path), True )
+                )
+        , removeButtonText = "Remove"
+        , showRemoveButton = isLast
+        , inputsHtml = toHtmlHelp attributes path node
+        }
+
+
+inputId : Input id -> List Int -> String
+inputId (Input input) path =
+    identifierString (Tree.value input |> .name) path
+
+
+identifierString : Maybe String -> List Int -> String
+identifierString maybe path =
+    case maybe of
+        Just str ->
+            String.join "-" (str :: List.map String.fromInt path)
+
+        Nothing ->
+            String.join "-" (List.map String.fromInt path)
+
+
+legend : Maybe String -> Html msg
+legend =
+    Maybe.map (\t -> Html.legend [] [ Html.text t ])
+        >> Maybe.withDefault (Html.text "")
 
 
 {-| TODO
@@ -604,33 +488,114 @@ inputErrors input =
 
 
 {-| -}
-toTree : Input id -> Tree.Tree (Internal.Input id (Error id))
+toTree : Input id -> Tree id
 toTree (Input tree) =
     tree
 
 
-toId : Input id -> Maybe id
-toId (Input input) =
-    Tree.value input |> .identifier
+type alias GroupView msg =
+    { inline : Bool
+    , legendHtml : Html msg
+    , inputsHtml : List (Html msg)
+    }
 
 
-updateAt :
-    List Int
-    -> (Tree.Tree (Internal.Input id (Error id)) -> Tree.Tree (Internal.Input id (Error id)))
-    -> Input id
-    -> Input id
-updateAt path func input =
-    Input (Tree.updateAt path func (toTree input))
+groupView : GroupView msg -> Html msg
+groupView { inline, legendHtml, inputsHtml } =
+    Html.fieldset
+        [ Attributes.classList
+            [ ( "inline", inline )
+            , ( "stacked", not inline )
+            ]
+        ]
+        (legendHtml :: inputsHtml)
 
 
-{-| TODO
--}
-errorToHtml : Error id -> Html msg
-errorToHtml err =
+type alias RepeatableView msg =
+    { onAddAttribute : Html.Attribute msg
+    , legendHtml : Html msg
+    , inputsHtml : List (Html msg)
+    , addButtonText : String
+    }
+
+
+repeatableView : RepeatableView msg -> Html msg
+repeatableView { onAddAttribute, addButtonText, legendHtml, inputsHtml } =
+    Html.fieldset
+        []
+        [ Html.div [] (legendHtml :: inputsHtml)
+        , Html.button
+            [ Attributes.class "add-fields"
+            , onAddAttribute
+            ]
+            [ Html.text addButtonText ]
+        ]
+
+
+type alias TemplateView msg =
+    { onRemoveAttribute : Html.Attribute msg
+    , removeButtonText : String
+    , showRemoveButton : Bool
+    , inputsHtml : Html msg
+    }
+
+
+templateView : TemplateView msg -> Html msg
+templateView { onRemoveAttribute, removeButtonText, showRemoveButton, inputsHtml } =
+    Html.div
+        [ Attributes.class "group-repeat" ]
+        [ inputsHtml
+        , if showRemoveButton then
+            Html.button
+                [ Attributes.class "remove-fields"
+                , onRemoveAttribute
+                ]
+                [ Html.text removeButtonText
+                ]
+
+          else
+            Html.text ""
+        ]
+
+
+type alias InputView msg =
+    { isRequired : Bool
+    , labelHtml : Html msg
+    , inputHtml : Html msg
+    , errorsHtml : List (Html msg)
+    , hint : Maybe String
+    }
+
+
+inputView : InputView msg -> Html msg
+inputView { isRequired, labelHtml, inputHtml, errorsHtml, hint } =
+    Html.div
+        [ Attributes.class "field"
+        , Attributes.classList [ ( "required", isRequired ) ]
+        ]
+        [ labelHtml
+        , Html.div [ Attributes.class "input-wrapper" ] [ inputHtml ]
+        , case errorsHtml of
+            errorHtml :: _ ->
+                Html.p [ Attributes.class "error" ] [ errorHtml ]
+
+            [] ->
+                case hint of
+                    Just hintText ->
+                        Html.div
+                            [ Attributes.class "hint" ]
+                            [ Html.text hintText ]
+
+                    Nothing ->
+                        Html.text ""
+        ]
+
+
+errorsView : Error id -> Html msg
+errorsView err =
     let
         toString =
-            Value.toString
-                >> Maybe.withDefault ""
+            Value.toString >> Maybe.withDefault ""
     in
     Html.text
         (case err of

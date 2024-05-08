@@ -38,7 +38,6 @@ type InputType id err
     | Checkbox
     | Group
     | Repeatable (Tree (Input id err))
-    | Element id
 
 
 type alias Input id err =
@@ -56,6 +55,8 @@ type alias Input id err =
     , identifier : Maybe id
     , status : Status
     , errors : List err
+    , addInputsText : String
+    , removeInputsText : String
     }
 
 
@@ -81,6 +82,8 @@ init inputType =
         , identifier = Nothing
         , status = Pristine
         , errors = []
+        , addInputsText = "Add"
+        , removeInputsText = "Remove"
         }
 
 
@@ -178,6 +181,8 @@ mapIdentifier func errToErr input =
     , identifier = Maybe.map func input.identifier
     , status = input.status
     , errors = List.map errToErr input.errors
+    , addInputsText = input.addInputsText
+    , removeInputsText = input.removeInputsText
     }
 
 
@@ -186,9 +191,6 @@ mapInputType func errToErr inputType =
     case inputType of
         Repeatable tree ->
             Repeatable (Tree.mapValues (mapIdentifier func errToErr) tree)
-
-        Element id ->
-            Element (func id)
 
         Text ->
             Text

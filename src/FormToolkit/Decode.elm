@@ -35,7 +35,7 @@ decoders and perform decoding operations.
 
 -}
 
-import FormToolkit.Input as Input exposing (Error(..), Input(..))
+import FormToolkit.Input exposing (Error(..), Input(..))
 import FormToolkit.Value as Value
 import Internal.Input
 import Internal.Value
@@ -222,6 +222,11 @@ json =
     custom (\(Input tree) -> jsonEncodeObject tree)
 
 
+jsonEncodeObject : Tree id -> Result (Error id) Json.Encode.Value
+jsonEncodeObject tree =
+    jsonEncodeHelp tree [] |> Result.map Json.Encode.object
+
+
 jsonEncodeHelp :
     Tree id
     -> List ( String, Json.Decode.Value )
@@ -267,11 +272,6 @@ jsonEncodeHelp tree acc =
 
                 Nothing ->
                     Ok acc
-
-
-jsonEncodeObject : Tree id -> Result (Error id) Json.Encode.Value
-jsonEncodeObject tree =
-    jsonEncodeHelp tree [] |> Result.map Json.Encode.object
 
 
 {-| TODO

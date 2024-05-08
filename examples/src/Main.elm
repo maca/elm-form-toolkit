@@ -54,7 +54,6 @@ type Fields
     | FirstName
     | MiddleName
     | LastName
-    | Element
 
 
 personFields =
@@ -108,7 +107,6 @@ recordForm =
             ]
             personFields
             []
-        , Input.elementPlaceholder Element
         ]
 
 
@@ -151,11 +149,8 @@ view : Model -> Html Msg
 view model =
     div
         []
-        [ FormToolkit.toHtml
-            [ FormToolkit.onChange FormChanged
-            , FormToolkit.elementHtml Element (text "hello")
-            ]
-            model.form
+        [ FormToolkit.initView FormChanged model.form
+            |> FormToolkit.toHtml
         ]
 
 
