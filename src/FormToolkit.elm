@@ -308,18 +308,22 @@ repeatableToHtml attributes path (Input tree) =
             childrenCount > input.repeatableMin
 
         inputsView idx child =
+            let
+                childPath =
+                    path ++ [ idx ]
+            in
             attributes.templateView
                 { onRemoveAttribute =
                     Events.preventDefaultOn "click"
                         (Json.Decode.succeed
                             ( attributes.onChange
-                                (InputsRemoved (path ++ [ idx ]))
+                                (InputsRemoved childPath)
                             , True
                             )
                         )
                 , removeButtonText = Tree.value child |> .removeInputsText
                 , showRemoveButton = showRemoveButton
-                , inputsHtml = toHtmlHelp attributes path (Input child)
+                , inputsHtml = toHtmlHelp attributes childPath (Input child)
                 }
     in
     repeatableView
