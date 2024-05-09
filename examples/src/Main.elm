@@ -48,7 +48,8 @@ type alias Model =
 
 
 type Fields
-    = Title
+    = Details
+    | Title
     | Release
     | Authors
     | FirstName
@@ -87,7 +88,9 @@ init =
 recordForm : Input.Input Fields
 recordForm =
     Input.group []
-        [ Input.group []
+        [ Input.group
+            [ Input.identifier Details
+            ]
             [ Input.text
                 [ Input.label "Title"
                 , Input.required True
@@ -149,10 +152,20 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    let
+        inputsView =
+            FormToolkit.initView FormChanged model.form
+    in
     div
         []
-        [ FormToolkit.initView FormChanged model.form
-            |> FormToolkit.toHtml
+        [ inputsView
+            |> FormToolkit.viewFor Details
+            |> Maybe.map FormToolkit.toHtml
+            |> Maybe.withDefault (Html.text "")
+        , inputsView
+            |> FormToolkit.viewFor Authors
+            |> Maybe.map FormToolkit.toHtml
+            |> Maybe.withDefault (Html.text "")
         ]
 
 

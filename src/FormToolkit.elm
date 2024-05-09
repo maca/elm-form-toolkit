@@ -2,8 +2,10 @@ module FormToolkit exposing
     ( Msg, update
     , View, initView
     , toHtml
-    , withInputView, withErrorsView
+    , viewFor
+    , withInputView
     , withGroupView, withRepeatableView, withTemplateView
+    , withErrorsView
     )
 
 {-|
@@ -18,12 +20,14 @@ module FormToolkit exposing
 
 @docs View, initView
 @docs toHtml
+@docs viewFor
 
 
 # View customizations
 
-@docs withInputView, withErrorsView
+@docs withInputView
 @docs withGroupView, withRepeatableView, withTemplateView
+@docs withErrorsView
 
 -}
 
@@ -119,7 +123,7 @@ type alias ViewAttributes id msg =
 {-| TODO
 -}
 type View id msg
-    = View (Input id) (ViewAttributes id msg)
+    = View (Input id) (List Int) (ViewAttributes id msg)
 
 
 {-| TODO
@@ -127,6 +131,7 @@ type View id msg
 initView : (Msg id -> msg) -> Input id -> View id msg
 initView onChange input =
     View input
+        []
         { onChange = onChange
         , errorsView = errorsView
         , groupView = groupView
@@ -134,6 +139,35 @@ initView onChange input =
         , templateView = templateView
         , inputView = inputView
         }
+
+
+{-| TODO
+-}
+toHtml : View id msg -> Html msg
+toHtml (View input path attributes) =
+    toHtmlHelp attributes path input
+
+
+{-| TODO
+-}
+viewFor : id -> View id msg -> Maybe (View id msg)
+viewFor id (View input _ attributes) =
+    findNode id input
+        |> Maybe.map (\( found, path ) -> View found path attributes)
+
+
+findNode : id -> Input id -> Maybe ( Input id, List Int )
+findNode id (Input tree) =
+    Tree.foldWithPath
+        (\path node foundPath ->
+            if .identifier (Tree.value node) == Just id then
+                Just ( Input node, path )
+
+            else
+                foundPath
+        )
+        Nothing
+        tree
 
 
 {-| TODO
@@ -149,15 +183,8 @@ withInputView :
     )
     -> View id msg
     -> View id msg
-withInputView viewFunc (View input params) =
-    View input { params | inputView = viewFunc }
-
-
-{-| TODO
--}
-withErrorsView : (Error id -> Html msg) -> View id msg -> View id msg
-withErrorsView viewFunc (View input params) =
-    View input { params | errorsView = viewFunc }
+withInputView viewFunc (View input path params) =
+    View input path { params | inputView = viewFunc }
 
 
 {-| TODO
@@ -168,8 +195,8 @@ withGroupView :
     )
     -> View id msg
     -> View id msg
-withGroupView viewFunc (View input params) =
-    View input { params | groupView = viewFunc }
+withGroupView viewFunc (View input path params) =
+    View input path { params | groupView = viewFunc }
 
 
 {-| TODO
@@ -185,8 +212,8 @@ withRepeatableView :
     )
     -> View id msg
     -> View id msg
-withRepeatableView viewFunc (View input params) =
-    View input { params | repeatableView = viewFunc }
+withRepeatableView viewFunc (View input path params) =
+    View input path { params | repeatableView = viewFunc }
 
 
 {-| TODO
@@ -201,15 +228,15 @@ withTemplateView :
     )
     -> View id msg
     -> View id msg
-withTemplateView viewFunc (View input params) =
-    View input { params | templateView = viewFunc }
+withTemplateView viewFunc (View input path params) =
+    View input path { params | templateView = viewFunc }
 
 
 {-| TODO
 -}
-toHtml : View id msg -> Html msg
-toHtml (View input attributes) =
-    toHtmlHelp attributes [] input
+withErrorsView : (Error id -> Html msg) -> View id msg -> View id msg
+withErrorsView viewFunc (View input path params) =
+    View input path { params | errorsView = viewFunc }
 
 
 {-| TODO
@@ -304,9 +331,6 @@ repeatableToHtml attributes path (Input tree) =
         childrenCount =
             List.length children
 
-        showRemoveButton =
-            childrenCount > input.repeatableMin
-
         inputsView idx child =
             let
                 childPath =
@@ -322,7 +346,7 @@ repeatableToHtml attributes path (Input tree) =
                             )
                         )
                 , removeButtonText = Tree.value child |> .removeInputsText
-                , showRemoveButton = showRemoveButton
+                , showRemoveButton = childrenCount > input.repeatableMin
                 , inputsHtml = toHtmlHelp attributes childPath (Input child)
                 }
     in

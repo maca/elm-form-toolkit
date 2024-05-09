@@ -63,17 +63,28 @@ type alias Tree id =
 
 {-| Decoder for a field with the given ID using a provided decoder.
 
-    form : Input String
-    form =
+    type alias Fields
+        = FirstName
+        | LastName
+
+    nameInputs : Input Fields
+    nameInputs =
         Input.group
             []
             [ Input.text
-                [ Input.label "first-name"
-                , Input.identifier "name"
+                [ Input.label "First name"
+                , Input.identifier FirstName
                 , Input.value (Value.string "Juan")
                 ]
+            ,  Input.text
+                [ Input.label "Last name"
+                , Input.identifier LastName
+                , Input.value (Value.string "Perez")
+                ]
             ]
-    decode (field "first-name" string) form == Ok "Juan"
+
+
+    decode (field FirstName string) nameInputs == Ok "Juan"
 
 -}
 field : id -> Decoder id a -> Decoder id a
