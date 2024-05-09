@@ -8,9 +8,10 @@ module FormToolkit.Input exposing
     , Attribute
     , name, identifier, value, required, label, placeholder, hint
     , options, min, max
-    , inline, noattr
+    , noattr
+    , inline, copies, repeatableMin, repeatableMax
     , Error(..), errors
-    , mapIdentifier
+    , map
     )
 
 {-|
@@ -31,7 +32,12 @@ module FormToolkit.Input exposing
 @docs Attribute
 @docs name, identifier, value, required, label, placeholder, hint
 @docs options, min, max
-@docs inline, noattr
+@docs noattr
+
+
+### Group
+
+@docs inline, copies, repeatableMin, repeatableMax
 
 
 # Errors
@@ -41,7 +47,7 @@ module FormToolkit.Input exposing
 
 # Advanced
 
-@docs mapIdentifier
+@docs map
 
 -}
 
@@ -151,17 +157,18 @@ group attributes inputs =
 -}
 repeatable : List (Attribute id) -> Input id -> List (Input id) -> Input id
 repeatable attributes template inputs =
-    Input <|
-        Tree.branch
-            (Internal.init (Internal.Repeatable (toTree template))
+    let
+        params =
+            Internal.init (Internal.Repeatable (toTree template))
                 (unwrapAttrs attributes)
-            )
-            (if List.isEmpty inputs then
-                [ toTree template ]
 
-             else
-                List.map toTree inputs
-            )
+        children =
+            List.map toTree inputs
+                ++ List.repeat
+                    (params.repeatableMin - List.length inputs)
+                    (toTree template)
+    in
+    Input (Tree.branch params children)
 
 
 init : Internal.InputType id (Error id) -> List (Attribute id) -> Input id
@@ -267,6 +274,13 @@ max (Value.Value val) =
 
 {-| TODO
 -}
+noattr : Attribute id
+noattr =
+    Attribute identity
+
+
+{-| TODO
+-}
 inline : Bool -> Attribute id
 inline bool =
     Attribute (\input -> { input | inline = bool })
@@ -274,9 +288,29 @@ inline bool =
 
 {-| TODO
 -}
-noattr : Attribute id
-noattr =
-    Attribute identity
+copies : { addButton : String, removeButton : String } -> Attribute id
+copies { addButton, removeButton } =
+    Attribute
+        (\input ->
+            { input
+                | addInputsText = addButton
+                , removeInputsText = removeButton
+            }
+        )
+
+
+{-| TODO
+-}
+repeatableMin : Int -> Attribute id
+repeatableMin int =
+    Attribute (\input -> { input | repeatableMin = int })
+
+
+{-| TODO
+-}
+repeatableMax : Int -> Attribute id
+repeatableMax int =
+    Attribute (\input -> { input | repeatableMax = Just int })
 
 
 {-| Represents an error that occurred during decoding or validation.
@@ -312,9 +346,9 @@ errors (Input tree) =
 
 {-| TODO
 -}
-mapIdentifier : (a -> b) -> Input a -> Input b
-mapIdentifier func (Input tree) =
-    Input (Tree.mapValues (Internal.mapIdentifier func (mapError func)) tree)
+map : (a -> b) -> Input a -> Input b
+map func (Input tree) =
+    Input (Tree.mapValues (Internal.map func (mapError func)) tree)
 
 
 mapError : (a -> b) -> Error a -> Error b

@@ -6,7 +6,7 @@ module Internal.Input exposing
     , focus
     , init
     , isBlank
-    , mapIdentifier
+    , map
     , root
     , update
     , updateWithString
@@ -54,9 +54,11 @@ type alias Input id err =
     , inline : Bool
     , identifier : Maybe id
     , status : Status
-    , errors : List err
+    , repeatableMin : Int
+    , repeatableMax : Maybe Int
     , addInputsText : String
     , removeInputsText : String
+    , errors : List err
     }
 
 
@@ -81,9 +83,11 @@ init inputType =
         , inline = False
         , identifier = Nothing
         , status = Pristine
-        , errors = []
+        , repeatableMin = 1
+        , repeatableMax = Nothing
         , addInputsText = "Add"
         , removeInputsText = "Remove"
+        , errors = []
         }
 
 
@@ -165,8 +169,8 @@ isBlank { value, inputType } =
             Internal.Value.isBlank value
 
 
-mapIdentifier : (a -> b) -> (err1 -> err2) -> Input a err1 -> Input b err2
-mapIdentifier func errToErr input =
+map : (a -> b) -> (err1 -> err2) -> Input a err1 -> Input b err2
+map func errToErr input =
     { inputType = mapInputType func errToErr input.inputType
     , name = input.name
     , value = input.value
@@ -180,9 +184,11 @@ mapIdentifier func errToErr input =
     , inline = input.inline
     , identifier = Maybe.map func input.identifier
     , status = input.status
-    , errors = List.map errToErr input.errors
+    , repeatableMin = input.repeatableMin
+    , repeatableMax = input.repeatableMax
     , addInputsText = input.addInputsText
     , removeInputsText = input.removeInputsText
+    , errors = List.map errToErr input.errors
     }
 
 
@@ -190,7 +196,7 @@ mapInputType : (a -> b) -> (err1 -> err2) -> InputType a err1 -> InputType b err
 mapInputType func errToErr inputType =
     case inputType of
         Repeatable tree ->
-            Repeatable (Tree.mapValues (mapIdentifier func errToErr) tree)
+            Repeatable (Tree.mapValues (map func errToErr) tree)
 
         Text ->
             Text

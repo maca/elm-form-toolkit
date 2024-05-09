@@ -104,6 +104,8 @@ recordForm =
         , Input.repeatable
             [ Input.identifier Authors
             , Input.name "authors"
+            , Input.repeatableMin 1
+            , Input.repeatableMax 5
             ]
             personFields
             []

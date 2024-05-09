@@ -175,9 +175,10 @@ withGroupView viewFunc (View input params) =
 {-| TODO
 -}
 withRepeatableView :
-    ({ onAddAttribute : Html.Attribute msg
-     , legendHtml : Html msg
+    ({ legendHtml : Html msg
      , inputsHtml : List (Html msg)
+     , onAddAttribute : Html.Attribute msg
+     , showAddButton : Bool
      , addButtonText : String
      }
      -> Html msg
@@ -268,11 +269,8 @@ toHtmlHelp attributes path node =
 
 
 groupToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-groupToHtml attributes path node =
+groupToHtml attributes path (Input tree) =
     let
-        tree =
-            toTree node
-
         input =
             Tree.value tree
     in
@@ -295,34 +293,51 @@ groupToHtml attributes path node =
 
 
 repeatableToHtml : ViewAttributes id msg -> List Int -> Input id -> Html msg
-repeatableToHtml attributes path node =
+repeatableToHtml attributes path (Input tree) =
     let
-        tree =
-            toTree node
-
         input =
             Tree.value tree
 
         children =
             Tree.children tree
+
+        childrenCount =
+            List.length children
+
+        showRemoveButton =
+            childrenCount > input.repeatableMin
+
+        inputsView idx child =
+            attributes.templateView
+                { onRemoveAttribute =
+                    Events.preventDefaultOn "click"
+                        (Json.Decode.succeed
+                            ( attributes.onChange
+                                (InputsRemoved (path ++ [ idx ]))
+                            , True
+                            )
+                        )
+                , removeButtonText = Tree.value child |> .removeInputsText
+                , showRemoveButton = showRemoveButton
+                , inputsHtml = toHtmlHelp attributes path (Input child)
+                }
     in
     repeatableView
-        { onAddAttribute =
+        { legendHtml = legend input.label
+        , inputsHtml = children |> List.indexedMap inputsView
+        , showAddButton =
+            case input.repeatableMax of
+                Just max ->
+                    childrenCount < max
+
+                Nothing ->
+                    True
+        , onAddAttribute =
             Events.preventDefaultOn "click"
                 (Json.Decode.succeed
                     ( attributes.onChange (InputsAdded path), True )
                 )
-        , legendHtml = legend input.label
-        , inputsHtml =
-            children
-                |> List.indexedMap
-                    (\idx ->
-                        Input
-                            >> templateHtml attributes
-                                (path ++ [ idx ])
-                                (List.length children /= (idx + 1))
-                    )
-        , addButtonText = "Add"
+        , addButtonText = input.addInputsText
         }
 
 
@@ -333,17 +348,17 @@ inputToHtml :
     -> Input id
     -> List (Html.Attribute msg)
     -> Html msg
-inputToHtml { onChange } inputType path input htmlAttrs =
+inputToHtml { onChange } inputType path (Input tree) htmlAttrs =
     let
-        actualInput =
-            Tree.value (toTree input)
+        input =
+            Tree.value tree
     in
     Html.input
         (htmlAttrs
             ++ Attributes.type_ inputType
-            :: valueAttribute Attributes.value actualInput.value
+            :: valueAttribute Attributes.value input.value
             :: onInputChanged onChange path
-            :: inputAttrs onChange path input
+            :: inputAttrs onChange path (Input tree)
         )
         []
 
@@ -516,20 +531,6 @@ wrapInput attrs path input inputHtml =
         }
 
 
-templateHtml : ViewAttributes id msg -> List Int -> Bool -> Input id -> Html msg
-templateHtml attributes path isLast node =
-    attributes.templateView
-        { onRemoveAttribute =
-            Events.preventDefaultOn "click"
-                (Json.Decode.succeed
-                    ( attributes.onChange (InputsRemoved path), True )
-                )
-        , removeButtonText = "Remove"
-        , showRemoveButton = isLast
-        , inputsHtml = toHtmlHelp attributes path node
-        }
-
-
 inputId : Input id -> List Int -> String
 inputId (Input input) path =
     identifierString (Tree.value input |> .name) path
@@ -592,23 +593,28 @@ groupView { inline, legendHtml, inputsHtml } =
 
 
 type alias RepeatableView msg =
-    { onAddAttribute : Html.Attribute msg
-    , legendHtml : Html msg
+    { legendHtml : Html msg
     , inputsHtml : List (Html msg)
+    , onAddAttribute : Html.Attribute msg
+    , showAddButton : Bool
     , addButtonText : String
     }
 
 
 repeatableView : RepeatableView msg -> Html msg
-repeatableView { onAddAttribute, addButtonText, legendHtml, inputsHtml } =
+repeatableView attrs =
     Html.fieldset
         []
-        [ Html.div [] (legendHtml :: inputsHtml)
-        , Html.button
-            [ Attributes.class "add-fields"
-            , onAddAttribute
-            ]
-            [ Html.text addButtonText ]
+        [ Html.div [] (attrs.legendHtml :: attrs.inputsHtml)
+        , if attrs.showAddButton then
+            Html.button
+                [ Attributes.class "add-fields"
+                , attrs.onAddAttribute
+                ]
+                [ Html.text attrs.addButtonText ]
+
+          else
+            Html.text ""
         ]
 
 
