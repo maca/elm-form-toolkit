@@ -164,8 +164,7 @@ repeatable attributes template inputs =
 
         children =
             List.map toTree inputs
-                ++ List.repeat
-                    (params.repeatableMin - List.length inputs)
+                ++ List.repeat (params.repeatableMin - List.length inputs)
                     (toTree template)
     in
     Input (Tree.branch params children)
