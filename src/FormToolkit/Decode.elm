@@ -6,6 +6,7 @@ module FormToolkit.Decode exposing
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     , decode, validateAndDecode
+    , Error(..)
     )
 
 {-| Map the values of an input or group of inputs to any shape you want, if you
@@ -30,12 +31,12 @@ know `Json.Decode` you know how to use this module ;)
 # Decoding
 
 @docs decode, validateAndDecode
+@docs Error
 
 -}
 
-import FormToolkit.Input exposing (Error(..), Input(..))
 import FormToolkit.Value as Value
-import Internal.Input
+import Internal.Input exposing (Input(..))
 import Internal.Value
 import Json.Decode
 import Json.Encode
@@ -56,7 +57,11 @@ type Decoder id a
 
 
 type alias Tree id =
-    Tree.Tree (Internal.Input.Input id (Error id))
+    Tree.Tree (Internal.Input.Attrs id (Error id))
+
+
+type alias Input id =
+    Internal.Input.Input id (Error id)
 
 
 {-| Decoder for a field with the given identifier using a provided decoder.
@@ -435,7 +440,7 @@ validate func decoder =
 
 
 validateHelp :
-    (Internal.Input.Input id (Error id) -> Result (Error id) Value.Value)
+    (Internal.Input.Attrs id (Error id) -> Result (Error id) Value.Value)
     -> Tree id
     -> ( Tree id, List (Error id) )
 validateHelp func tree =
@@ -493,7 +498,7 @@ setError error =
     Tree.updateValue (\input -> { input | errors = error :: input.errors })
 
 
-inputFromInternal : Internal.Input.Input id (Error id) -> Input id
+inputFromInternal : Internal.Input.Attrs id (Error id) -> Input id
 inputFromInternal node =
     Input (Tree.leaf node)
 
@@ -873,3 +878,22 @@ checkInRange (Input tree) =
 
         _ ->
             Ok actual
+
+
+{-| Represents an error that occurred during decoding or validation.
+-}
+type Error id
+    = ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
+    | ValueTooSmall (Maybe id) { value : Value.Value, min : Value.Value }
+    | ValueNotInRange
+        (Maybe id)
+        { value : Value.Value
+        , min : Value.Value
+        , max : Value.Value
+        }
+    | IsBlank (Maybe id)
+    | ParseError (Maybe id)
+    | ListError (Maybe id) { index : Int, error : Error id }
+    | RepeatableHasNoName (Maybe id)
+    | InputNotFound id
+    | CustomError String

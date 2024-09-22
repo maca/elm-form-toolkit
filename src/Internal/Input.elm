@@ -1,15 +1,16 @@
 module Internal.Input exposing
-    ( Input, InputType(..), Status(..)
+    ( Tree, Input(..), Attrs, InputType(..), Status(..)
     , blur, focus, init, isBlank, map, root
     , updateValue, updateValueWithString
+    , Msg(..)
     )
 
 {-|
 
-@docs Input, InputType, Status
+@docs Tree, Input, Attrs, InputType, Status
 @docs blur, focus, init, isBlank, map, root, updateWithString
 @docs updateValue, updateValueWithString
-@docs Msg, update
+@docs Msg
 
 -}
 
@@ -38,10 +39,10 @@ type InputType id err
     | Radio
     | Checkbox
     | Group
-    | Repeatable (Tree (Input id err))
+    | Repeatable (Tree id err)
 
 
-type alias Input id err =
+type alias Attrs id err =
     { inputType : InputType id err
     , name : Maybe String
     , value : Value
@@ -63,12 +64,20 @@ type alias Input id err =
     }
 
 
-root : Input id err
+type alias Tree id err =
+    Tree.Tree (Attrs id err)
+
+
+type Input id err
+    = Input (Tree id err)
+
+
+root : Attrs id err
 root =
     init Group []
 
 
-init : InputType id err -> List (Input id err -> Input id err) -> Input id err
+init : InputType id err -> List (Attrs id err -> Attrs id err) -> Attrs id err
 init inputType =
     List.foldl (\f i -> f i)
         { inputType = inputType
@@ -92,12 +101,12 @@ init inputType =
         }
 
 
-updateValue : Value -> Input id err -> Input id err
+updateValue : Value -> Attrs id err -> Attrs id err
 updateValue value input =
     { input | value = value, errors = [] }
 
 
-updateValueWithString : String -> Input id err -> Input id err
+updateValueWithString : String -> Attrs id err -> Attrs id err
 updateValueWithString str ({ inputType } as input) =
     case inputType of
         Text ->
@@ -134,7 +143,7 @@ updateValueWithString str ({ inputType } as input) =
             input
 
 
-getChoice : String -> Input id err -> Value
+getChoice : String -> Attrs id err -> Value
 getChoice str { options } =
     case String.toInt str of
         Just idx ->
@@ -147,17 +156,17 @@ getChoice str { options } =
             Internal.Value.blank
 
 
-focus : Input id err -> Input id err
+focus : Attrs id err -> Attrs id err
 focus input =
     { input | status = Focused }
 
 
-blur : Input id err -> Input id err
+blur : Attrs id err -> Attrs id err
 blur input =
     { input | status = Touched }
 
 
-isBlank : Input id err -> Bool
+isBlank : Attrs id err -> Bool
 isBlank { value, inputType } =
     case inputType of
         Group ->
@@ -170,7 +179,7 @@ isBlank { value, inputType } =
             Internal.Value.isBlank value
 
 
-map : (a -> b) -> (err1 -> err2) -> Input a err1 -> Input b err2
+map : (a -> b) -> (err1 -> err2) -> Attrs a err1 -> Attrs b err2
 map func errToErr input =
     { inputType = mapInputType func errToErr input.inputType
     , name = input.name
@@ -234,3 +243,12 @@ mapInputType func errToErr inputType =
 
         Group ->
             Group
+
+
+type Msg id
+    = InputChanged (List Int) String
+    | InputChecked (List Int) Bool
+    | InputFocused (List Int)
+    | InputBlured (List Int)
+    | InputsAdded (List Int)
+    | InputsRemoved (List Int)

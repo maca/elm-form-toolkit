@@ -1,7 +1,6 @@
-module FormToolkit exposing
-    ( Msg, update
-    , View, view, viewToHtml
-    , partialView
+module FormToolkit.View exposing
+    ( View, fromInput, toHtml
+    , partial
     , customizeInput
     , customizeGroup, customizeRepeatable, customizeTemplate
     , customizeErrors
@@ -12,13 +11,11 @@ module FormToolkit exposing
 
 # Update
 
-@docs Msg, update
-
 
 # View
 
-@docs View, view, viewToHtml
-@docs partialView
+@docs View, fromInput, toHtml
+@docs partial
 
 
 # View customizations
@@ -29,85 +26,36 @@ module FormToolkit exposing
 
 -}
 
-import FormToolkit.Decode exposing (Decoder)
-import FormToolkit.Input exposing (Attribute(..), Error(..), Input(..))
+import FormToolkit.Decode exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
-import Internal.Input as Internal exposing (Status(..))
+import Internal.Input as Internal
+    exposing
+        ( Input(..)
+        , Msg(..)
+        , Status(..)
+        )
 import Internal.Value
 import Json.Decode
 import RoseTree.Tree as Tree
 
 
-{-| TODO
--}
-type Msg id
-    = InputChanged (List Int) String
-    | InputChecked (List Int) Bool
-    | InputFocused (List Int)
-    | InputBlured (List Int)
-    | InputsAdded (List Int)
-    | InputsRemoved (List Int)
-
-
 type alias Tree id =
-    Tree.Tree (Internal.Input id (Error id))
+    Internal.Tree id (Error id)
+
+
+type alias Input id =
+    Internal.Input id (Error id)
+
+
+type alias Msg id =
+    Internal.Msg id
 
 
 {-| TODO
 -}
-update :
-    Msg id
-    -> Decoder id a
-    -> Input id
-    -> ( Input id, Result (List (Error id)) a )
-update msg decoder input =
-    FormToolkit.Decode.validateAndDecode decoder <|
-        case msg of
-            InputChanged path str ->
-                updateAt path (updateInput str) input
-
-            InputChecked path bool ->
-                updateAt path (updateInputWithBool bool) input
-
-            InputFocused path ->
-                updateAt path (Tree.updateValue Internal.focus) input
-
-            InputBlured path ->
-                updateAt path (Tree.updateValue Internal.blur) input
-
-            InputsAdded path ->
-                case
-                    Tree.getValueAt path (toTree input)
-                        |> Maybe.map .inputType
-                of
-                    Just (Internal.Repeatable template) ->
-                        updateAt path (Tree.push template) input
-
-                    _ ->
-                        input
-
-            InputsRemoved path ->
-                Input (Tree.removeAt path (toTree input))
-
-
-updateInput : String -> Tree id -> Tree id
-updateInput string =
-    Tree.updateValue (Internal.updateValueWithString string)
-
-
-updateInputWithBool : Bool -> Tree id -> Tree id
-updateInputWithBool bool =
-    Tree.updateValue (Internal.updateValue (Internal.Value.fromBool bool))
-
-
-updateAt : List Int -> (Tree id -> Tree id) -> Input id -> Input id
-updateAt path func input =
-    Input (Tree.updateAt path func (toTree input))
-
-
 type alias ViewAttributes id msg =
     { onChange : Msg id -> msg
     , errorsView : Error id -> Html msg
@@ -126,8 +74,8 @@ type View id msg
 
 {-| TODO
 -}
-view : (Msg id -> msg) -> Input id -> View id msg
-view onChange input =
+fromInput : (Msg id -> msg) -> Input id -> View id msg
+fromInput onChange input =
     View input
         []
         { onChange = onChange
@@ -141,15 +89,15 @@ view onChange input =
 
 {-| TODO
 -}
-viewToHtml : View id msg -> Html msg
-viewToHtml (View input path attributes) =
+toHtml : View id msg -> Html msg
+toHtml (View input path attributes) =
     toHtmlHelp attributes path input
 
 
 {-| TODO
 -}
-partialView : id -> View id msg -> Maybe (View id msg)
-partialView id (View input _ attributes) =
+partial : id -> View id msg -> Maybe (View id msg)
+partial id (View input _ attributes) =
     findNode id input
         |> Maybe.map (\( found, path ) -> View found path attributes)
 
