@@ -37,8 +37,7 @@ type alias Date =
 
 type alias Record =
     { title : String
-
-    -- , releaseDate : Date
+    , releaseDate : Date
     , authors : List Author
     }
 
@@ -65,11 +64,6 @@ personFields =
             , Input.required True
             , Input.identifier FirstName
             , Input.name "first-name"
-            ]
-        , Input.text
-            [ Input.label "Middle Name"
-            , Input.identifier MiddleName
-            , Input.name "middle-name"
             ]
         , Input.text
             [ Input.label "Last Name"

@@ -2,16 +2,14 @@ module FormToolkit.Decode exposing
     ( Decoder
     , field
     , string, int, float, bool, posix, maybe, list, value, json
-    , succeed, fail, custom
+    , succeed, fail
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     , decode, validateAndDecode
     )
 
-{-| This module contains a set of decoders that are useful when working with
-forms. It provides functions to decode data of different types (e.g., string,
-int, float, bool, posix, and lists) as well as utility functions to combine
-decoders and perform decoding operations.
+{-| Map the values of an input or group of inputs to any shape you want, if you
+know `Json.Decode` you know how to use this module ;)
 
 @docs Decoder
 
@@ -20,7 +18,7 @@ decoders and perform decoding operations.
 
 @docs field
 @docs string, int, float, bool, posix, maybe, list, value, json
-@docs succeed, fail, custom
+@docs succeed, fail
 
 
 # Maps and combinators
@@ -50,8 +48,8 @@ type Partial id a
     | Success (Tree id) a
 
 
-{-| A decoder that takes a tree of input data and returns a decoded result
-or an error if the decoding fails.
+{-| A decoder that takes a tree of input data and returns a decoded result or an
+error if the decoding fails.
 -}
 type Decoder id a
     = Decoder (Tree id -> Partial id a)
@@ -61,30 +59,32 @@ type alias Tree id =
     Tree.Tree (Internal.Input.Input id (Error id))
 
 
-{-| Decoder for a field with the given ID using a provided decoder.
+{-| Decoder for a field with the given identifier using a provided decoder.
 
-    type alias Fields
+
+    type Fields
         = FirstName
         | LastName
 
-    nameInputs : Input Fields
-    nameInputs =
-        Input.group
-            []
+    form : Input Fields
+    form =
+        Input.group []
             [ Input.text
                 [ Input.label "First name"
                 , Input.identifier FirstName
                 , Input.value (Value.string "Juan")
                 ]
-            ,  Input.text
+            , Input.text
                 [ Input.label "Last name"
                 , Input.identifier LastName
                 , Input.value (Value.string "Perez")
                 ]
             ]
 
+    decoded =
+        form |> decode (field FirstName string)
 
-    decode (field FirstName string) nameInputs == Ok "Juan"
+    -- Ok "Juan"
 
 -}
 field : id -> Decoder id a -> Decoder id a
@@ -121,42 +121,77 @@ fieldHelp id decoder tree =
         tree
 
 
-{-| TODO
+{-| Decodes the input value as a `String`.
+
+    Input.text [ Input.value (Value.string "A string") ]
+        |> decode string
+        == Ok "A string"
+
 -}
 string : Decoder id String
 string =
     parseValue Value.toString
 
 
-{-| TODO
+{-| Decodes the input value as an `Int`.
+
+    Input.text [ Input.value (Value.int 10) ]
+        |> decode int
+        == Ok 10
+
 -}
 int : Decoder id Int
 int =
     parseValue Value.toInt
 
 
-{-| TODO
+{-| Decodes the input value as a `Float`.
+
+    Input.text [ Input.value (Value.float 10.5) ]
+        |> decode float
+        == Ok 10.5
+
 -}
 float : Decoder id Float
 float =
     parseValue Value.toFloat
 
 
-{-| TODO
+{-| Decodes the input value as a `Bool`.
+
+    Input.text [ Input.value (Value.bool True) ]
+        |> decode bool
+        == Ok True
+
 -}
 bool : Decoder id Bool
 bool =
     parseValue Value.toBool
 
 
-{-| TODO
+{-| Decodes the input value as a
+[Time.Posix](https://package.elm-lang.org/packages/elm/time/latest/Time#Posix).
+
+    Input.date [ Input.value (Value.time (Time.millisToPosix 0)) ]
+        |> (posix |> map (Time.toYear Time.utc))
+        == Ok 1970
+
 -}
 posix : Decoder id Time.Posix
 posix =
     parseValue Value.toPosix
 
 
-{-| TODO
+{-| Allows dealing with blank values without producing an error.
+
+    Input.text [ Input.value (Value.string "A string") ]
+        |> decode (maybe string)
+        == Ok (Just "A string")
+
+    Input.text []
+        |> decode (maybe string)
+        == Ok Nothing
+
 -}
 maybe : Decoder id a -> Decoder id (Maybe a)
 maybe decoder =
@@ -170,7 +205,16 @@ maybe decoder =
         )
 
 
-{-| TODO
+{-| Decodes a list of inputs using the given decoder.
+
+    Input.repeatable []
+        (Input.text [])
+        [ Input.text [ Input.value (Value.string "mango") ]
+        , Input.text [ Input.value (Value.string "banana") ]
+        ]
+        |> decode (list string)
+        == Ok [ "mango", "banana" ]
+
 -}
 list : Decoder id a -> Decoder id (List a)
 list decoder =
@@ -219,14 +263,52 @@ listHelp decoder =
             ( [], Ok [] )
 
 
-{-| TODO
+{-| Returns the raw value of the input without any decoding.
+
+    Input.text [ Input.value (Value.string "A string") ]
+        |> decode value
+        == Value.string "A string"
+
 -}
 value : Decoder id Value.Value
 value =
     parseValue Just
 
 
-{-| TODO
+{-| Converts the entire input tree into a JSON
+[Value](https://package.elm-lang.org/packages/elm/json/latest/Json-Encode#Value).
+Input [name](FormToolkit.Input#name) property will be used as the key,
+[name](FormToolkit.Input#name) is required.
+
+Usefull if you just one to forward the form values to a backend.
+
+    Input.group []
+        [ Input.text
+            [ Input.label "First name"
+            , Input.name "first-name"
+            , Input.value (Value.string "Juan")
+            ]
+        , Input.text
+            [ Input.label "Last name"
+            , Input.name "last-name"
+            , Input.value (Value.string "Perez")
+            ]
+        , Input.repeatable [ Input.name "fruits" ]
+            (Input.text [])
+            [ Input.text
+                [ Input.name "fruit"
+                , Input.value (Value.string "mango")
+                ]
+            , Input.text
+                [ Input.name "fruit"
+                , Input.value (Value.string "banana")
+                ]
+            ]
+        ]
+        |> decode json
+        |> Result.map (Json.Encode.encode 0)
+        == Ok "{\"first-name\":\"Juan\",\"last-name\":\"Perez\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
+
 -}
 json : Decoder id Json.Decode.Value
 json =
@@ -285,22 +367,43 @@ jsonEncodeHelp tree acc =
                     Ok acc
 
 
-{-| TODO
+{-| A decoder that always succeeds with the given value, use for buiding
+decoding pipelines with [andMap](#andMap), or to chain decoders with
+[andThen](#andThen).
+
+
+    type SpecialValue
+        = SpecialValue
+
+    result =
+        Input.text [ Input.value (Value.string "special") ]
+            |> decode
+                (string
+                    |> andThen
+                        (\strValue ->
+                            if strValue == "special" then
+                                succeed SpecialValue
+
+                            else
+                                fail (Input.CustomError "Not special")
+                        )
+                )
+
+    -- Ok SpecialValue
+
 -}
 succeed : a -> Decoder id a
 succeed a =
     custom (always (Ok a))
 
 
-{-| TODO
+{-| A decoder that always fails with the given error.
 -}
 fail : Error id -> Decoder id a
 fail error =
     custom (always (Err error))
 
 
-{-| TODO
--}
 custom : (Input id -> Result (Error id) a) -> Decoder id a
 custom func =
     Decoder
@@ -368,7 +471,7 @@ validateHelp func tree =
     )
 
 
-{-| TODO
+{-| Decodes the input value using a custom parsing function.
 -}
 parseValue : (Value.Value -> Maybe a) -> Decoder id a
 parseValue func =
@@ -395,7 +498,25 @@ inputFromInternal node =
     Input (Tree.leaf node)
 
 
-{-| TODO
+{-| Chains together decoders that depend on previous decoding results.
+
+    import Date
+
+
+    -- justinmimbs/date
+    result =
+        Input.text [ Input.value (Value.string "07.03.1981") ]
+            |> decode
+                (string
+                    |> andThen
+                        (Date.fromString "dd.MM.yyyy"
+                            >> Result.withDefault
+                                (fail (Input.CustomError "Not a date"))
+                        )
+                )
+
+    -- Ok (Date.fromCalendarDate 1981 Date.March 7)
+
 -}
 andThen : (a -> Decoder id b) -> Decoder id a -> Decoder id b
 andThen func (Decoder decoder) =
@@ -410,14 +531,61 @@ andThen func (Decoder decoder) =
         )
 
 
-{-| TODO
+{-| Incrementally apply decoders in a pipeline fashion.
+
+
+    type alias Person =
+        { firstName : String
+        , lastName : String
+        , age : Int
+        }
+
+    type Fields
+        = FirstName
+        | LastName
+        | Age
+
+    form : Input Fields
+    form =
+        Input.group []
+            [ Input.text
+                [ Input.identifier FirstName
+                , Input.value (Value.string "Juan")
+                ]
+            , Input.text
+                [ Input.identifier LastName
+                , Input.value (Value.string "Perez")
+                ]
+            , Input.int
+                [ Input.identifier Age
+                , Input.value (Value.string 42)
+                ]
+            ]
+
+    personDecoder : Decoder Person
+    personDecoder =
+        Decode.succeed Person
+            |> Decode.andMap (Decode.field FirstName Decode.string)
+            |> Decode.andMap (Decode.field LastName Decode.string)
+            |> Decode.andMap (Decode.int Age Decode.int)
+
+    result =
+        form |> decode personDecoder
+
+    -- Ok { firstName = "Juan" , lastName = "Pérez" , age = 42 }
+
 -}
 andMap : Decoder id a -> Decoder id (a -> b) -> Decoder id b
 andMap a b =
     map2 (|>) a b
 
 
-{-| TODO
+{-| Transforms the result of a decoder using a function.
+
+    Input.text [ Input.value (Value.string "a string") ]
+        |> decode (map String.toUpper string)
+        == Ok "A STRING"
+
 -}
 map : (a -> b) -> Decoder id a -> Decoder id b
 map func decoder =
@@ -434,7 +602,25 @@ mapHelp func (Decoder decoder) tree =
             Failure tree2 errors
 
 
-{-| TODO
+{-| Combines two decoders using a function.
+
+    Input.group []
+        [ Input.text
+            [ Input.identifier "FirstName"
+            , Input.value (Value.string "Juan")
+            ]
+        , Input.text
+            [ Input.identifier "LastName"
+            , Input.value (Value.string "Pérez")
+            ]
+        ]
+        |> decode
+            (map2 Tuple.pair
+                (field "FirstName" string)
+                (field "LastName" string)
+            )
+        == Ok ( "Juan", "Pérez" )
+
 -}
 map2 : (a -> b -> c) -> Decoder id a -> Decoder id b -> Decoder id c
 map2 func a b =
@@ -459,7 +645,44 @@ map2 func a b =
         )
 
 
-{-| TODO
+{-| Combines three decoders using a function.
+
+
+    type alias Person =
+        { firstName : String
+        , lastName : String
+        , age : Int
+        }
+
+    person : Decoder Person
+    person =
+        map3 Person
+            (field "FirstName" string)
+            (field "LastName" string)
+            (field "Age" int)
+
+    form : Input String
+    form =
+        Input.group []
+            [ Input.text
+                [ Input.identifier "FirstName"
+                , Input.value (Value.string "Juan")
+                ]
+            , Input.text
+                [ Input.identifier "LastName"
+                , Input.value (Value.string "Pérez")
+                ]
+            , Input.int
+                [ Input.identifier "Age"
+                , Input.value (Value.int 42)
+                ]
+            ]
+
+    result =
+        form |> decode personDecoder
+
+    -- Ok { firstName = "Juan", lastName = "Pérez", age = 42 }
+
 -}
 map3 :
     (a -> b -> c -> out)
@@ -471,8 +694,7 @@ map3 func a b c =
     map2 func a b |> andMap c
 
 
-{-| TODO
--}
+{-| -}
 map4 :
     (a -> b -> c -> d -> out)
     -> Decoder id a
@@ -484,8 +706,7 @@ map4 func a b c d =
     map3 func a b c |> andMap d
 
 
-{-| TODO
--}
+{-| -}
 map5 :
     (a -> b -> c -> d -> e -> out)
     -> Decoder id a
@@ -498,8 +719,7 @@ map5 func a b c d e =
     map4 func a b c d |> andMap e
 
 
-{-| TODO
--}
+{-| -}
 map6 :
     (a -> b -> c -> d -> e -> f -> out)
     -> Decoder id a
@@ -513,8 +733,7 @@ map6 func a b c d e f =
     map5 func a b c d e |> andMap f
 
 
-{-| TODO
--}
+{-| -}
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> out)
     -> Decoder id a
@@ -529,8 +748,7 @@ map7 func a b c d e f g =
     map6 func a b c d e f |> andMap g
 
 
-{-| TODO
--}
+{-| -}
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> out)
     -> Decoder id a
@@ -546,14 +764,26 @@ map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
-{-| TODO
+{-| Decodes an input using the given decoder.
+
+    Input.text [ Input.value (Value.string "A string") ]
+        |> decode string
+        == Ok "A string"
+
+    Input.text
+        [ Input.value (Value.bool True)
+        , Input.identifier "MyInput"
+        ]
+        |> decode string
+        == Err [ ParseError (Just "MyInput") ]
+
 -}
 decode : Decoder id a -> Input id -> Result (List (Error id)) a
 decode decoder =
     validateAndDecode decoder >> Tuple.second
 
 
-{-| TODO
+{-| Validates and decodes an input using the given decoder.
 -}
 validateAndDecode :
     Decoder id a

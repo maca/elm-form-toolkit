@@ -1,7 +1,7 @@
 module FormToolkit.Input exposing
     ( Input(..)
     , text, textarea, email, password
-    , integer, float
+    , int, float
     , date, month
     , select, radio, checkbox
     , group, repeatable
@@ -14,14 +14,15 @@ module FormToolkit.Input exposing
     , map
     )
 
-{-|
+{-| Provides types and functions to create and manage form inputs, including
+various input types, attributes, and error handling.
 
 
 # Inputs
 
 @docs Input
 @docs text, textarea, email, password
-@docs integer, float
+@docs int, float
 @docs date, month
 @docs select, radio, checkbox
 @docs group, repeatable
@@ -60,90 +61,147 @@ type alias Tree id =
     Tree.Tree (Internal.Input id (Error id))
 
 
-{-| TODO
+{-| Represents a form input element, which can be a field or a group of fields.
+
+Can be individual input fields (like text, email, password) or composite inputs
+like groups and repeatable groups.
+
 -}
 type Input id
     = Input (Tree id)
 
 
-{-| TODO
+{-| Creates a text input field.
+
+    text [ name "username", placeholder "Enter your username" ]
+
 -}
 text : List (Attribute id) -> Input id
 text =
     init Internal.Text
 
 
-{-| TODO
+{-| Creates a textarea input field.
+
+    textarea [ name "comments", placeholder "Enter your comments here" ]
+
 -}
 textarea : List (Attribute id) -> Input id
 textarea =
     init Internal.TextArea
 
 
-{-| TODO
+{-| Creates an email input field.
+
+    email [ name "email", required True ]
+
 -}
 email : List (Attribute id) -> Input id
 email =
     init Internal.Email
 
 
-{-| TODO
+{-| Creates a password input field.
+
+    password [ name "password", required True ]
+
 -}
 password : List (Attribute id) -> Input id
 password =
     init Internal.Password
 
 
-{-| TODO
+{-| Creates an integer input field.
+
+    int [ name "age", min (Value.int 0), max (Value.int 120) ]
+
 -}
-integer : List (Attribute id) -> Input id
-integer =
+int : List (Attribute id) -> Input id
+int =
     init Internal.Integer
 
 
-{-| TODO
+{-| Creates a floating-point number input field.
+
+    float [ name "price", min (Value.float 0.0) ]
+
 -}
 float : List (Attribute id) -> Input id
 float =
     init Internal.Float
 
 
-{-| TODO
+{-| Creates a date input field.
+
+    date [ name "birthdate", required True ]
+
 -}
 date : List (Attribute id) -> Input id
 date =
     init Internal.Date
 
 
-{-| TODO
+{-| Creates a month input field.
+
+    month [ name "expiryMonth" ]
+
 -}
 month : List (Attribute id) -> Input id
 month =
     init Internal.Month
 
 
-{-| TODO
+{-| Creates a select input field (dropdown).
+
+    select
+        [ name "language"
+        , options
+            [ ( "Español", Value.string "ES" )
+            , ( "English", Value.string "EN" )
+            ]
+        ]
+
 -}
 select : List (Attribute id) -> Input id
 select =
     init Internal.Select
 
 
-{-| TODO
+{-| Creates a radio button input field.
+
+    radio
+        [ name "gender"
+        , options
+            [ ( "Male", Value.string "male" )
+            , ( "Female", Value.string "female" )
+            ]
+        ]
+
 -}
 radio : List (Attribute id) -> Input id
 radio =
     init Internal.Radio
 
 
-{-| TODO
+{-| Creates a checkbox input field.
+
+    checkbox [ name "subscribe", label "Subscribe to newsletter" ]
+
 -}
 checkbox : List (Attribute id) -> Input id
 checkbox =
     init Internal.Checkbox
 
 
-{-| TODO
+{-| Creates a group of inputs.
+
+Groups multiple inputs together.
+
+    group []
+        [ text [ name "firstName", label "First Name" ]
+        , text [ name "lastName", label "Last Name" ]
+        ]
+
 -}
 group : List (Attribute id) -> List (Input id) -> Input id
 group attributes inputs =
@@ -153,7 +211,14 @@ group attributes inputs =
         |> Input
 
 
-{-| TODO
+{-| Creates a repeatable group of inputs.
+
+Allows inputs to be repeated multiple times.
+
+    repeatable [ name "emails", repeatableMin 1, repeatableMax 5 ]
+        (text [ placeholder "Enter email address" ])
+        []
+
 -}
 repeatable : List (Attribute id) -> Input id -> List (Input id) -> Input id
 repeatable attributes template inputs =
@@ -182,68 +247,91 @@ unwrapAttrs =
     List.map (\(Attribute f) -> f)
 
 
-{-| -}
 toTree : Input id -> Tree id
 toTree (Input tree) =
     tree
 
 
-{-| TODO
+{-| Represents an attribute that can be applied to an input.
 -}
 type Attribute id
     = Attribute (Internal.Input id (Error id) -> Internal.Input id (Error id))
 
 
-{-| TODO
+{-| Sets the name of an input.
+
+    name "email"
+
 -}
 name : String -> Attribute id
 name str =
     Attribute (\input -> { input | name = Just str })
 
 
-{-| TODO
+{-| Sets the identifier of an input.
+
+    identifier EmailField
+
 -}
 identifier : id -> Attribute id
 identifier id =
     Attribute (\input -> { input | identifier = Just id })
 
 
-{-| TODO
+{-| Sets the value of an input.
+
+    value (Value.string "Default Text")
+
 -}
 value : Value.Value -> Attribute id
 value (Value.Value inputValue) =
     Attribute (\input -> { input | value = inputValue })
 
 
-{-| TODO
+{-| Marks an input as required.
+
+    required True
+
 -}
 required : Bool -> Attribute id
 required bool =
     Attribute (\input -> { input | isRequired = bool })
 
 
-{-| TODO
+{-| Sets the label of an input.
+
+    label "First Name"
+
 -}
 label : String -> Attribute id
 label str =
     Attribute (\input -> { input | label = Just str })
 
 
-{-| TODO
+{-| Sets the placeholder text of an input.
+
+    placeholder "Enter your email"
+
 -}
 placeholder : String -> Attribute id
 placeholder str =
     Attribute (\input -> { input | placeholder = Just str })
 
 
-{-| TODO
+{-| Sets a hint or help text for an input.
+
+    hint "We will not share your email"
+
 -}
 hint : String -> Attribute id
 hint str =
     Attribute (\input -> { input | hint = Just str })
 
 
-{-| TODO
+{-| Sets the options for a select, radio, or checkbox input.
+
+    options [ ( "Option 1", Value.string "1" ), ( "Option 2", Value.string "2" ) ]
+
 -}
 options : List ( String, Value.Value ) -> Attribute id
 options values =
@@ -257,35 +345,50 @@ options values =
         )
 
 
-{-| TODO
+{-| Sets the minimum value for an input.
+
+    min (Value.int 1)
+
 -}
 min : Value.Value -> Attribute id
 min (Value.Value val) =
     Attribute (\input -> { input | min = val })
 
 
-{-| TODO
+{-| Sets the maximum value for an input.
+
+    max (Value.int 10)
+
 -}
 max : Value.Value -> Attribute id
 max (Value.Value val) =
     Attribute (\input -> { input | max = val })
 
 
-{-| TODO
+{-| An attribute that does nothing.
+
+Can be used when an attribute is required but no specific attribute is needed.
+
 -}
 noattr : Attribute id
 noattr =
     Attribute identity
 
 
-{-| TODO
+{-| Sets whether the inputs in a group are displayed inline.
+
+    inline True
+
 -}
 inline : Bool -> Attribute id
 inline bool =
     Attribute (\input -> { input | inline = bool })
 
 
-{-| TODO
+{-| Sets the text for the add and remove buttons in a repeatable input.
+
+    copies { addButton = "Add another", removeButton = "Remove" }
+
 -}
 copies : { addButton : String, removeButton : String } -> Attribute id
 copies { addButton, removeButton } =
@@ -298,18 +401,24 @@ copies { addButton, removeButton } =
         )
 
 
-{-| TODO
+{-| Sets the minimum number of copies for a repeatable input.
+
+    repeatableMin 1
+
 -}
 repeatableMin : Int -> Attribute id
-repeatableMin int =
-    Attribute (\input -> { input | repeatableMin = int })
+repeatableMin integer =
+    Attribute (\input -> { input | repeatableMin = integer })
 
 
-{-| TODO
+{-| Sets the maximum number of copies for a repeatable input.
+
+    repeatableMax 5
+
 -}
 repeatableMax : Int -> Attribute id
-repeatableMax int =
-    Attribute (\input -> { input | repeatableMax = Just int })
+repeatableMax integer =
+    Attribute (\input -> { input | repeatableMax = Just integer })
 
 
 {-| Represents an error that occurred during decoding or validation.
@@ -328,9 +437,14 @@ type Error id
     | ListError (Maybe id) { index : Int, error : Error id }
     | RepeatableHasNoName (Maybe id)
     | InputNotFound id
+    | CustomError String
 
 
-{-| -}
+{-| Collects all errors from an input and its children.
+
+    errors myInput
+
+-}
 errors : Input id -> List (Error id)
 errors (Input tree) =
     case Tree.children tree of
@@ -343,7 +457,10 @@ errors (Input tree) =
                 |> List.concat
 
 
-{-| TODO
+{-| Transforms identifiers or errors in an input.
+
+    map String.toUpper myInput
+
 -}
 map : (a -> b) -> Input a -> Input b
 map func (Input tree) =
@@ -379,3 +496,6 @@ mapError func error =
 
         InputNotFound id ->
             InputNotFound (func id)
+
+        CustomError err ->
+            CustomError err

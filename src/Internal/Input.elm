@@ -1,16 +1,17 @@
 module Internal.Input exposing
-    ( Input
-    , InputType(..)
-    , Status(..)
-    , blur
-    , focus
-    , init
-    , isBlank
-    , map
-    , root
-    , update
-    , updateWithString
+    ( Input, InputType(..), Status(..)
+    , blur, focus, init, isBlank, map, root
+    , updateValue, updateValueWithString
     )
+
+{-|
+
+@docs Input, InputType, Status
+@docs blur, focus, init, isBlank, map, root, updateWithString
+@docs updateValue, updateValueWithString
+@docs Msg, update
+
+-}
 
 import Array
 import Internal.Value exposing (Value)
@@ -91,43 +92,43 @@ init inputType =
         }
 
 
-update : Value -> Input id err -> Input id err
-update value input =
+updateValue : Value -> Input id err -> Input id err
+updateValue value input =
     { input | value = value, errors = [] }
 
 
-updateWithString : String -> Input id err -> Input id err
-updateWithString str ({ inputType } as input) =
+updateValueWithString : String -> Input id err -> Input id err
+updateValueWithString str ({ inputType } as input) =
     case inputType of
         Text ->
-            update (Internal.Value.fromString str) input
+            updateValue (Internal.Value.fromString str) input
 
         TextArea ->
-            update (Internal.Value.fromString str) input
+            updateValue (Internal.Value.fromString str) input
 
         Password ->
-            update (Internal.Value.fromString str) input
+            updateValue (Internal.Value.fromString str) input
 
         Email ->
-            update (Internal.Value.fromString str) input
+            updateValue (Internal.Value.fromString str) input
 
         Integer ->
-            update (Internal.Value.intFromString str) input
+            updateValue (Internal.Value.intFromString str) input
 
         Float ->
-            update (Internal.Value.floatFromString str) input
+            updateValue (Internal.Value.floatFromString str) input
 
         Month ->
-            update (Internal.Value.monthFromString str) input
+            updateValue (Internal.Value.monthFromString str) input
 
         Date ->
-            update (Internal.Value.dateFromString str) input
+            updateValue (Internal.Value.dateFromString str) input
 
         Select ->
-            update (getChoice str input) input
+            updateValue (getChoice str input) input
 
         Radio ->
-            update (getChoice str input) input
+            updateValue (getChoice str input) input
 
         _ ->
             input

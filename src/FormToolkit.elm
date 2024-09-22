@@ -1,11 +1,10 @@
 module FormToolkit exposing
     ( Msg, update
-    , View, initView
-    , toHtml
-    , viewFor
-    , withInputView
-    , withGroupView, withRepeatableView, withTemplateView
-    , withErrorsView
+    , View, view, viewToHtml
+    , partialView
+    , customizeInput
+    , customizeGroup, customizeRepeatable, customizeTemplate
+    , customizeErrors
     )
 
 {-|
@@ -18,16 +17,15 @@ module FormToolkit exposing
 
 # View
 
-@docs View, initView
-@docs toHtml
-@docs viewFor
+@docs View, view, viewToHtml
+@docs partialView
 
 
 # View customizations
 
-@docs withInputView
-@docs withGroupView, withRepeatableView, withTemplateView
-@docs withErrorsView
+@docs customizeInput
+@docs customizeGroup, customizeRepeatable, customizeTemplate
+@docs customizeErrors
 
 -}
 
@@ -97,12 +95,12 @@ update msg decoder input =
 
 updateInput : String -> Tree id -> Tree id
 updateInput string =
-    Tree.updateValue (Internal.updateWithString string)
+    Tree.updateValue (Internal.updateValueWithString string)
 
 
 updateInputWithBool : Bool -> Tree id -> Tree id
 updateInputWithBool bool =
-    Tree.updateValue (Internal.update (Internal.Value.fromBool bool))
+    Tree.updateValue (Internal.updateValue (Internal.Value.fromBool bool))
 
 
 updateAt : List Int -> (Tree id -> Tree id) -> Input id -> Input id
@@ -128,8 +126,8 @@ type View id msg
 
 {-| TODO
 -}
-initView : (Msg id -> msg) -> Input id -> View id msg
-initView onChange input =
+view : (Msg id -> msg) -> Input id -> View id msg
+view onChange input =
     View input
         []
         { onChange = onChange
@@ -143,15 +141,15 @@ initView onChange input =
 
 {-| TODO
 -}
-toHtml : View id msg -> Html msg
-toHtml (View input path attributes) =
+viewToHtml : View id msg -> Html msg
+viewToHtml (View input path attributes) =
     toHtmlHelp attributes path input
 
 
 {-| TODO
 -}
-viewFor : id -> View id msg -> Maybe (View id msg)
-viewFor id (View input _ attributes) =
+partialView : id -> View id msg -> Maybe (View id msg)
+partialView id (View input _ attributes) =
     findNode id input
         |> Maybe.map (\( found, path ) -> View found path attributes)
 
@@ -172,7 +170,7 @@ findNode id (Input tree) =
 
 {-| TODO
 -}
-withInputView :
+customizeInput :
     ({ isRequired : Bool
      , labelHtml : Html msg
      , inputHtml : Html msg
@@ -183,25 +181,25 @@ withInputView :
     )
     -> View id msg
     -> View id msg
-withInputView viewFunc (View input path params) =
+customizeInput viewFunc (View input path params) =
     View input path { params | inputView = viewFunc }
 
 
 {-| TODO
 -}
-withGroupView :
+customizeGroup :
     ({ inline : Bool, legendHtml : Html msg, inputsHtml : List (Html msg) }
      -> Html msg
     )
     -> View id msg
     -> View id msg
-withGroupView viewFunc (View input path params) =
+customizeGroup viewFunc (View input path params) =
     View input path { params | groupView = viewFunc }
 
 
 {-| TODO
 -}
-withRepeatableView :
+customizeRepeatable :
     ({ legendHtml : Html msg
      , inputsHtml : List (Html msg)
      , onAddAttribute : Html.Attribute msg
@@ -212,13 +210,13 @@ withRepeatableView :
     )
     -> View id msg
     -> View id msg
-withRepeatableView viewFunc (View input path params) =
+customizeRepeatable viewFunc (View input path params) =
     View input path { params | repeatableView = viewFunc }
 
 
 {-| TODO
 -}
-withTemplateView :
+customizeTemplate :
     ({ onRemoveAttribute : Html.Attribute msg
      , removeButtonText : String
      , showRemoveButton : Bool
@@ -228,14 +226,14 @@ withTemplateView :
     )
     -> View id msg
     -> View id msg
-withTemplateView viewFunc (View input path params) =
+customizeTemplate viewFunc (View input path params) =
     View input path { params | templateView = viewFunc }
 
 
 {-| TODO
 -}
-withErrorsView : (Error id -> Html msg) -> View id msg -> View id msg
-withErrorsView viewFunc (View input path params) =
+customizeErrors : (Error id -> Html msg) -> View id msg -> View id msg
+customizeErrors viewFunc (View input path params) =
     View input path { params | errorsView = viewFunc }
 
 
@@ -724,6 +722,9 @@ errorsView err =
 
             IsBlank _ ->
                 "Should be provided"
+
+            CustomError message ->
+                message
 
             _ ->
                 "Couldn't parse"
