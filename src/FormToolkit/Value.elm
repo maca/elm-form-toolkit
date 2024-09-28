@@ -96,7 +96,7 @@ toString (Value value) =
     Internal.toString value |> Result.toMaybe
 
 
-{-| Convert boolean values to `Bool`
+{-| Convert boolean values to `Bool`.
 
     toBool (bool True) == Just True
 
@@ -108,7 +108,7 @@ toBool (Value value) =
     Internal.toBool value |> Result.toMaybe
 
 
-{-| Convert float values to `Float`
+{-| Convert float values to `Float`.
 
     toFloat (float 3.14) == Just 3.14
 
@@ -120,7 +120,7 @@ toFloat (Value value) =
     Internal.toFloat value |> Result.toMaybe
 
 
-{-| Convert int values to `Int`
+{-| Convert int values to `Int`.
 
     toInt (int 42) == Just 42
 
@@ -132,7 +132,7 @@ toInt (Value value) =
     Internal.toInt value |> Result.toMaybe
 
 
-{-| Convert poxis values to `Posix`
+{-| Convert poxis values to `Posix`.
 
     toPosix (time (Time.millisToPosix 0))
         == Just (Time.millisToPosix 0)

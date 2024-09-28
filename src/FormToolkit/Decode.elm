@@ -22,7 +22,7 @@ know `Json.Decode` you know how to use this module ;)
 @docs succeed, fail
 
 
-# Maps and combinators
+# Maps, combinators and pipeline style decoding
 
 @docs map, map2, map3, map4, map5, map6, map7, map8
 @docs andThen, andMap
@@ -283,7 +283,7 @@ value =
 {-| Converts the entire input tree into a JSON
 [Value](https://package.elm-lang.org/packages/elm/json/latest/Json-Encode#Value).
 Input [name](FormToolkit.Input#name) property will be used as the key,
-[name](FormToolkit.Input#name) is required.
+if an input [name](FormToolkit.Input#name) is not present the decoder will fail.
 
 Usefull if you just one to forward the form values to a backend.
 
@@ -380,19 +380,21 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
     type SpecialValue
         = SpecialValue
 
+    specialDecoder : Decoder Special
+    specialDecoder =
+        string
+            |> andThen
+                (\strValue ->
+                    if strValue == "special" then
+                        succeed SpecialValue
+
+                    else
+                        fail (Input.CustomError "Not special")
+                )
+
     result =
         Input.text [ Input.value (Value.string "special") ]
-            |> decode
-                (string
-                    |> andThen
-                        (\strValue ->
-                            if strValue == "special" then
-                                succeed SpecialValue
-
-                            else
-                                fail (Input.CustomError "Not special")
-                        )
-                )
+            |> decode specialDecoder
 
     -- Ok SpecialValue
 
@@ -505,20 +507,27 @@ inputFromInternal node =
 
 {-| Chains together decoders that depend on previous decoding results.
 
+    -- justinmimbs/date
+
+
     import Date
 
+    dateDecoder : Decoder Date
+    dateDecoder =
+        string
+            |> andThen
+                (\strValue ->
+                    case Date.fromString "dd.MM.yyyy" strValue of
+                        Ok date ->
+                            succeed date
 
-    -- justinmimbs/date
+                        Err err ->
+                            fail (Input.CustomError err)
+                )
+
     result =
         Input.text [ Input.value (Value.string "07.03.1981") ]
-            |> decode
-                (string
-                    |> andThen
-                        (Date.fromString "dd.MM.yyyy"
-                            >> Result.withDefault
-                                (fail (Input.CustomError "Not a date"))
-                        )
-                )
+            |> decode dateDecoder
 
     -- Ok (Date.fromCalendarDate 1981 Date.March 7)
 

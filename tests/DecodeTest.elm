@@ -248,3 +248,14 @@ simpleJsonDecoder =
 groupWithNameDecoder : Json.Decode.Decoder ( String, Int )
 groupWithNameDecoder =
     Json.Decode.field "group" simpleJsonDecoder
+
+
+init : Model
+init =
+    { -- You want to keep the stateful form in your model, don't worry there are
+      -- no functions or weird stuff in there
+      form = teamFields
+    , submitted = False
+    , team = Nothing
+    , json = Nothing
+    }

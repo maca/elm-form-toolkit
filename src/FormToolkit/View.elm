@@ -9,9 +9,6 @@ module FormToolkit.View exposing
 {-|
 
 
-# Update
-
-
 # View
 
 @docs View, fromInput, toHtml
@@ -54,8 +51,6 @@ type alias Msg id =
     Internal.Msg id
 
 
-{-| TODO
--}
 type alias ViewAttributes id msg =
     { onChange : Msg id -> msg
     , errorsView : Error id -> Html msg
@@ -66,13 +61,24 @@ type alias ViewAttributes id msg =
     }
 
 
-{-| TODO
+{-| Represents a view for an [Input](FormToolkit.Input#Input) for the purposes
+of customized rendering.
 -}
 type View id msg
     = View (Input id) (List Int) (ViewAttributes id msg)
 
 
-{-| TODO
+{-| Construct a view from an [Input](FormToolkit.Input#Input).
+
+    view : Html (Never -> a)
+    view =
+        Input.group []
+            [ Input.text [ Input.label "First Name" ]
+            , Input.text [ Input.label "Last Name" ]
+            ]
+            |> View.fromInput (always never)
+            |> View.toHtml
+
 -}
 fromInput : (Msg id -> msg) -> Input id -> View id msg
 fromInput onChange input =
@@ -87,14 +93,35 @@ fromInput onChange input =
         }
 
 
-{-| TODO
+{-| Render a view
 -}
 toHtml : View id msg -> Html msg
 toHtml (View input path attributes) =
     toHtmlHelp attributes path input
 
 
-{-| TODO
+{-| A partial view referenced by [identifier](FormToolkit.Input#identifier).
+Maybe you want to render segments of the same form in different UI sections.
+
+    Input.group []
+        [ Input.text
+            [ Input.identifier "FirstName"
+            , Input.label "First Name"
+            ]
+        , Input.text
+            [ Input.identifier "LastName"
+            , Input.label "Last Name"
+            ]
+        ]
+        |> View.fromInput (always never)
+        |> View.partial "FirstName"
+        == Just
+            (Input.text
+                [ Input.identifier "FirstName"
+                , Input.label "First Name"
+                ]
+            )
+
 -}
 partial : id -> View id msg -> Maybe (View id msg)
 partial id (View input _ attributes) =
