@@ -2,29 +2,29 @@
 
 A package for building, validating, and rendering forms.
 
-
 Intends to
-- Be opinionated but flexible. 
+
+- Be opinionated but flexible.
 - Allow for [declarative building](FormToolkit.Input) of complex forms, with
-  [repeating fields](FormToolkit.Input#repeatable), using an API similar to elm `Html`.
-- Provide [default rendering](FormToolkit.Input#toHtml) of input groups with label
-  and errors, but allow for [customization](FormToolkit.View).
-- Permit custom validations, and provide standard ones such as 
-  [presence](FormToolkit.Input#required), and [minimum](FormToolkit.Input#min) 
+  [repeating fields](FormToolkit.Input#repeatable), using an API similar to elm
+  `Html`.
+- Provide [default rendering](FormToolkit.Input#toHtml) of input groups with
+  label and errors, but allow for [customization](FormToolkit.View).
+- Permit custom validations, and provide standard ones such as
+  [presence](FormToolkit.Input#required), and [minimum](FormToolkit.Input#min)
   and [maximum](FormToolkit.Input#max) scalar values.
-- Use elm `Json.Decode` style approach for validating and mapping form inputs to Elm types. 
-  With the expected functions for decoding [int](FormToolkit.Decode#int),
-  [string](FormToolkit.Decode#string), [float](FormToolkit.Decode#float),
-  [bool](FormToolkit.Decode#bool), [posix](FormToolkit.Decode#posix),
-  and more. For mapping to and constructing types providing
-  [map](FormToolkit.Decode#map), [mapN](FormToolkit.Decode#map2), and
-  [andThen](FormToolkit.Decode#andThen), and additionally
-  [andMap](FormToolkit.Decode#andMap) to build decoding pipelines.  
-- Allow building of dynamic forms from a JSON specification and [conversion of
-  form inputs to a JSON value](FormToolkit.Decode#json) to be forwarded as is
-  to a backend.
-
-
+- Use elm `Json.Decode` style approach for validating and mapping form inputs to
+  Elm types. With the expected functions for decoding
+  [int](FormToolkit.Decode#int), [string](FormToolkit.Decode#string),
+  [float](FormToolkit.Decode#float), [bool](FormToolkit.Decode#bool),
+  [posix](FormToolkit.Decode#posix), and more. For mapping to and constructing
+  types providing [map](FormToolkit.Decode#map),
+  [mapN](FormToolkit.Decode#map2), and [andThen](FormToolkit.Decode#andThen),
+  and additionally [andMap](FormToolkit.Decode#andMap) to build decoding
+  pipelines.
+- Allow building of dynamic forms from a JSON specification and
+  [conversion of form inputs to a JSON value](FormToolkit.Decode#json) to be
+  forwarded as is to a backend.
 
 ```elm
 import Browser
@@ -32,6 +32,7 @@ import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input exposing (Input)
 import Html exposing (Html)
 import Html.Events exposing (onClick, onSubmit)
+import Json.Encode
 import Result
 
 
