@@ -13,6 +13,7 @@ module Internal.Value exposing
     , isBlank
     , monthFromString
     , toBool
+    , toCustom
     , toFloat
     , toInt
     , toPosix
@@ -25,7 +26,7 @@ import String.Extra as String
 import Time exposing (Posix)
 
 
-type Value
+type Value val
     = Text String
     | Integer Int
     | Float Float
@@ -33,10 +34,11 @@ type Value
     | Date Posix
     | Time Posix
     | Boolean Bool
+    | Custom val
     | Blank
 
 
-toString : Value -> Result () String
+toString : Value val -> Result () String
 toString value =
     case value of
         Text string ->
@@ -58,16 +60,19 @@ toString value =
             Ok (Iso8601.fromTime posix)
 
         Boolean True ->
-            Ok "true"
+            Err ()
 
         Boolean False ->
-            Ok "false"
+            Err ()
+
+        Custom _ ->
+            Err ()
 
         Blank ->
             Err ()
 
 
-toInt : Value -> Result () Int
+toInt : Value val -> Result () Int
 toInt value =
     case value of
         Integer val ->
@@ -77,7 +82,7 @@ toInt value =
             Err ()
 
 
-toFloat : Value -> Result () Float
+toFloat : Value val -> Result () Float
 toFloat value =
     case value of
         Float val ->
@@ -87,7 +92,7 @@ toFloat value =
             Err ()
 
 
-toBool : Value -> Result () Bool
+toBool : Value val -> Result () Bool
 toBool value =
     case value of
         Boolean val ->
@@ -97,7 +102,7 @@ toBool value =
             Err ()
 
 
-toPosix : Value -> Result () Posix
+toPosix : Value val -> Result () Posix
 toPosix value =
     case value of
         Month val ->
@@ -113,7 +118,17 @@ toPosix value =
             Err ()
 
 
-encode : Value -> Encode.Value
+toCustom : Value val -> Result () val
+toCustom value =
+    case value of
+        Custom val ->
+            Ok val
+
+        _ ->
+            Err ()
+
+
+encode : Value val -> Encode.Value
 encode value =
     case value of
         Integer n ->
@@ -134,46 +149,46 @@ encode value =
                 |> Result.withDefault Encode.null
 
 
-fromString : String -> Value
+fromString : String -> Value val
 fromString str =
     String.nonBlank str
         |> Maybe.map Text
         |> Maybe.withDefault Blank
 
 
-fromInt : Int -> Value
+fromInt : Int -> Value val
 fromInt =
     Integer
 
 
-fromFloat : Float -> Value
+fromFloat : Float -> Value val
 fromFloat =
     Float
 
 
-fromBool : Bool -> Value
+fromBool : Bool -> Value val
 fromBool =
     Boolean
 
 
-blank : Value
+blank : Value val
 blank =
     Blank
 
 
-intFromString : String -> Value
+intFromString : String -> Value val
 intFromString str =
     Maybe.map Integer (String.toInt str)
         |> Maybe.withDefault Blank
 
 
-floatFromString : String -> Value
+floatFromString : String -> Value val
 floatFromString str =
     Maybe.map Float (String.toFloat str)
         |> Maybe.withDefault Blank
 
 
-monthFromString : String -> Value
+monthFromString : String -> Value val
 monthFromString str =
     Iso8601.toTime (String.slice 0 7 str ++ "-01T00:00")
         |> Result.map Month
@@ -181,7 +196,7 @@ monthFromString str =
         |> Maybe.withDefault Blank
 
 
-dateFromString : String -> Value
+dateFromString : String -> Value val
 dateFromString str =
     Iso8601.toTime (String.slice 0 10 str ++ "T00:00")
         |> Result.map Date
@@ -189,12 +204,12 @@ dateFromString str =
         |> Maybe.withDefault Blank
 
 
-compare : Value -> Value -> Maybe Order
+compare : Value val -> Value val -> Maybe Order
 compare a b =
     Maybe.map2 Basics.compare (toNumber a) (toNumber b)
 
 
-toNumber : Value -> Maybe Float
+toNumber : Value val -> Maybe Float
 toNumber value =
     case value of
         Integer n ->
@@ -216,7 +231,7 @@ toNumber value =
             Nothing
 
 
-isBlank : Value -> Bool
+isBlank : Value val -> Bool
 isBlank value =
     case value of
         Blank ->

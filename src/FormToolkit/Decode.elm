@@ -44,24 +44,24 @@ import RoseTree.Tree as Tree
 import Time
 
 
-type Partial id a
-    = Failure (Tree id) (List (Error id))
-    | Success (Tree id) a
+type Partial id val a
+    = Failure (Tree id val) (List (Error id val))
+    | Success (Tree id val) a
 
 
 {-| A decoder that takes a tree of input data and returns a decoded result or an
 error if the decoding fails.
 -}
-type Decoder id a
-    = Decoder (Tree id -> Partial id a)
+type Decoder id val a
+    = Decoder (Tree id val -> Partial id val a)
 
 
-type alias Tree id =
-    Tree.Tree (Internal.Input.Attrs id (Error id))
+type alias Tree id val =
+    Tree.Tree (Internal.Input.Attrs id val (Error id val))
 
 
-type alias Input id =
-    Internal.Input.Input id (Error id)
+type alias Input id val =
+    Internal.Input.Input id val (Error id val)
 
 
 {-| Decoder for a field with the given identifier using a provided decoder.
@@ -92,7 +92,7 @@ type alias Input id =
     -- Ok "Juan"
 
 -}
-field : id -> Decoder id a -> Decoder id a
+field : id -> Decoder id val a -> Decoder id val a
 field id decoder =
     Decoder
         (\tree ->
@@ -112,7 +112,7 @@ field id decoder =
         )
 
 
-fieldHelp : id -> Decoder id a -> Tree id -> ( Maybe (Partial id a), List Int )
+fieldHelp : id -> Decoder id val a -> Tree id val -> ( Maybe (Partial id val a), List Int )
 fieldHelp id decoder tree =
     Tree.foldWithPath
         (\path node acc ->
@@ -133,7 +133,7 @@ fieldHelp id decoder tree =
         == Ok "A string"
 
 -}
-string : Decoder id String
+string : Decoder id val String
 string =
     parseValue Value.toString
 
@@ -145,7 +145,7 @@ string =
         == Ok 10
 
 -}
-int : Decoder id Int
+int : Decoder id val Int
 int =
     parseValue Value.toInt
 
@@ -157,7 +157,7 @@ int =
         == Ok 10.5
 
 -}
-float : Decoder id Float
+float : Decoder id val Float
 float =
     parseValue Value.toFloat
 
@@ -169,7 +169,7 @@ float =
         == Ok True
 
 -}
-bool : Decoder id Bool
+bool : Decoder id val Bool
 bool =
     parseValue Value.toBool
 
@@ -182,7 +182,7 @@ bool =
         == Ok 1970
 
 -}
-posix : Decoder id Time.Posix
+posix : Decoder id val Time.Posix
 posix =
     parseValue Value.toPosix
 
@@ -198,7 +198,7 @@ posix =
         == Ok Nothing
 
 -}
-maybe : Decoder id a -> Decoder id (Maybe a)
+maybe : Decoder id val a -> Decoder id val (Maybe a)
 maybe decoder =
     Decoder
         (\tree ->
@@ -221,7 +221,7 @@ maybe decoder =
         == Ok [ "mango", "banana" ]
 
 -}
-list : Decoder id a -> Decoder id (List a)
+list : Decoder id val a -> Decoder id val (List a)
 list decoder =
     Decoder
         (\tree ->
@@ -242,9 +242,9 @@ list decoder =
 
 
 listHelp :
-    Decoder id a
-    -> Tree id
-    -> ( List (Tree id), Result (List (Error id)) (List a) )
+    Decoder id val a
+    -> Tree id val
+    -> ( List (Tree id val), Result (List (Error id val)) (List a) )
 listHelp decoder =
     Tree.children
         >> List.foldr
@@ -275,7 +275,7 @@ listHelp decoder =
         == Value.string "A string"
 
 -}
-value : Decoder id Value.Value
+value : Decoder id val (Value.Value val)
 value =
     parseValue Just
 
@@ -315,20 +315,20 @@ Usefull if you just one to forward the form values to a backend.
         == Ok "{\"first-name\":\"Juan\",\"last-name\":\"Perez\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
 -}
-json : Decoder id Json.Decode.Value
+json : Decoder id val Json.Decode.Value
 json =
     custom (\(Input tree) -> jsonEncodeObject tree)
 
 
-jsonEncodeObject : Tree id -> Result (Error id) Json.Encode.Value
+jsonEncodeObject : Tree id val -> Result (Error id val) Json.Encode.Value
 jsonEncodeObject tree =
     jsonEncodeHelp tree [] |> Result.map Json.Encode.object
 
 
 jsonEncodeHelp :
-    Tree id
+    Tree id val
     -> List ( String, Json.Decode.Value )
-    -> Result (Error id) (List ( String, Json.Decode.Value ))
+    -> Result (Error id val) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp tree acc =
     let
         input =
@@ -399,19 +399,19 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
     -- Ok SpecialValue
 
 -}
-succeed : a -> Decoder id a
+succeed : a -> Decoder id val a
 succeed a =
     custom (always (Ok a))
 
 
 {-| A decoder that always fails with the given error.
 -}
-fail : Error id -> Decoder id a
+fail : Error id val -> Decoder id val a
 fail error =
     custom (always (Err error))
 
 
-custom : (Input id -> Result (Error id) a) -> Decoder id a
+custom : (Input id val -> Result (Error id val) a) -> Decoder id val a
 custom func =
     Decoder
         (\tree ->
@@ -425,9 +425,9 @@ custom func =
 
 
 validate :
-    (Input id -> Result (Error id) Value.Value)
-    -> Decoder id a
-    -> Decoder id a
+    (Input id val -> Result (Error id val) (Value.Value val))
+    -> Decoder id val a
+    -> Decoder id val a
 validate func decoder =
     Decoder
         (\tree ->
@@ -442,9 +442,9 @@ validate func decoder =
 
 
 validateHelp :
-    (Internal.Input.Attrs id (Error id) -> Result (Error id) Value.Value)
-    -> Tree id
-    -> ( Tree id, List (Error id) )
+    (Internal.Input.Attrs id val (Error id val) -> Result (Error id val) (Value.Value val))
+    -> Tree id val
+    -> ( Tree id val, List (Error id val) )
 validateHelp func tree =
     let
         treeOfTuples =
@@ -480,7 +480,7 @@ validateHelp func tree =
 
 {-| Decodes the input value using a custom parsing function.
 -}
-parseValue : (Value.Value -> Maybe a) -> Decoder id a
+parseValue : (Value.Value val -> Maybe a) -> Decoder id val a
 parseValue func =
     custom
         (\(Input tree) ->
@@ -495,12 +495,12 @@ parseValue func =
         )
 
 
-setError : Error id -> Tree id -> Tree id
+setError : Error id val -> Tree id val -> Tree id val
 setError error =
     Tree.updateValue (\input -> { input | errors = error :: input.errors })
 
 
-inputFromInternal : Internal.Input.Attrs id (Error id) -> Input id
+inputFromInternal : Internal.Input.Attrs id val (Error id val) -> Input id val
 inputFromInternal node =
     Input (Tree.leaf node)
 
@@ -532,7 +532,7 @@ inputFromInternal node =
     -- Ok (Date.fromCalendarDate 1981 Date.March 7)
 
 -}
-andThen : (a -> Decoder id b) -> Decoder id a -> Decoder id b
+andThen : (a -> Decoder id val b) -> Decoder id val a -> Decoder id val b
 andThen func (Decoder decoder) =
     Decoder
         (\tree ->
@@ -589,7 +589,7 @@ andThen func (Decoder decoder) =
     -- Ok { firstName = "Juan" , lastName = "Pérez" , age = 42 }
 
 -}
-andMap : Decoder id a -> Decoder id (a -> b) -> Decoder id b
+andMap : Decoder id val a -> Decoder id val (a -> b) -> Decoder id val b
 andMap a b =
     map2 (|>) a b
 
@@ -601,12 +601,12 @@ andMap a b =
         == Ok "A STRING"
 
 -}
-map : (a -> b) -> Decoder id a -> Decoder id b
+map : (a -> b) -> Decoder id val a -> Decoder id val b
 map func decoder =
     Decoder (mapHelp func decoder)
 
 
-mapHelp : (a -> b) -> Decoder id a -> Tree id -> Partial id b
+mapHelp : (a -> b) -> Decoder id val a -> Tree id val -> Partial id val b
 mapHelp func (Decoder decoder) tree =
     case decoder tree of
         Success tree2 a ->
@@ -636,7 +636,7 @@ mapHelp func (Decoder decoder) tree =
         == Ok ( "Juan", "Pérez" )
 
 -}
-map2 : (a -> b -> c) -> Decoder id a -> Decoder id b -> Decoder id c
+map2 : (a -> b -> c) -> Decoder id val a -> Decoder id val b -> Decoder id val c
 map2 func a b =
     Decoder
         (\tree ->
@@ -700,10 +700,10 @@ map2 func a b =
 -}
 map3 :
     (a -> b -> c -> out)
-    -> Decoder id a
-    -> Decoder id b
-    -> Decoder id c
-    -> Decoder id out
+    -> Decoder id val a
+    -> Decoder id val b
+    -> Decoder id val c
+    -> Decoder id val out
 map3 func a b c =
     map2 func a b |> andMap c
 
@@ -711,11 +711,11 @@ map3 func a b c =
 {-| -}
 map4 :
     (a -> b -> c -> d -> out)
-    -> Decoder id a
-    -> Decoder id b
-    -> Decoder id c
-    -> Decoder id d
-    -> Decoder id out
+    -> Decoder id val a
+    -> Decoder id val b
+    -> Decoder id val c
+    -> Decoder id val d
+    -> Decoder id val out
 map4 func a b c d =
     map3 func a b c |> andMap d
 
@@ -723,12 +723,12 @@ map4 func a b c d =
 {-| -}
 map5 :
     (a -> b -> c -> d -> e -> out)
-    -> Decoder id a
-    -> Decoder id b
-    -> Decoder id c
-    -> Decoder id d
-    -> Decoder id e
-    -> Decoder id out
+    -> Decoder id val a
+    -> Decoder id val b
+    -> Decoder id val c
+    -> Decoder id val d
+    -> Decoder id val e
+    -> Decoder id val out
 map5 func a b c d e =
     map4 func a b c d |> andMap e
 
@@ -736,13 +736,13 @@ map5 func a b c d e =
 {-| -}
 map6 :
     (a -> b -> c -> d -> e -> f -> out)
-    -> Decoder id a
-    -> Decoder id b
-    -> Decoder id c
-    -> Decoder id d
-    -> Decoder id e
-    -> Decoder id f
-    -> Decoder id out
+    -> Decoder id val a
+    -> Decoder id val b
+    -> Decoder id val c
+    -> Decoder id val d
+    -> Decoder id val e
+    -> Decoder id val f
+    -> Decoder id val out
 map6 func a b c d e f =
     map5 func a b c d e |> andMap f
 
@@ -750,14 +750,14 @@ map6 func a b c d e f =
 {-| -}
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> out)
-    -> Decoder id a
-    -> Decoder id b
-    -> Decoder id c
-    -> Decoder id d
-    -> Decoder id e
-    -> Decoder id f
-    -> Decoder id g
-    -> Decoder id out
+    -> Decoder id val a
+    -> Decoder id val b
+    -> Decoder id val c
+    -> Decoder id val d
+    -> Decoder id val e
+    -> Decoder id val f
+    -> Decoder id val g
+    -> Decoder id val out
 map7 func a b c d e f g =
     map6 func a b c d e f |> andMap g
 
@@ -765,15 +765,15 @@ map7 func a b c d e f g =
 {-| -}
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> out)
-    -> Decoder id a
-    -> Decoder id b
-    -> Decoder id c
-    -> Decoder id d
-    -> Decoder id e
-    -> Decoder id f
-    -> Decoder id g
-    -> Decoder id h
-    -> Decoder id out
+    -> Decoder id val a
+    -> Decoder id val b
+    -> Decoder id val c
+    -> Decoder id val d
+    -> Decoder id val e
+    -> Decoder id val f
+    -> Decoder id val g
+    -> Decoder id val h
+    -> Decoder id val out
 map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
@@ -792,7 +792,7 @@ map8 func a b c d e f g h =
         == Err [ ParseError (Just "MyInput") ]
 
 -}
-decode : Decoder id a -> Input id -> Result (List (Error id)) a
+decode : Decoder id val a -> Input id val -> Result (List (Error id val)) a
 decode decoder =
     validateAndDecode decoder >> Tuple.second
 
@@ -800,9 +800,9 @@ decode decoder =
 {-| Validates and decodes an input using the given decoder.
 -}
 validateAndDecode :
-    Decoder id a
-    -> Input id
-    -> ( Input id, Result (List (Error id)) a )
+    Decoder id val a
+    -> Input id val
+    -> ( Input id val, Result (List (Error id val)) a )
 validateAndDecode decoder (Input tree) =
     case
         apply
@@ -819,12 +819,12 @@ validateAndDecode decoder (Input tree) =
             ( Input tree2, Err errors )
 
 
-apply : Decoder id a -> Tree id -> Partial id a
+apply : Decoder id val a -> Tree id val -> Partial id val a
 apply (Decoder decoder) =
     decoder
 
 
-checkRequired : Input id -> Result (Error id) Value.Value
+checkRequired : Input id val -> Result (Error id val) (Value.Value val)
 checkRequired (Input tree) =
     let
         input =
@@ -837,7 +837,7 @@ checkRequired (Input tree) =
         Ok (Value.Value input.value)
 
 
-checkInRange : Input id -> Result (Error id) Value.Value
+checkInRange : Input id val -> Result (Error id val) (Value.Value val)
 checkInRange (Input tree) =
     let
         input =
@@ -891,18 +891,18 @@ checkInRange (Input tree) =
 
 {-| Represents an error that occurred during decoding or validation.
 -}
-type Error id
-    = ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
-    | ValueTooSmall (Maybe id) { value : Value.Value, min : Value.Value }
+type Error id val
+    = ValueTooLarge (Maybe id) { value : Value.Value val, max : Value.Value val }
+    | ValueTooSmall (Maybe id) { value : Value.Value val, min : Value.Value val }
     | ValueNotInRange
         (Maybe id)
-        { value : Value.Value
-        , min : Value.Value
-        , max : Value.Value
+        { value : Value.Value val
+        , min : Value.Value val
+        , max : Value.Value val
         }
     | IsBlank (Maybe id)
     | ParseError (Maybe id)
-    | ListError (Maybe id) { index : Int, error : Error id }
+    | ListError (Maybe id) { index : Int, error : Error id val }
     | RepeatableHasNoName (Maybe id)
     | InputNotFound id
     | CustomError String

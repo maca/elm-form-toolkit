@@ -1,143 +1,116 @@
-module Main exposing (..)
+module Main exposing (main)
 
 import Browser
-import FormToolkit
 import FormToolkit.Decode as Decode
-import FormToolkit.Input as Input
-import Html exposing (Html, button, div, text)
-import Html.Events exposing (onClick)
+import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.View as View
+import Html exposing (Html)
+import Html.Events exposing (onClick, onSubmit)
 import Json.Encode
+import Result
 
 
 main =
-    Browser.sandbox
-        { init = init
-        , update = update
-        , view = view
-        }
-
-
-
--- MODEL
-
-
-type alias Author =
-    { firstName : String
-    , middleName : Maybe String
-    , lastName : String
-    }
-
-
-type alias Date =
-    { year : Int
-    , month : Int
-    , day : Int
-    }
-
-
-type alias Record =
-    { title : String
-    , releaseDate : Date
-    , authors : List Author
-    }
+    Browser.sandbox { init = init, update = update, view = view }
 
 
 type alias Model =
-    { form : Input.Input Fields }
+    { form : Input TeamFields
+    , submitted : Bool
+    , team : Maybe Team
+    , json : Maybe Json.Encode.Value
+    }
 
 
-type Fields
-    = Details
-    | Title
-    | Release
-    | Authors
-    | FirstName
-    | MiddleName
-    | LastName
+type TeamFields
+    = TeamMembers
+    | TeamName
+    | MemberName
+    | MemberAge
 
 
-personFields =
-    Input.group
-        []
+type Msg
+    = FormChanged (Input.Msg TeamFields)
+    | FormSubmitted
+
+
+teamFields : Input.Input TeamFields
+teamFields =
+    Input.group []
         [ Input.text
-            [ Input.label "First Name"
+            [ Input.label "Team Name!"
             , Input.required True
-            , Input.identifier FirstName
-            , Input.name "first-name"
+            , Input.identifier TeamName
+            , Input.name "team-name"
             ]
-        , Input.text
-            [ Input.label "Last Name"
-            , Input.required True
-            , Input.identifier LastName
-            , Input.name "last-name"
-            ]
+
+        -- , Input.group
+        --     [ Input.label "Members (max 5)" ]
+        --     [ Input.repeatable
+        --         [ Input.identifier TeamMembers
+        --         , Input.repeatableMin 1
+        --         , Input.repeatableMax 5
+        --         , Input.name "team-members"
+        --         ]
+        --         (Input.group []
+        --             [ Input.text
+        --                 [ Input.label "Member Name"
+        --                 , Input.required True
+        --                 , Input.identifier MemberName
+        --                 , Input.name "member-name"
+        --                 ]
+        --             , Input.int
+        --                 [ Input.label "Member Age"
+        --                 , Input.identifier MemberAge
+        --                 , Input.name "member-age"
+        --                 ]
+        --             ]
+        --         )
+        --         []
+        --     ]
         ]
+
+
+
+-- <div class="mb-4">
+--     <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
+--     Username
+--     </label>
+--     <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="username" type="text" placeholder="Username">
+-- </div>
 
 
 init : Model
 init =
-    { form = recordForm }
-
-
-recordForm : Input.Input Fields
-recordForm =
-    Input.group []
-        [ Input.group
-            [ Input.identifier Details
-            ]
-            [ Input.text
-                [ Input.label "Title"
-                , Input.required True
-                , Input.identifier Title
-                , Input.name "title"
-                ]
-            , Input.date
-                [ Input.label "Release"
-                , Input.required True
-                , Input.identifier Release
-                , Input.name "release"
-                ]
-            ]
-        , Input.repeatable
-            [ Input.identifier Authors
-            , Input.name "authors"
-            , Input.repeatableMin 1
-            , Input.repeatableMax 5
-            ]
-            personFields
-            []
-        ]
-
-
-
--- UPDATE
-
-
-type Msg
-    = FormChanged (FormToolkit.Msg Fields)
+    { -- You want to keep the stateful input group in your model, don't worry there are
+      -- no functions or weird stuff in there
+      form = teamFields
+    , submitted = False
+    , team = Nothing
+    , json = Nothing
+    }
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        FormChanged formMsg ->
+        FormChanged inputMsg ->
             let
-                ( form, decoded ) =
-                    FormToolkit.update formMsg recordDecoder model.form
-
-                _ =
-                    Debug.log "author" decoded
-
-                _ =
-                    Decode.decode (Decode.succeed ()) form
-                        |> Debug.log "succ"
-
-                _ =
-                    Decode.decode Decode.json form
-                        |> Result.map (Json.Encode.encode 0)
-                        |> Debug.log "json"
+                ( form, result ) =
+                    -- Validates and produces result with decoder and updates with Msg
+                    Input.update teamDecoder inputMsg model.form
             in
-            { model | form = form }
+            { model | form = form, team = Result.toMaybe result }
+
+        FormSubmitted ->
+            { model
+                | submitted = True
+
+                -- Uses Input.name values as keys to build a json object
+                , json =
+                    Decode.decode Decode.json model.form
+                        |> Result.toMaybe
+            }
 
 
 
@@ -146,33 +119,50 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    let
-        inputsView =
-            FormToolkit.initView FormChanged model.form
-    in
-    div
-        []
-        [ inputsView
-            |> FormToolkit.viewFor Details
-            |> Maybe.map FormToolkit.toHtml
-            |> Maybe.withDefault (Html.text "")
-        , inputsView
-            |> FormToolkit.viewFor Authors
-            |> Maybe.map FormToolkit.toHtml
-            |> Maybe.withDefault (Html.text "")
+    Html.form
+        [ onSubmit FormSubmitted ]
+        [ -- Render the form
+          Input.toView FormChanged model.form
+            |> View.customizeInput
+                (\params ->
+                    Html.div
+                        []
+                        [--  params.label
+                         -- , params.input
+                        ]
+                )
+            -- { isRequired : Bool
+            --  , labelHtml : Html msg
+            --  , inputHtml : Html msg
+            --  , errorsHtml : List (Html msg)
+            --  , hint : Maybe String
+            --  }
+            |> View.toHtml
+        , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
         ]
 
 
-recordDecoder : Decode.Decoder Fields Record
-recordDecoder =
-    Decode.map2 Record
-        (Decode.field Title Decode.string)
-        (Decode.field Authors (Decode.list authorDecoder))
+type alias Team =
+    { name : String
+    , members : List Person
+    }
 
 
-authorDecoder : Decode.Decoder Fields Author
-authorDecoder =
-    Decode.succeed Author
-        |> Decode.andMap (Decode.field FirstName Decode.string)
-        |> Decode.andMap (Decode.field MiddleName (Decode.maybe Decode.string))
-        |> Decode.andMap (Decode.field LastName Decode.string)
+type alias Person =
+    { name : String
+    , age : Int
+    }
+
+
+teamDecoder : Decode.Decoder TeamFields Team
+teamDecoder =
+    Decode.map2 Team
+        (Decode.field TeamName Decode.string)
+        (Decode.field TeamMembers (Decode.list personDecoder))
+
+
+personDecoder : Decode.Decoder TeamFields Person
+personDecoder =
+    Decode.map2 Person
+        (Decode.field MemberName Decode.string)
+        (Decode.field MemberAge Decode.int)

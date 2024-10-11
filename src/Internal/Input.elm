@@ -26,7 +26,7 @@ type Status
     | Touched
 
 
-type InputType id err
+type InputType id val err
     = Text
     | TextArea
     | Password
@@ -39,20 +39,20 @@ type InputType id err
     | Radio
     | Checkbox
     | Group
-    | Repeatable (Tree id err)
+    | Repeatable (Tree id val err)
 
 
-type alias Attrs id err =
-    { inputType : InputType id err
+type alias Attrs id val err =
+    { inputType : InputType id val err
     , name : Maybe String
-    , value : Value
+    , value : Value val
     , isRequired : Bool
     , label : Maybe String
     , placeholder : Maybe String
     , hint : Maybe String
-    , min : Value
-    , max : Value
-    , options : List ( String, Value )
+    , min : Value val
+    , max : Value val
+    , options : List ( String, Value val )
     , inline : Bool
     , identifier : Maybe id
     , status : Status
@@ -64,20 +64,20 @@ type alias Attrs id err =
     }
 
 
-type alias Tree id err =
-    Tree.Tree (Attrs id err)
+type alias Tree id val err =
+    Tree.Tree (Attrs id val err)
 
 
-type Input id err
-    = Input (Tree id err)
+type Input id val err
+    = Input (Tree id val err)
 
 
-root : Attrs id err
+root : Attrs id val err
 root =
     init Group []
 
 
-init : InputType id err -> List (Attrs id err -> Attrs id err) -> Attrs id err
+init : InputType id val err -> List (Attrs id val err -> Attrs id val err) -> Attrs id val err
 init inputType =
     List.foldl (\f i -> f i)
         { inputType = inputType
@@ -101,12 +101,12 @@ init inputType =
         }
 
 
-updateValue : Value -> Attrs id err -> Attrs id err
+updateValue : Value val -> Attrs id val err -> Attrs id val err
 updateValue value input =
     { input | value = value, errors = [] }
 
 
-updateValueWithString : String -> Attrs id err -> Attrs id err
+updateValueWithString : String -> Attrs id val err -> Attrs id val err
 updateValueWithString str ({ inputType } as input) =
     case inputType of
         Text ->
@@ -143,7 +143,7 @@ updateValueWithString str ({ inputType } as input) =
             input
 
 
-getChoice : String -> Attrs id err -> Value
+getChoice : String -> Attrs id val err -> Value val
 getChoice str { options } =
     case String.toInt str of
         Just idx ->
@@ -156,17 +156,17 @@ getChoice str { options } =
             Internal.Value.blank
 
 
-focus : Attrs id err -> Attrs id err
+focus : Attrs id val err -> Attrs id val err
 focus input =
     { input | status = Focused }
 
 
-blur : Attrs id err -> Attrs id err
+blur : Attrs id val err -> Attrs id val err
 blur input =
     { input | status = Touched }
 
 
-isBlank : Attrs id err -> Bool
+isBlank : Attrs id val err -> Bool
 isBlank { value, inputType } =
     case inputType of
         Group ->
@@ -179,7 +179,7 @@ isBlank { value, inputType } =
             Internal.Value.isBlank value
 
 
-map : (a -> b) -> (err1 -> err2) -> Attrs a err1 -> Attrs b err2
+map : (a -> b) -> (err1 -> err2) -> Attrs a val err1 -> Attrs b val err2
 map func errToErr input =
     { inputType = mapInputType func errToErr input.inputType
     , name = input.name
@@ -202,7 +202,7 @@ map func errToErr input =
     }
 
 
-mapInputType : (a -> b) -> (err1 -> err2) -> InputType a err1 -> InputType b err2
+mapInputType : (a -> b) -> (err1 -> err2) -> InputType a val err1 -> InputType b val err2
 mapInputType func errToErr inputType =
     case inputType of
         Repeatable tree ->
