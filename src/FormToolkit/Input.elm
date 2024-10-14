@@ -421,7 +421,35 @@ name str =
     Attribute (\input -> { input | name = Just str })
 
 
-{-| Sets the identifier of an input.
+{-| Sets the identifier to be reference when decoding a specific field.
+
+
+    type Fields
+        = FirstName
+        | LastName
+
+    form : Input Fields value
+    form =
+        group []
+            [ text
+                [ label "First name"
+                , identifier FirstName
+                , value (Value.string "Juan")
+                ]
+            , text
+                [ label "Last name"
+                , identifier LastName
+                , value (Value.string "Perez")
+                ]
+            ]
+
+    decoded =
+        form
+            |> FormToolkit.Decode.decode
+                (FormToolkit.Decode.field FirstName FormToolkit.Decode.string)
+
+    -- Ok "Juan"
+
 -}
 identifier : id -> Attribute id val
 identifier id =

@@ -1,7 +1,7 @@
 module FormToolkit.View exposing
     ( View, fromInput, toHtml
     , partial
-    , InputType(..), Attribute, class, classList
+    , InputType(..), Attribute, class, classList, style
     , customizeInput
     , customizeGroup, customizeRepeatable, customizeTemplate
     , customizeError
@@ -18,7 +18,7 @@ module FormToolkit.View exposing
 
 # View customizations
 
-@docs InputType, Attribute, class, classList
+@docs InputType, Attribute, class, classList, style
 @docs customizeInput
 @docs customizeGroup, customizeRepeatable, customizeTemplate
 @docs customizeError
@@ -302,11 +302,8 @@ labelToHtml label path node element =
     case label of
         Just str ->
             Html.label
-                [ Attributes.for (inputId node path)
-                , Attributes.classList element
-                ]
-                [ Html.text str
-                ]
+                (Attributes.for (inputId node path) :: userProvidedAttributes element)
+                [ Html.text str ]
 
         Nothing ->
             Html.text ""
@@ -330,9 +327,7 @@ legendToHtml : Input id val -> Element -> Html msg
 legendToHtml (Input tree) element =
     case Tree.value tree |> .label of
         Just labelStr ->
-            Html.legend
-                [ Attributes.classList element ]
-                [ Html.text labelStr ]
+            Html.legend (userProvidedAttributes element) [ Html.text labelStr ]
 
         Nothing ->
             Html.text ""
@@ -400,12 +395,14 @@ inputToHtml { onChange } inputType path (Input tree) htmlAttrs element =
             Tree.value tree
     in
     Html.input
-        (htmlAttrs
-            ++ Attributes.type_ inputType
-            :: valueAttribute Attributes.value input.value
-            :: onInputChanged onChange path
-            :: Attributes.classList element
-            :: inputAttrs onChange path (Input tree)
+        (List.concat
+            [ htmlAttrs
+            , Attributes.type_ inputType
+                :: valueAttribute Attributes.value input.value
+                :: onInputChanged onChange path
+                :: inputAttrs onChange path (Input tree)
+            , userProvidedAttributes element
+            ]
         )
         []
 
@@ -428,10 +425,12 @@ textAreaToHtml { onChange } path (Input input) element =
         , Attributes.attribute "data-replicated-value" valueStr
         ]
         [ Html.textarea
-            (onInputChanged onChange path
-                :: Attributes.value valueStr
-                :: Attributes.classList element
-                :: inputAttrs onChange path (Input input)
+            (List.concat
+                [ onInputChanged onChange path
+                    :: Attributes.value valueStr
+                    :: inputAttrs onChange path (Input input)
+                , userProvidedAttributes element
+                ]
             )
             []
         ]
@@ -448,13 +447,13 @@ selectToHtml { onChange } path ((Input tree) as input) element =
             Tree.value tree
     in
     Html.select
-        [ Attributes.id (inputId input path)
-        , Attributes.required data.isRequired
-        , Attributes.classList element
-        , onInputChanged onChange path
-        , onInputFocused onChange path
-        , onInputBlured onChange path
-        ]
+        (Attributes.id (inputId input path)
+            :: Attributes.required data.isRequired
+            :: onInputChanged onChange path
+            :: onInputFocused onChange path
+            :: onInputBlured onChange path
+            :: userProvidedAttributes element
+        )
         (Html.option [] []
             :: List.indexedMap
                 (\index ( optionText, optionValue ) ->
@@ -491,16 +490,16 @@ radioToHtml { onChange } path (Input tree) element =
                 Html.div
                     []
                     [ Html.input
-                        [ Attributes.id optionId
-                        , Attributes.checked (optionValue == data.value)
-                        , Attributes.required data.isRequired
-                        , Attributes.value (String.fromInt index)
-                        , Attributes.type_ "radio"
-                        , Attributes.classList element
-                        , onInputChanged onChange path
-                        , onInputFocused onChange path
-                        , onInputBlured onChange path
-                        ]
+                        (Attributes.id optionId
+                            :: Attributes.checked (optionValue == data.value)
+                            :: Attributes.required data.isRequired
+                            :: Attributes.value (String.fromInt index)
+                            :: Attributes.type_ "radio"
+                            :: onInputChanged onChange path
+                            :: onInputFocused onChange path
+                            :: onInputBlured onChange path
+                            :: userProvidedAttributes element
+                        )
                         []
                     , Html.label
                         [ Attributes.for optionId ]
@@ -518,16 +517,18 @@ checkboxToHtml :
     -> (Element -> Html msg)
 checkboxToHtml { onChange } path (Input input) element =
     Html.input
-        (Attributes.type_ "checkbox"
-            :: (Tree.value input
-                    |> .value
-                    |> Internal.Value.toBool
-                    |> Result.map Attributes.checked
-                    |> Result.withDefault (Attributes.class "")
-               )
-            :: Events.onCheck (InputChecked path >> onChange)
-            :: Attributes.classList element
-            :: inputAttrs onChange path (Input input)
+        (List.concat
+            [ Attributes.type_ "checkbox"
+                :: (Tree.value input
+                        |> .value
+                        |> Internal.Value.toBool
+                        |> Result.map Attributes.checked
+                        |> Result.withDefault (Attributes.class "")
+                   )
+                :: Events.onCheck (InputChecked path >> onChange)
+                :: inputAttrs onChange path (Input input)
+            , userProvidedAttributes element
+            ]
         )
         []
 
@@ -714,7 +715,9 @@ type Attribute msg
 
 
 type alias Element =
-    List ( String, Bool )
+    { classList : List ( String, Bool )
+    , styles : List ( String, String )
+    }
 
 
 {-| -}
@@ -777,21 +780,34 @@ mapInputType inputType =
 
 toAttrs : List (Attribute msg) -> Element
 toAttrs =
-    List.foldl (\(Attribute f) attrs -> f attrs) []
+    List.foldl (\(Attribute f) attrs -> f attrs) { classList = [], styles = [] }
 
 
-{-| TODO
--}
+{-| -}
 class : String -> Attribute msg
 class classStr =
     classList [ ( classStr, True ) ]
 
 
-{-| TODO
--}
+{-| -}
 classList : List ( String, Bool ) -> Attribute msg
 classList classTuple =
-    Attribute (\attrs -> classTuple ++ attrs)
+    Attribute
+        (\attrs ->
+            { attrs | classList = classTuple ++ attrs.classList }
+        )
+
+
+{-| -}
+style : String -> String -> Attribute msg
+style key val =
+    Attribute (\attrs -> { attrs | styles = ( key, val ) :: attrs.styles })
+
+
+userProvidedAttributes : Element -> List (Html.Attribute msg)
+userProvidedAttributes element =
+    Attributes.classList element.classList
+        :: List.map (\( k, v ) -> Attributes.style k v) element.styles
 
 
 errorsToString : Error id val -> String
