@@ -5,6 +5,7 @@ module FormToolkit.Value exposing
     , custom
     , toString, toBool, toFloat, toInt, toPosix
     , toCustom
+    , mapCustom
     )
 
 {-| Value is used to set default input values of type either string, integer,
@@ -23,6 +24,11 @@ float, boolean, date, month, or time.
 
 @docs toString, toBool, toFloat, toInt, toPosix
 @docs toCustom
+
+
+# Map
+
+@docs mapCustom
 
 -}
 
@@ -159,3 +165,17 @@ toPosix (Value value) =
 toCustom : Value val -> Maybe val
 toCustom (Value value) =
     Internal.toCustom value |> Result.toMaybe
+
+
+{-| Apply a function to a custom value preserving other kind of values.
+
+    mapCuston (Tuple.mapFirst not) (custom ( True, False ))
+        == custom ( False, False )
+
+    mapCuston (Tuple.mapFirst not) (int 1)
+        == int 1
+
+-}
+mapCustom : (val1 -> val2) -> Value val1 -> Value val2
+mapCustom fun (Value value) =
+    Value (Internal.mapCustom fun value)

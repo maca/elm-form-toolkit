@@ -11,6 +11,7 @@ module Internal.Value exposing
     , fromString
     , intFromString
     , isBlank
+    , mapCustom
     , monthFromString
     , toBool
     , toCustom
@@ -239,3 +240,34 @@ isBlank value =
 
         _ ->
             False
+
+
+mapCustom : (val1 -> val2) -> Value val1 -> Value val2
+mapCustom func value =
+    case value of
+        Text string ->
+            Text string
+
+        Integer int ->
+            Integer int
+
+        Float float ->
+            Float float
+
+        Month posix ->
+            Month posix
+
+        Date posix ->
+            Date posix
+
+        Time posix ->
+            Time posix
+
+        Boolean bool ->
+            Boolean bool
+
+        Custom val ->
+            Custom (func val)
+
+        Blank ->
+            Blank

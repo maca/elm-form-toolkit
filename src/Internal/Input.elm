@@ -179,18 +179,18 @@ isBlank { value, inputType } =
             Internal.Value.isBlank value
 
 
-map : (a -> b) -> (err1 -> err2) -> Attrs a val err1 -> Attrs b val err2
-map func errToErr input =
-    { inputType = mapInputType func errToErr input.inputType
+map : (a -> b) -> (Value val1 -> Value val2) -> (err1 -> err2) -> Attrs a val1 err1 -> Attrs b val2 err2
+map func valToVal errToErr input =
+    { inputType = mapInputType func errToErr valToVal input.inputType
     , name = input.name
-    , value = input.value
+    , value = valToVal input.value
     , isRequired = input.isRequired
     , label = input.label
     , placeholder = input.placeholder
     , hint = input.hint
-    , min = input.min
-    , max = input.max
-    , options = input.options
+    , min = valToVal input.min
+    , max = valToVal input.max
+    , options = List.map (Tuple.mapSecond valToVal) input.options
     , inline = input.inline
     , identifier = Maybe.map func input.identifier
     , status = input.status
@@ -202,11 +202,11 @@ map func errToErr input =
     }
 
 
-mapInputType : (a -> b) -> (err1 -> err2) -> InputType a val err1 -> InputType b val err2
-mapInputType func errToErr inputType =
+mapInputType : (a -> b) -> (err1 -> err2) -> (Value val1 -> Value val2) -> InputType a val1 err1 -> InputType b val2 err2
+mapInputType func errToErr valToVal inputType =
     case inputType of
         Repeatable tree ->
-            Repeatable (Tree.mapValues (map func errToErr) tree)
+            Repeatable (Tree.mapValues (map func valToVal errToErr) tree)
 
         Text ->
             Text

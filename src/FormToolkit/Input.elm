@@ -11,11 +11,11 @@ module FormToolkit.Input exposing
     , noattr
     , inline, copies, repeatableMin, repeatableMax
     , errors
-    , map
+    , map, mapValues
     )
 
 {-| Provides types and functions to create and manage form inputs, including
-various input types, attributes, and error handling.
+various input types, attributes, and updating and rendering.
 
 
 # Input
@@ -50,9 +50,9 @@ various input types, attributes, and error handling.
 @docs errors
 
 
-# Advanced
+# Mapping and composition
 
-@docs map
+@docs map, mapValues
 
 -}
 
@@ -73,6 +73,16 @@ type alias Tree id val =
 
 Can be individual input fields (like text, email, password) or composite inputs
 like groups and repeatable groups.
+
+The first type parameter `id` corresponds to an optional identifier, used for
+referencing a specific [field](FormToolkit.Decode#field) while decoding or
+updating attributes, the type parameter `val` refers to a [value of an
+arbitrary type](FormToolkit.Value#custom) which can be assigned to a certain
+value of a [select](#select).
+
+Not always do you care about decoding the form or having selects with custom type
+values in which case you can annotate the type of your `Input` as
+`Input id val`, `Input Never Never`, `Input () ()`, or however you prefer.
 
 -}
 type alias Input id val =
@@ -173,7 +183,9 @@ updateAt path func input =
 
 {-| Creates a text input field.
 
-    text [ label "Username", placeholder "Enter your username" ]
+    usernameInput : Input id val
+    usernameInput =
+        text [ label "Username", placeholder "Enter your username" ]
 
 -}
 text : List (Attribute id val) -> Input id val
@@ -183,7 +195,9 @@ text =
 
 {-| Creates a textarea input field.
 
-    textarea [ label "Comments", placeholder "Enter your comments here" ]
+    commentsInput : Input id val
+    commentsInput =
+        textarea [ label "Comments", placeholder "Enter your comments here" ]
 
 -}
 textarea : List (Attribute id val) -> Input id val
@@ -193,7 +207,9 @@ textarea =
 
 {-| Creates an email input field.
 
-    email [ label "Email", required True ]
+    emailInput : Input id val
+    emailInput =
+        email [ label "Email", required True ]
 
 -}
 email : List (Attribute id val) -> Input id val
@@ -203,7 +219,9 @@ email =
 
 {-| Creates a password input field.
 
-    password [ label "Password", required True ]
+    passwordInput : Input id val
+    passwordInput =
+        password [ label "Password", required True ]
 
 -}
 password : List (Attribute id val) -> Input id val
@@ -213,7 +231,9 @@ password =
 
 {-| Creates an integer input field.
 
-    int [ label "Age", min (Value.int 0), max (Value.int 120) ]
+    ageInput : Input id val
+    ageInput =
+        int [ label "Age", min (Value.int 0), max (Value.int 120) ]
 
 -}
 int : List (Attribute id val) -> Input id val
@@ -223,7 +243,9 @@ int =
 
 {-| Creates a floating-point number input field.
 
-    float [ label "Price", min (Value.float 0.0) ]
+    priceInput : Input id val
+    priceInput =
+        float [ label "Price", min (Value.float 0.0) ]
 
 -}
 float : List (Attribute id val) -> Input id val
@@ -233,7 +255,9 @@ float =
 
 {-| Creates a date input field.
 
-    date [ label "Birthdate", required True ]
+    birthdateInput : Input id val
+    birthdateInput =
+        date [ label "Birthdate", required True ]
 
 -}
 date : List (Attribute id val) -> Input id val
@@ -243,7 +267,9 @@ date =
 
 {-| Creates a month input field.
 
-    month [ label "Expiry Month" ]
+    monthInput : Input id val
+    monthInput =
+        month [ label "Expiry Month" ]
 
 -}
 month : List (Attribute id val) -> Input id val
@@ -253,13 +279,21 @@ month =
 
 {-| Creates a select input field (dropdown).
 
-    select
-        [ label "Language"
-        , options
-            [ ( "Español", Value.string "ES" )
-            , ( "English", Value.string "EN" )
+    type Lang
+        = ES
+        | EN
+        | DE
+
+    langSelect : Input id Lang
+    langSelect =
+        select
+            [ label "Language"
+            , options
+                [ ( "Español", Value.custom ES )
+                , ( "English", Value.custom EN )
+                , ( "Deutsch", Value.custom DE )
+                ]
             ]
-        ]
 
 -}
 select : List (Attribute id val) -> Input id val
@@ -269,13 +303,15 @@ select =
 
 {-| Creates a radio button input field.
 
-    radio
-        [ label "Light is"
-        , options
-            [ ( "On", Value.bool True )
-            , ( "Off", Value.bool False )
+    lightOnInput : Input id val
+    lightOnInput =
+        radio
+            [ label "Light is"
+            , options
+                [ ( "On", Value.bool True )
+                , ( "Off", Value.bool False )
+                ]
             ]
-        ]
 
 -}
 radio : List (Attribute id val) -> Input id val
@@ -285,7 +321,9 @@ radio =
 
 {-| Creates a checkbox input field.
 
-    checkbox [ label "Subscribe to newsletter" ]
+    consentInput : Input id val
+    consentInput =
+        checkbox [ label "Subscribe to newsletter" ]
 
 -}
 checkbox : List (Attribute id val) -> Input id val
@@ -297,10 +335,12 @@ checkbox =
 
 Groups multiple inputs together.
 
-    group []
-        [ text [ name "firstName", label "First Name" ]
-        , text [ name "lastName", label "Last Name" ]
-        ]
+    nameInputs : Input id val
+    nameInputs =
+        group []
+            [ text [ name "firstName", label "First Name" ]
+            , text [ name "lastName", label "Last Name" ]
+            ]
 
 -}
 group : List (Attribute id val) -> List (Input id val) -> Input id val
@@ -315,9 +355,15 @@ group attributes inputs =
 
 Allows inputs to be repeated multiple times.
 
-    repeatable [ name "emails", repeatableMin 1, repeatableMax 5 ]
-        (text [ placeholder "Enter email address" ])
-        []
+    emailsInputs : Input id val
+    emailsInputs =
+        repeatable
+            [ name "emails"
+            , repeatableMin 1
+            , repeatableMax 5
+            ]
+            (text [ placeholder "Enter email address" ])
+            []
 
 -}
 repeatable : List (Attribute id val) -> Input id val -> List (Input id val) -> Input id val
@@ -359,6 +405,16 @@ type Attribute id val
 
 
 {-| Sets the name of an input.
+
+        text
+            [ label "First name"
+            , name "first-name"
+            , value (Value.string "Chavela")
+            ]
+            |> FormToolkit.Decode.decode FormToolkit.Decode.json
+            |> Result.map (Json.Encode.encode 0)
+            -- Ok "{\"first-name\":\"Chavela\"}"
+
 -}
 name : String -> Attribute id val
 name str =
@@ -372,14 +428,28 @@ identifier id =
     Attribute (\input -> { input | identifier = Just id })
 
 
-{-| Sets the value of an input.
+{-| Sets the value of an input. See [Value](FormToolkit.Value#Value)
+
+    yesSelect : Input id ( Bool, Bool )
+    yesSelect =
+        select
+            [ label "Language"
+            , options
+                [ ( "Yes-yes", Value.custom ( True, True ) )
+                , ( "Yes-no", Value.custom ( True, False ) )
+                , ( "No-yes", Value.custom ( False, True ) )
+                , ( "No-no", Value.custom ( False, False ) )
+                ]
+            ]
+
 -}
 value : Value.Value val -> Attribute id val
 value (Value.Value inputValue) =
     Attribute (\input -> { input | value = inputValue })
 
 
-{-| Marks an input as required.
+{-| Marks an input as required, parsing and validation will fail and the missing
+field error will be displayed.
 -}
 required : Bool -> Attribute id val
 required bool =
@@ -506,65 +576,120 @@ identifier of different type.
 
     personsFields : Input PersonFields
     personsFields =
-        Input.group []
-            [ Input.text
-                [ Input.label "Member Name"
-                , Input.identifier PersonName
+        group []
+            [ text
+                [ label "Member Name"
+                , identifier PersonName
                 ]
-            , Input.int
-                [ Input.label "Member Age"
-                , Input.identifier PersonAge
+            , int
+                [ label "Member Age"
+                , identifier PersonAge
                 ]
             ]
 
-    teamFields : Input.Input TeamFields
+    teamFields : Input TeamFields
     teamFields =
-        Input.group []
-            [ Input.text
-                [ Input.label "Team Name"
-                , Input.identifier TeamName
+        group []
+            [ text
+                [ label "Team Name"
+                , identifier TeamName
                 ]
-            , Input.repeatable
-                [ Input.identifier TeamMembers ]
-                (Input.map MemberFields personFields)
+            , repeatable
+                [ identifier TeamMembers ]
+                -- ↓
+                (map MemberFields personFields)
+                -- ↑
                 []
             ]
 
 -}
 map : (a -> b) -> Input a val -> Input b val
 map func (Input tree) =
-    Input (Tree.mapValues (Internal.map func (mapError func)) tree)
+    Input (Tree.mapValues (Internal.map func identity (mapError func identity)) tree)
 
 
-mapError : (a -> b) -> Error a val -> Error b val
-mapError func error =
+mapError : (a -> b) -> (Value.Value val1 -> Value.Value val2) -> Error a val1 -> Error b val2
+mapError transformId transformVal error =
     case error of
         ValueTooLarge id params ->
-            ValueTooLarge (Maybe.map func id) params
+            ValueTooLarge (Maybe.map transformId id)
+                { value = transformVal params.value
+                , max = transformVal params.max
+                }
 
         ValueTooSmall id params ->
-            ValueTooSmall (Maybe.map func id) params
+            ValueTooSmall (Maybe.map transformId id)
+                { value = transformVal params.value
+                , min = transformVal params.min
+                }
 
         ValueNotInRange id params ->
-            ValueNotInRange (Maybe.map func id) params
+            ValueNotInRange (Maybe.map transformId id)
+                { value = transformVal params.value
+                , min = transformVal params.min
+                , max = transformVal params.max
+                }
 
         IsBlank id ->
-            IsBlank (Maybe.map func id)
+            IsBlank (Maybe.map transformId id)
 
         ParseError id ->
-            ParseError (Maybe.map func id)
+            ParseError (Maybe.map transformId id)
 
         ListError id params ->
-            ListError (Maybe.map func id)
+            ListError (Maybe.map transformId id)
                 { index = params.index
-                , error = mapError func params.error
+                , error = mapError transformId transformVal params.error
                 }
 
         RepeatableHasNoName id ->
-            RepeatableHasNoName (Maybe.map func id)
+            RepeatableHasNoName (Maybe.map transformId id)
 
         InputNotFound id ->
-            InputNotFound (func id)
+            InputNotFound (transformId id)
 
         CustomError err ->
             CustomError err
+
+
+{-| Map all of the values of an input, similary to [map](#map) that allows
+combining inputs of different identifier type `mapValues` allows composing
+inputs of different value type.
+
+    select
+        [ label "Language"
+        , value (Value.custom ( True, False ))
+        , options
+            [ ( "Yes-yes", Value.custom ( True, True ) )
+            , ( "Yes-no", Value.custom ( True, False ) )
+            , ( "No-yes", Value.custom ( False, True ) )
+            , ( "No-no", Value.custom ( False, False ) )
+            ]
+        ]
+        |> mapValues (Value.mapCustom (Tuple.mapFirst not))
+        == select
+            [ label "Language"
+            , value (Value.custom ( False, False ))
+            , options
+                [ ( "Yes-yes", Value.custom ( False, True ) )
+                , ( "Yes-no", Value.custom ( False, False ) )
+                , ( "No-yes", Value.custom ( True, True ) )
+                , ( "No-no", Value.custom ( True, False ) )
+                ]
+            ]
+
+-}
+mapValues : (Value.Value val1 -> Value.Value val2) -> Input id val1 -> Input id val2
+mapValues func (Input tree) =
+    Input
+        (Tree.mapValues
+            (Internal.map identity
+                (\val ->
+                    case func (Value.Value val) of
+                        Value.Value val_ ->
+                            val_
+                )
+                (mapError identity func)
+            )
+            tree
+        )

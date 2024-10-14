@@ -303,7 +303,7 @@ labelToHtml label path node element =
         Just str ->
             Html.label
                 [ Attributes.for (inputId node path)
-                , Attributes.classList element.classList
+                , Attributes.classList element
                 ]
                 [ Html.text str
                 ]
@@ -331,7 +331,7 @@ legendToHtml (Input tree) element =
     case Tree.value tree |> .label of
         Just labelStr ->
             Html.legend
-                [ Attributes.classList element.classList ]
+                [ Attributes.classList element ]
                 [ Html.text labelStr ]
 
         Nothing ->
@@ -404,7 +404,7 @@ inputToHtml { onChange } inputType path (Input tree) htmlAttrs element =
             ++ Attributes.type_ inputType
             :: valueAttribute Attributes.value input.value
             :: onInputChanged onChange path
-            :: Attributes.classList element.classList
+            :: Attributes.classList element
             :: inputAttrs onChange path (Input tree)
         )
         []
@@ -430,7 +430,7 @@ textAreaToHtml { onChange } path (Input input) element =
         [ Html.textarea
             (onInputChanged onChange path
                 :: Attributes.value valueStr
-                :: Attributes.classList element.classList
+                :: Attributes.classList element
                 :: inputAttrs onChange path (Input input)
             )
             []
@@ -450,7 +450,7 @@ selectToHtml { onChange } path ((Input tree) as input) element =
     Html.select
         [ Attributes.id (inputId input path)
         , Attributes.required data.isRequired
-        , Attributes.classList element.classList
+        , Attributes.classList element
         , onInputChanged onChange path
         , onInputFocused onChange path
         , onInputBlured onChange path
@@ -496,7 +496,7 @@ radioToHtml { onChange } path (Input tree) element =
                         , Attributes.required data.isRequired
                         , Attributes.value (String.fromInt index)
                         , Attributes.type_ "radio"
-                        , Attributes.classList element.classList
+                        , Attributes.classList element
                         , onInputChanged onChange path
                         , onInputFocused onChange path
                         , onInputBlured onChange path
@@ -526,7 +526,7 @@ checkboxToHtml { onChange } path (Input input) element =
                     |> Result.withDefault (Attributes.class "")
                )
             :: Events.onCheck (InputChecked path >> onChange)
-            :: Attributes.classList element.classList
+            :: Attributes.classList element
             :: inputAttrs onChange path (Input input)
         )
         []
@@ -714,8 +714,7 @@ type Attribute msg
 
 
 type alias Element =
-    { classList : List ( String, Bool )
-    }
+    List ( String, Bool )
 
 
 {-| -}
@@ -778,7 +777,7 @@ mapInputType inputType =
 
 toAttrs : List (Attribute msg) -> Element
 toAttrs =
-    List.foldl (\(Attribute f) attrs -> f attrs) { classList = [] }
+    List.foldl (\(Attribute f) attrs -> f attrs) []
 
 
 {-| TODO
@@ -792,10 +791,7 @@ class classStr =
 -}
 classList : List ( String, Bool ) -> Attribute msg
 classList classTuple =
-    Attribute
-        (\attrs ->
-            { attrs | classList = classTuple ++ attrs.classList }
-        )
+    Attribute (\attrs -> classTuple ++ attrs)
 
 
 errorsToString : Error id val -> String
