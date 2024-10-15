@@ -2,9 +2,8 @@ module FormToolkit.View exposing
     ( View, fromInput, toHtml
     , partial
     , InputType(..), Attribute, class, classList, style
-    , customizeInput
-    , customizeGroup, customizeRepeatable, customizeTemplate
-    , customizeError
+    , customizeError, customizeInput
+    , customizeGroup, customizeRepeatableGroup, customizeRepeatableItem
     )
 
 {-|
@@ -18,10 +17,16 @@ module FormToolkit.View exposing
 
 # View customizations
 
+
+## Attributes
+
 @docs InputType, Attribute, class, classList, style
-@docs customizeInput
-@docs customizeGroup, customizeRepeatable, customizeTemplate
-@docs customizeError
+
+
+## Markup customization
+
+@docs customizeError, customizeInput
+@docs customizeGroup, customizeRepeatableGroup, customizeRepeatableItem
 
 -}
 
@@ -52,24 +57,48 @@ type alias Msg id =
 type alias ViewAttributes id val msg =
     { onChange : Msg id -> msg
     , errorsList : Error id val -> String
-    , groupView : GroupView msg -> Html msg
-    , repeatableView : RepeatableView msg -> Html msg
-    , templateView : TemplateView msg -> Html msg
     , inputView : InputView id val msg -> Html msg
+    , groupView : GroupView id msg -> Html msg
+    , repeatableGroupView : RepeatableGroupView id msg -> Html msg
+    , repeatableItemView : RepeatableItemView id msg -> Html msg
     }
 
 
 type alias InputView id val msg =
-    { properties :
-        { isRequired : Bool
-        , identifier : Maybe id
-        , inputType : InputType
-        , value : Value val
-        }
+    { isRequired : Bool
+    , identifier : Maybe id
+    , inputType : InputType
+    , inputValue : Value val
     , label : List (Attribute msg) -> Html msg
     , input : List (Attribute msg) -> Html msg
     , hint : Maybe String
     , errors : List String
+    }
+
+
+type alias GroupView id msg =
+    { identifier : Maybe id
+    , legend : List (Attribute msg) -> Html msg
+    , inputs : List (Html msg)
+    }
+
+
+type alias RepeatableGroupView id msg =
+    { identifier : Maybe id
+    , legend : List (Attribute msg) -> Html msg
+    , inputs : List (Html msg)
+    , addInputButton : List (Attribute msg) -> Html msg
+    , addInputButtonOnClick : Maybe msg
+    , addInputButtonCopy : String
+    }
+
+
+type alias RepeatableItemView id msg =
+    { identifier : Maybe id
+    , inputs : Html msg
+    , removeInputButton : List (Attribute msg) -> Html msg
+    , removeInputButtonOnClick : Maybe msg
+    , removeInputButtonCopy : String
     }
 
 
@@ -99,8 +128,8 @@ fromInput onChange input =
         { onChange = onChange
         , errorsList = errorsToString
         , groupView = groupView
-        , repeatableView = repeatableView
-        , templateView = templateView
+        , repeatableGroupView = repeatableGroupView
+        , repeatableItemView = repeatableItemView
         , inputView = inputView
         }
 
@@ -158,12 +187,10 @@ findNode id (Input tree) =
 {-| TODO
 -}
 customizeInput :
-    ({ properties :
-        { isRequired : Bool
-        , identifier : Maybe id
-        , inputType : InputType
-        , value : Value val
-        }
+    ({ isRequired : Bool
+     , identifier : Maybe id
+     , inputType : InputType
+     , inputValue : Value val
      , label : List (Attribute msg) -> Html msg
      , input : List (Attribute msg) -> Html msg
      , hint : Maybe String
@@ -180,7 +207,7 @@ customizeInput viewFunc (View input path params) =
 {-| TODO
 -}
 customizeGroup :
-    ({ inline : Bool
+    ({ identifier : Maybe id
      , legend : List (Attribute msg) -> Html msg
      , inputs : List (Html msg)
      }
@@ -194,35 +221,37 @@ customizeGroup viewFunc (View input path params) =
 
 {-| TODO
 -}
-customizeRepeatable :
-    ({ legend : Html msg
+customizeRepeatableGroup :
+    ({ identifier : Maybe id
+     , legend : List (Attribute msg) -> Html msg
      , inputs : List (Html msg)
-     , onAddAttribute : Html.Attribute msg
-     , showAddButton : Bool
-     , addButtonText : String
+     , addInputButton : List (Attribute msg) -> Html msg
+     , addInputButtonOnClick : Maybe msg
+     , addInputButtonCopy : String
      }
      -> Html msg
     )
     -> View id val msg
     -> View id val msg
-customizeRepeatable viewFunc (View input path params) =
-    View input path { params | repeatableView = viewFunc }
+customizeRepeatableGroup viewFunc (View input path params) =
+    View input path { params | repeatableGroupView = viewFunc }
 
 
 {-| TODO
 -}
-customizeTemplate :
-    ({ onRemoveAttribute : Html.Attribute msg
-     , removeButtonText : String
-     , showRemoveButton : Bool
+customizeRepeatableItem :
+    ({ identifier : Maybe id
      , inputs : Html msg
+     , removeInputButton : List (Attribute msg) -> Html msg
+     , removeInputButtonOnClick : Maybe msg
+     , removeInputButtonCopy : String
      }
      -> Html msg
     )
     -> View id val msg
     -> View id val msg
-customizeTemplate viewFunc (View input path params) =
-    View input path { params | templateView = viewFunc }
+customizeRepeatableItem viewFunc (View input path params) =
+    View input path { params | repeatableItemView = viewFunc }
 
 
 {-| TODO
@@ -242,12 +271,10 @@ toHtmlHelp attributes path ((Input tree) as node) =
 
         wrapInput inputHtml =
             attributes.inputView
-                { properties =
-                    { isRequired = isRequired
-                    , identifier = identifier
-                    , inputType = mapInputType inputType
-                    , value = Value.Value value
-                    }
+                { isRequired = isRequired
+                , identifier = identifier
+                , inputType = mapInputType inputType
+                , inputValue = Value.Value value
                 , label = toAttrs >> labelToHtml label path node
                 , input = toAttrs >> inputHtml
                 , errors = inputErrors node |> List.map attributes.errorsList
@@ -311,8 +338,12 @@ labelToHtml label path node element =
 
 groupToHtml : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
 groupToHtml attributes path ((Input tree) as input) =
+    let
+        { identifier } =
+            Tree.value tree
+    in
     attributes.groupView
-        { inline = Tree.value tree |> .inline
+        { identifier = identifier
         , legend = toAttrs >> legendToHtml input
         , inputs =
             Tree.children tree
@@ -334,9 +365,9 @@ legendToHtml (Input tree) element =
 
 
 repeatableToHtml : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
-repeatableToHtml attributes path (Input tree) =
+repeatableToHtml attributes path ((Input tree) as input) =
     let
-        input =
+        unwrappedInput =
             Tree.value tree
 
         children =
@@ -349,36 +380,76 @@ repeatableToHtml attributes path (Input tree) =
             let
                 childPath =
                     path ++ [ idx ]
+
+                removeInputButtonOnClick =
+                    attributes.onChange (InputsRemoved childPath)
+
+                removeInputButtonCopy =
+                    Tree.value child |> .removeInputsText
+
+                removeInputButtonEnabled =
+                    childrenCount > unwrappedInput.repeatableMin
             in
-            attributes.templateView
-                { onRemoveAttribute =
-                    Events.preventDefaultOn "click"
-                        (Json.Decode.succeed
-                            ( attributes.onChange (InputsRemoved childPath)
-                            , True
-                            )
-                        )
-                , removeButtonText = Tree.value child |> .removeInputsText
-                , showRemoveButton = childrenCount > input.repeatableMin
+            attributes.repeatableItemView
+                { identifier = Tree.value tree |> .identifier
                 , inputs = toHtmlHelp attributes childPath (Input child)
+                , removeInputButton =
+                    \attrList ->
+                        Html.button
+                            (Attributes.class "remove-fields"
+                                :: Attributes.disabled (not removeInputButtonEnabled)
+                                :: Events.preventDefaultOn "click"
+                                    (Json.Decode.succeed
+                                        ( removeInputButtonOnClick
+                                        , True
+                                        )
+                                    )
+                                :: userProvidedAttributes (toAttrs attrList)
+                            )
+                            [ Html.text removeInputButtonCopy
+                            ]
+                , removeInputButtonOnClick =
+                    if removeInputButtonEnabled then
+                        Just removeInputButtonOnClick
+
+                    else
+                        Nothing
+                , removeInputButtonCopy = removeInputButtonCopy
                 }
-    in
-    repeatableView
-        { legend = legend input.label
-        , inputs = children |> List.indexedMap inputsView
-        , showAddButton =
-            case input.repeatableMax of
+
+        addInputButtonEnabled =
+            case unwrappedInput.repeatableMax of
                 Just max ->
                     childrenCount < max
 
                 Nothing ->
                     True
-        , onAddAttribute =
-            Events.preventDefaultOn "click"
-                (Json.Decode.succeed
-                    ( attributes.onChange (InputsAdded path), True )
-                )
-        , addButtonText = input.addInputsText
+    in
+    repeatableGroupView
+        { identifier = unwrappedInput.identifier
+        , legend = toAttrs >> legendToHtml input
+        , inputs = List.indexedMap inputsView children
+        , addInputButton =
+            \attrList ->
+                Html.button
+                    (Attributes.class "add-fields"
+                        :: Attributes.disabled (not addInputButtonEnabled)
+                        :: Events.preventDefaultOn "click"
+                            (Json.Decode.succeed
+                                ( attributes.onChange (InputsAdded path)
+                                , True
+                                )
+                            )
+                        :: userProvidedAttributes (toAttrs attrList)
+                    )
+                    [ Html.text unwrappedInput.addInputsText ]
+        , addInputButtonOnClick =
+            if addInputButtonEnabled then
+                Just (attributes.onChange (InputsAdded path))
+
+            else
+                Nothing
+        , addInputButtonCopy = unwrappedInput.addInputsText
         }
 
 
@@ -391,14 +462,14 @@ inputToHtml :
     -> (Element -> Html msg)
 inputToHtml { onChange } inputType path (Input tree) htmlAttrs element =
     let
-        input =
+        unwrappedInput =
             Tree.value tree
     in
     Html.input
         (List.concat
             [ htmlAttrs
             , Attributes.type_ inputType
-                :: valueAttribute Attributes.value input.value
+                :: valueAttribute Attributes.value unwrappedInput.value
                 :: onInputChanged onChange path
                 :: inputAttrs onChange path (Input tree)
             , userProvidedAttributes element
@@ -443,12 +514,12 @@ selectToHtml :
     -> (Element -> Html msg)
 selectToHtml { onChange } path ((Input tree) as input) element =
     let
-        data =
+        unwappedInput =
             Tree.value tree
     in
     Html.select
         (Attributes.id (inputId input path)
-            :: Attributes.required data.isRequired
+            :: Attributes.required unwappedInput.isRequired
             :: onInputChanged onChange path
             :: onInputFocused onChange path
             :: onInputBlured onChange path
@@ -458,12 +529,12 @@ selectToHtml { onChange } path ((Input tree) as input) element =
             :: List.indexedMap
                 (\index ( optionText, optionValue ) ->
                     Html.option
-                        [ Attributes.selected (optionValue == data.value)
+                        [ Attributes.selected (optionValue == unwappedInput.value)
                         , Attributes.value (String.fromInt index)
                         ]
                         [ Html.text optionText ]
                 )
-                data.options
+                unwappedInput.options
         )
 
 
@@ -474,7 +545,7 @@ radioToHtml :
     -> (Element -> Html msg)
 radioToHtml { onChange } path (Input tree) element =
     let
-        data =
+        unwrappedInput =
             Tree.value tree
     in
     Html.div
@@ -484,15 +555,15 @@ radioToHtml { onChange } path (Input tree) element =
                 let
                     optionId =
                         identifierString
-                            (Maybe.map ((++) (String.fromInt index)) data.name)
+                            (Maybe.map ((++) (String.fromInt index)) unwrappedInput.name)
                             path
                 in
                 Html.div
                     []
                     [ Html.input
                         (Attributes.id optionId
-                            :: Attributes.checked (optionValue == data.value)
-                            :: Attributes.required data.isRequired
+                            :: Attributes.checked (optionValue == unwrappedInput.value)
+                            :: Attributes.required unwrappedInput.isRequired
                             :: Attributes.value (String.fromInt index)
                             :: Attributes.type_ "radio"
                             :: onInputChanged onChange path
@@ -506,7 +577,7 @@ radioToHtml { onChange } path (Input tree) element =
                         [ Html.text optionText ]
                     ]
             )
-            data.options
+            unwrappedInput.options
         )
 
 
@@ -546,17 +617,17 @@ valueAttribute f inputValue =
 inputAttrs : (Msg id -> msg) -> List Int -> Input id val -> List (Html.Attribute msg)
 inputAttrs attrs path ((Input tree) as input) =
     let
-        data =
+        unwrappedInput =
             Tree.value tree
     in
     [ Attributes.id (inputId input path)
-    , Attributes.required data.isRequired
+    , Attributes.required unwrappedInput.isRequired
     , Attributes.autocomplete False
-    , Attributes.placeholder (Maybe.withDefault "" data.placeholder)
+    , Attributes.placeholder (Maybe.withDefault "" unwrappedInput.placeholder)
     , onInputFocused attrs path
     , onInputBlured attrs path
-    , valueAttribute Attributes.min data.min
-    , valueAttribute Attributes.max data.max
+    , valueAttribute Attributes.min unwrappedInput.min
+    , valueAttribute Attributes.max unwrappedInput.max
     ]
 
 
@@ -590,14 +661,6 @@ identifierString maybe path =
             String.join "-" (List.map String.fromInt path)
 
 
-legend : Maybe String -> Html msg
-legend =
-    Maybe.map (\t -> Html.legend [] [ Html.text t ])
-        >> Maybe.withDefault (Html.text "")
-
-
-{-| TODO
--}
 inputErrors : Input id val -> List (Error id val)
 inputErrors (Input tree) =
     let
@@ -612,81 +675,34 @@ inputErrors (Input tree) =
             []
 
 
-type alias GroupView msg =
-    { inline : Bool
-    , legend : List (Attribute msg) -> Html msg
-    , inputs : List (Html msg)
-    }
-
-
-groupView : GroupView msg -> Html msg
+groupView : GroupView id msg -> Html msg
 groupView view =
-    Html.fieldset
-        [ Attributes.classList
-            [ ( "inline", view.inline )
-            , ( "stacked", not view.inline )
-            ]
-        ]
-        (view.legend [] :: view.inputs)
+    Html.fieldset [] (view.legend [] :: view.inputs)
 
 
-type alias RepeatableView msg =
-    { legend : Html msg
-    , inputs : List (Html msg)
-    , onAddAttribute : Html.Attribute msg
-    , showAddButton : Bool
-    , addButtonText : String
-    }
-
-
-repeatableView : RepeatableView msg -> Html msg
-repeatableView attrs =
+repeatableGroupView : RepeatableGroupView id msg -> Html msg
+repeatableGroupView params =
     Html.fieldset
         []
-        [ Html.div [] (attrs.legend :: attrs.inputs)
-        , if attrs.showAddButton then
-            Html.button
-                [ Attributes.class "add-fields"
-                , attrs.onAddAttribute
-                ]
-                [ Html.text attrs.addButtonText ]
-
-          else
-            Html.text ""
+        [ Html.div [] (params.legend [] :: params.inputs)
+        , params.addInputButton []
         ]
 
 
-type alias TemplateView msg =
-    { onRemoveAttribute : Html.Attribute msg
-    , removeButtonText : String
-    , showRemoveButton : Bool
-    , inputs : Html msg
-    }
-
-
-templateView : TemplateView msg -> Html msg
-templateView { onRemoveAttribute, removeButtonText, showRemoveButton, inputs } =
+repeatableItemView : RepeatableItemView id msg -> Html msg
+repeatableItemView params =
     Html.div
         [ Attributes.class "group-repeat" ]
-        [ inputs
-        , if showRemoveButton then
-            Html.button
-                [ Attributes.class "remove-fields"
-                , onRemoveAttribute
-                ]
-                [ Html.text removeButtonText
-                ]
-
-          else
-            Html.text ""
+        [ params.inputs
+        , params.removeInputButton []
         ]
 
 
 inputView : InputView id val msg -> Html msg
-inputView { properties, label, input, errors, hint } =
+inputView { isRequired, label, input, errors, hint } =
     Html.div
         [ Attributes.class "field"
-        , Attributes.classList [ ( "required", properties.isRequired ) ]
+        , Attributes.classList [ ( "required", isRequired ) ]
         ]
         [ label []
         , Html.div

@@ -53,7 +53,6 @@ type alias Attrs id val err =
     , min : Value val
     , max : Value val
     , options : List ( String, Value val )
-    , inline : Bool
     , identifier : Maybe id
     , status : Status
     , repeatableMin : Int
@@ -90,7 +89,6 @@ init inputType =
         , max = Internal.Value.blank
         , isRequired = False
         , options = []
-        , inline = False
         , identifier = Nothing
         , status = Pristine
         , repeatableMin = 1
@@ -191,7 +189,6 @@ map func valToVal errToErr input =
     , min = valToVal input.min
     , max = valToVal input.max
     , options = List.map (Tuple.mapSecond valToVal) input.options
-    , inline = input.inline
     , identifier = Maybe.map func input.identifier
     , status = input.status
     , repeatableMin = input.repeatableMin

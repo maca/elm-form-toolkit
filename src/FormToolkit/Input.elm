@@ -9,7 +9,7 @@ module FormToolkit.Input exposing
     , name, identifier, value, required, label, placeholder, hint
     , options, min, max
     , noattr
-    , inline, copies, repeatableMin, repeatableMax
+    , copies, repeatableMin, repeatableMax
     , errors
     , map, mapValues
     )
@@ -42,7 +42,7 @@ various input types, attributes, and updating and rendering.
 
 ### Group
 
-@docs inline, copies, repeatableMin, repeatableMax
+@docs copies, repeatableMin, repeatableMax
 
 
 # Errors
@@ -540,13 +540,6 @@ max (Value.Value val) =
 noattr : Attribute id val
 noattr =
     Attribute identity
-
-
-{-| Sets whether the inputs in a group are displayed inline.
--}
-inline : Bool -> Attribute id val
-inline bool =
-    Attribute (\input -> { input | inline = bool })
 
 
 {-| Sets the text for the add and remove buttons in a repeatable input.
