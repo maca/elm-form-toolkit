@@ -1,16 +1,16 @@
 module Internal.Input exposing
     ( Tree, Input(..), Attrs, InputType(..), Status(..)
     , blur, focus, init, isBlank, map, root
-    , updateValue, updateValueWithString
-    , Msg(..)
+    , updateValue
+    , Msg(..), inputChanged
     )
 
 {-|
 
 @docs Tree, Input, Attrs, InputType, Status
-@docs blur, focus, init, isBlank, map, root, updateWithString
-@docs updateValue, updateValueWithString
-@docs Msg
+@docs blur, focus, init, isBlank, map, root
+@docs updateValue
+@docs Msg, inputChanged
 
 -}
 
@@ -102,43 +102,6 @@ init inputType =
 updateValue : Value val -> Attrs id val err -> Attrs id val err
 updateValue value input =
     { input | value = value, errors = [] }
-
-
-updateValueWithString : String -> Attrs id val err -> Attrs id val err
-updateValueWithString str ({ inputType } as input) =
-    case inputType of
-        Text ->
-            updateValue (Internal.Value.fromString str) input
-
-        TextArea ->
-            updateValue (Internal.Value.fromString str) input
-
-        Password ->
-            updateValue (Internal.Value.fromString str) input
-
-        Email ->
-            updateValue (Internal.Value.fromString str) input
-
-        Integer ->
-            updateValue (Internal.Value.intFromString str) input
-
-        Float ->
-            updateValue (Internal.Value.floatFromString str) input
-
-        Month ->
-            updateValue (Internal.Value.monthFromString str) input
-
-        Date ->
-            updateValue (Internal.Value.dateFromString str) input
-
-        Select ->
-            updateValue (getChoice str input) input
-
-        Radio ->
-            updateValue (getChoice str input) input
-
-        _ ->
-            input
 
 
 getChoice : String -> Attrs id val err -> Value val
@@ -242,10 +205,57 @@ mapInputType func errToErr valToVal inputType =
             Group
 
 
-type Msg id
-    = InputChanged (List Int) String
-    | InputChecked (List Int) Bool
+type Msg id val
+    = InputChanged (List Int) (Value val)
     | InputFocused (List Int)
     | InputBlured (List Int)
     | InputsAdded (List Int)
     | InputsRemoved (List Int)
+
+
+inputChanged : Input id val err -> List Int -> String -> Msg id val
+inputChanged (Input tree) path str =
+    let
+        unwrappedInput =
+            Tree.value tree
+    in
+    InputChanged path <|
+        case unwrappedInput.inputType of
+            Text ->
+                Internal.Value.fromString str
+
+            TextArea ->
+                Internal.Value.fromString str
+
+            Password ->
+                Internal.Value.fromString str
+
+            Email ->
+                Internal.Value.fromString str
+
+            Integer ->
+                Internal.Value.intFromString str
+
+            Float ->
+                Internal.Value.floatFromString str
+
+            Month ->
+                Internal.Value.monthFromString str
+
+            Date ->
+                Internal.Value.dateFromString str
+
+            Select ->
+                getChoice str unwrappedInput
+
+            Radio ->
+                getChoice str unwrappedInput
+
+            Checkbox ->
+                Internal.Value.blank
+
+            Group ->
+                Internal.Value.blank
+
+            Repeatable _ ->
+                Internal.Value.blank
