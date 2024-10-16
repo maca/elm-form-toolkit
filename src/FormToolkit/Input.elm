@@ -82,7 +82,9 @@ value of a [select](#select).
 
 Not always do you care about decoding the form or having selects with custom type
 values in which case you can annotate the type of your `Input` as
-`Input id val`, `Input Never Never`, `Input () ()`, or however you prefer.
+`Input id val`, or however you prefer.
+It is possible to use a string or any other type to identify inputs, but this
+would forego type safety.
 
 -}
 type alias Input id val =
@@ -406,12 +408,14 @@ type Attribute id val
 
 {-| Sets the name of an input.
 
+        -- import FormToolkit.Decode exposing (decode, json)
+
         text
             [ label "First name"
             , name "first-name"
             , value (Value.string "Chavela")
             ]
-            |> FormToolkit.Decode.decode FormToolkit.Decode.json
+            |> decode json
             |> Result.map (Json.Encode.encode 0)
             -- Ok "{\"first-name\":\"Chavela\"}"
 
@@ -421,8 +425,11 @@ name str =
     Attribute (\input -> { input | name = Just str })
 
 
-{-| Sets the identifier to be reference when decoding a specific field.
+{-| Sets the identifier to be reference when decoding a specific field. Used
+also to extract a [partial view](FormToolkit.View#partial) or reference a field
+in an [Error](FormToolkit.Decode#Error).
 
+    import FormToolkit.Decode exposing (decode, field, string)
 
     type Fields
         = FirstName
@@ -444,9 +451,7 @@ name str =
             ]
 
     decoded =
-        form
-            |> FormToolkit.Decode.decode
-                (FormToolkit.Decode.field FirstName FormToolkit.Decode.string)
+        form |> decode (field FirstName string)
 
     -- Ok "Juan"
 
@@ -458,17 +463,10 @@ identifier id =
 
 {-| Sets the value of an input. See [Value](FormToolkit.Value#Value)
 
-    yesSelect : Input id ( Bool, Bool )
-    yesSelect =
-        select
-            [ label "Language"
-            , options
-                [ ( "Yes-yes", Value.custom ( True, True ) )
-                , ( "Yes-no", Value.custom ( True, False ) )
-                , ( "No-yes", Value.custom ( False, True ) )
-                , ( "No-no", Value.custom ( False, False ) )
-                ]
-            ]
+    -- import FormToolkit.Decode exposing (decode, string)
+    text [ label "Name", value (Value.string "Chavela") ]
+        |> decode Decode.string
+        == Ok "Chavela"
 
 -}
 value : Value.Value val -> Attribute id val
@@ -478,13 +476,23 @@ value (Value.Value inputValue) =
 
 {-| Marks an input as required, parsing and validation will fail and the missing
 field error will be displayed.
+
+    -- import FormToolkit.Decode exposing (decode, maybe, string)
+    text [ label "First name" ]
+        |> decode (maybe string)
+        == Ok Nothing
+
+    text [ label "First name", identifier "name", required True ]
+        |> decode (maybe string)
+        == Err (IsBlank "name")
+
 -}
 required : Bool -> Attribute id val
 required bool =
     Attribute (\input -> { input | isRequired = bool })
 
 
-{-| Sets the label of an input.
+{-| Sets the text to be rendered as the label for a field.
 -}
 label : String -> Attribute id val
 label str =
@@ -506,6 +514,20 @@ hint str =
 
 
 {-| Sets the options for a select, radio, or checkbox input.
+
+    yesSelect : Input id ( Bool, Bool )
+    yesSelect =
+        select
+            [ label "Language"
+            , value (Value.custom ( True, True ))
+            , options
+                [ ( "Yes-yes", Value.custom ( True, True ) )
+                , ( "Yes-no", Value.custom ( True, False ) )
+                , ( "No-yes", Value.custom ( False, True ) )
+                , ( "No-no", Value.custom ( False, False ) )
+                ]
+            ]
+
 -}
 options : List ( String, Value.Value val ) -> Attribute id val
 options values =
@@ -544,13 +566,13 @@ noattr =
 
 {-| Sets the text for the add and remove buttons in a repeatable input.
 -}
-copies : { addButton : String, removeButton : String } -> Attribute id val
-copies { addButton, removeButton } =
+copies : { addInputButton : String, removeInputButton : String } -> Attribute id val
+copies { addInputButton, removeInputButton } =
     Attribute
         (\input ->
             { input
-                | addInputsText = addButton
-                , removeInputsText = removeButton
+                | addInputsButtonCopy = addInputButton
+                , removeInputsButtonCopy = removeInputButton
             }
         )
 
@@ -669,8 +691,8 @@ mapError transformId transformVal error =
         InputNotFound id ->
             InputNotFound (transformId id)
 
-        CustomError err ->
-            CustomError err
+        CustomError id err ->
+            CustomError (Maybe.map transformId id) err
 
 
 {-| Map all of the values of an input, similary to [map](#map) that allows

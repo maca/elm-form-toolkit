@@ -57,8 +57,8 @@ type alias Attrs id val err =
     , status : Status
     , repeatableMin : Int
     , repeatableMax : Maybe Int
-    , addInputsText : String
-    , removeInputsText : String
+    , addInputsButtonCopy : String
+    , removeInputsButtonCopy : String
     , errors : List err
     }
 
@@ -93,8 +93,8 @@ init inputType =
         , status = Pristine
         , repeatableMin = 1
         , repeatableMax = Nothing
-        , addInputsText = "Add"
-        , removeInputsText = "Remove"
+        , addInputsButtonCopy = "Add"
+        , removeInputsButtonCopy = "Remove"
         , errors = []
         }
 
@@ -193,8 +193,8 @@ map func valToVal errToErr input =
     , status = input.status
     , repeatableMin = input.repeatableMin
     , repeatableMax = input.repeatableMax
-    , addInputsText = input.addInputsText
-    , removeInputsText = input.removeInputsText
+    , addInputsButtonCopy = input.addInputsButtonCopy
+    , removeInputsButtonCopy = input.removeInputsButtonCopy
     , errors = List.map errToErr input.errors
     }
 

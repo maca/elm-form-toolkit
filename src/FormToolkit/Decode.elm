@@ -6,7 +6,7 @@ module FormToolkit.Decode exposing
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     , decode, validateAndDecode
-    , Error(..)
+    , Error(..), errorToFieldIdentifier
     )
 
 {-| Map the values of an input or group of inputs to any shape you want, if you
@@ -31,7 +31,7 @@ know `Json.Decode` you know how to use this module ;)
 # Decoding
 
 @docs decode, validateAndDecode
-@docs Error
+@docs Error, errorToFieldIdentifier
 
 -}
 
@@ -389,7 +389,7 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
                         succeed SpecialValue
 
                     else
-                        fail (Input.CustomError "Not special")
+                        fail (Input.CustomError Nothing "Not special")
                 )
 
     result =
@@ -522,7 +522,7 @@ inputFromInternal node =
                             succeed date
 
                         Err err ->
-                            fail (Input.CustomError err)
+                            fail (Input.CustomError Nothing err)
                 )
 
     result =
@@ -905,4 +905,38 @@ type Error id val
     | ListError (Maybe id) { index : Int, error : Error id val }
     | RepeatableHasNoName (Maybe id)
     | InputNotFound id
-    | CustomError String
+    | CustomError (Maybe id) String
+
+
+{-| Obtain the indentifier for the field corresponding to the error, if the
+field has identifier.
+-}
+errorToFieldIdentifier : Error id val -> Maybe id
+errorToFieldIdentifier error =
+    case error of
+        ValueTooLarge maybeId _ ->
+            maybeId
+
+        ValueTooSmall maybeId _ ->
+            maybeId
+
+        ValueNotInRange maybeId _ ->
+            maybeId
+
+        ParseError maybeId ->
+            maybeId
+
+        IsBlank maybeId ->
+            maybeId
+
+        ListError maybeId _ ->
+            maybeId
+
+        RepeatableHasNoName maybeId ->
+            maybeId
+
+        InputNotFound id ->
+            Just id
+
+        CustomError maybeId _ ->
+            maybeId

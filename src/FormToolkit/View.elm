@@ -3,7 +3,7 @@ module FormToolkit.View exposing
     , partial
     , InputType(..), Attribute, class, classList, style
     , customizeError, customizeInput
-    , customizeGroup, customizeRepeatableGroup, customizeRepeatableItem
+    , customizeGroup, customizeRepeatableInputsGroup, customizeRepeatableInput
     )
 
 {-|
@@ -26,7 +26,7 @@ module FormToolkit.View exposing
 ## Markup customization
 
 @docs customizeError, customizeInput
-@docs customizeGroup, customizeRepeatableGroup, customizeRepeatableItem
+@docs customizeGroup, customizeRepeatableInputsGroup, customizeRepeatableInput
 
 -}
 
@@ -56,11 +56,11 @@ type alias Msg id =
 
 type alias ViewAttributes id val msg =
     { onChange : Msg id -> msg
-    , errorsList : Error id val -> String
+    , errorToString : { inputType : InputType, error : Error id val } -> String
     , inputView : InputView id val msg -> Html msg
     , groupView : GroupView id msg -> Html msg
-    , repeatableGroupView : RepeatableGroupView id msg -> Html msg
-    , repeatableItemView : RepeatableItemView id msg -> Html msg
+    , repeatableInputsGroupView : RepeatableInputsGroupView id msg -> Html msg
+    , repeatableInputView : RepeatableInputView id msg -> Html msg
     }
 
 
@@ -83,7 +83,7 @@ type alias GroupView id msg =
     }
 
 
-type alias RepeatableGroupView id msg =
+type alias RepeatableInputsGroupView id msg =
     { identifier : Maybe id
     , legend : List (Attribute msg) -> Html msg
     , inputs : List (Html msg)
@@ -93,9 +93,9 @@ type alias RepeatableGroupView id msg =
     }
 
 
-type alias RepeatableItemView id msg =
+type alias RepeatableInputView id msg =
     { identifier : Maybe id
-    , inputs : Html msg
+    , input : Html msg
     , removeInputButton : List (Attribute msg) -> Html msg
     , removeInputButtonOnClick : Maybe msg
     , removeInputButtonCopy : String
@@ -126,11 +126,11 @@ fromInput onChange input =
     View input
         []
         { onChange = onChange
-        , errorsList = errorsToString
-        , groupView = groupView
-        , repeatableGroupView = repeatableGroupView
-        , repeatableItemView = repeatableItemView
+        , errorToString = errorToString
         , inputView = inputView
+        , groupView = groupView
+        , repeatableInputsGroupView = repeatableInputsGroupView
+        , repeatableInputView = repeatableInputView
         }
 
 
@@ -184,7 +184,129 @@ findNode id (Input tree) =
         tree
 
 
-{-| TODO
+{-| Customizes how the error copies are displayed, to be used for i18n errors.
+It's possible to override a specific error message for all fields, an individual
+field, or for fields of a certain type.
+
+    type Fields
+        = Name
+        | Temperature
+        | Flavour
+
+    view : View Fields Never
+    view =
+        Input.group []
+            [ Input.text
+                [ Input.label "Name"
+                , Input.identifier Name
+                , Input.required
+                ]
+            , Input.text
+                [ Input.label "Temperature"
+                , Input.identifier Temperature
+                , Input.min 20
+                , Input.max 35
+                , Input.required
+                ]
+            , Input.select
+                [ Input.label "Flavour"
+                , Input.identifier Flavour
+                , Input.required
+                , Input.options
+                    [ ( "Banana", Value.string "banana" )
+                    , ( "Strawbery", Value.string "strawberry" )
+                    , ( "Chocolate", Value.string "chocolate" )
+                    ]
+                ]
+            ]
+            |> View.fromInput (always never)
+            |> View.customizeError
+                (\{ inputType, error } ->
+                    let
+                        toString =
+                            Value.toString >> Maybe.withDefault ""
+                    in
+                    case ( inputType, error ) of
+                        ( _, ValueTooLarge _ data ) ->
+                            toString data.max ++ " is too high"
+
+                        ( _, ValueTooSmall _ data ) ->
+                            toString data.min ++ " is too low"
+
+                        ( _, ValueNotInRange _ data ) ->
+                            "Make it in between " ++ toString data.min ++ " and " ++ toString data.max
+
+                        ( Select, IsBlank _ ) ->
+                            "Make up your mind"
+
+                        ( _, IsBlank (Just Name) ) ->
+                            "Who are you?"
+
+                        ( _, IsBlank _ ) ->
+                            "You forgot to fill in this"
+
+                        ( _, CustomError message ) ->
+                            message
+
+                        _ ->
+                            "Humm...?"
+                )
+
+-}
+customizeError :
+    ({ inputType : InputType
+     , error : Error id val
+     }
+     -> String
+    )
+    -> View id val msg
+    -> View id val msg
+customizeError viewFunc (View input path params) =
+    View input path { params | errorToString = viewFunc }
+
+
+{-| Customize the rendering of an input by passing a function.
+Note that the provided parameters `label` and `input` are functions that take a
+list of [Attribute](#Attribute) and build an `Html` element.
+`isRequired` indicates that the field will fail validation if no input is present,
+`inputType` allows matching inputs of a certain [InputType](#InputType), and `identifier`
+allows matching a specific input identified by [identifier](FormToolkit.Input#identifier).
+
+The example bellow would render the input exactly as it normaly renders :P
+
+    view : View id Never
+    view =
+        Input.text [ Input.label "Name", Input.identifier Name ]
+            |> View.fromInput (always never)
+            |> customizeInput
+                (\{ isRequired, label, input, errors, hint } ->
+                    Html.div
+                        [ Attributes.class "field"
+                        , Attributes.classList [ ( "required", isRequired ) ]
+                        ]
+                        [ -- ↓ call with ↓ Attribute list
+                          label [ class "input-label" ]
+                        , Html.div
+                            [ Attributes.class "input-wrapper" ]
+                            [ -- ↓ same here, label `for` will reference this input
+                              input []
+                            ]
+                        , case errors of
+                            err :: _ ->
+                                Html.p [ Attributes.class "error" ] [ Html.text err ]
+
+                            [] ->
+                                case hint of
+                                    Just hintText ->
+                                        Html.div
+                                            [ Attributes.class "hint" ]
+                                            [ Html.text hintText ]
+
+                                    Nothing ->
+                                        Html.text ""
+                        ]
+                )
+
 -}
 customizeInput :
     ({ isRequired : Bool
@@ -221,7 +343,7 @@ customizeGroup viewFunc (View input path params) =
 
 {-| TODO
 -}
-customizeRepeatableGroup :
+customizeRepeatableInputsGroup :
     ({ identifier : Maybe id
      , legend : List (Attribute msg) -> Html msg
      , inputs : List (Html msg)
@@ -233,15 +355,15 @@ customizeRepeatableGroup :
     )
     -> View id val msg
     -> View id val msg
-customizeRepeatableGroup viewFunc (View input path params) =
-    View input path { params | repeatableGroupView = viewFunc }
+customizeRepeatableInputsGroup viewFunc (View input path params) =
+    View input path { params | repeatableInputsGroupView = viewFunc }
 
 
 {-| TODO
 -}
-customizeRepeatableItem :
+customizeRepeatableInput :
     ({ identifier : Maybe id
-     , inputs : Html msg
+     , input : Html msg
      , removeInputButton : List (Attribute msg) -> Html msg
      , removeInputButtonOnClick : Maybe msg
      , removeInputButtonCopy : String
@@ -250,21 +372,14 @@ customizeRepeatableItem :
     )
     -> View id val msg
     -> View id val msg
-customizeRepeatableItem viewFunc (View input path params) =
-    View input path { params | repeatableItemView = viewFunc }
-
-
-{-| TODO
--}
-customizeError : (Error id val -> String) -> View id val msg -> View id val msg
-customizeError viewFunc (View input path params) =
-    View input path { params | errorsList = viewFunc }
+customizeRepeatableInput viewFunc (View input path params) =
+    View input path { params | repeatableInputView = viewFunc }
 
 
 {-| TODO
 -}
 toHtmlHelp : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
-toHtmlHelp attributes path ((Input tree) as node) =
+toHtmlHelp attributes path ((Input tree) as input) =
     let
         { hint, label, isRequired, identifier, inputType, value } =
             Tree.value tree
@@ -275,56 +390,64 @@ toHtmlHelp attributes path ((Input tree) as node) =
                 , identifier = identifier
                 , inputType = mapInputType inputType
                 , inputValue = Value.Value value
-                , label = toAttrs >> labelToHtml label path node
+                , label = toAttrs >> labelToHtml label path input
                 , input = toAttrs >> inputHtml
-                , errors = inputErrors node |> List.map attributes.errorsList
+                , errors =
+                    inputErrors input
+                        |> List.map
+                            (\error ->
+                                attributes.errorToString
+                                    { error = error
+                                    , inputType = mapInputType inputType
+                                    }
+                            )
                 , hint = hint
                 }
     in
     case inputType of
         Internal.Group ->
-            groupToHtml attributes path node
+            groupToHtml attributes path input
 
         Internal.Repeatable _ ->
-            repeatableToHtml attributes path node
+            repeatableToHtml attributes path input
 
         Internal.Text ->
-            wrapInput (inputToHtml attributes "text" path node [])
+            wrapInput (inputToHtml attributes "text" path input [])
 
         Internal.Email ->
-            wrapInput (inputToHtml attributes "email" path node [])
+            wrapInput (inputToHtml attributes "email" path input [])
 
         Internal.Password ->
-            wrapInput (inputToHtml attributes "password" path node [])
+            wrapInput (inputToHtml attributes "password" path input [])
 
         Internal.TextArea ->
-            wrapInput (textAreaToHtml attributes path node)
+            wrapInput (textAreaToHtml attributes path input)
 
         Internal.Integer ->
-            inputToHtml attributes "number" path node [ Attributes.step "1" ]
+            inputToHtml attributes "number" path input [ Attributes.step "1" ]
                 |> wrapInput
 
         Internal.Float ->
-            inputToHtml attributes "number" path node [ Attributes.step "1" ]
+            inputToHtml attributes "number" path input [ Attributes.step "1" ]
                 |> wrapInput
 
         Internal.Date ->
-            wrapInput (inputToHtml attributes "date" path node [])
+            wrapInput (inputToHtml attributes "date" path input [])
 
         Internal.Month ->
-            wrapInput (inputToHtml attributes "month" path node [])
+            wrapInput (inputToHtml attributes "month" path input [])
 
         Internal.Select ->
-            wrapInput (selectToHtml attributes path node)
+            wrapInput (selectToHtml attributes path input)
 
         Internal.Radio ->
-            wrapInput (radioToHtml attributes path node)
+            wrapInput (radioToHtml attributes path input)
 
         Internal.Checkbox ->
-            wrapInput (checkboxToHtml attributes path node)
+            wrapInput (checkboxToHtml attributes path input)
 
 
-labelToHtml : Maybe String -> List Int -> Input id val -> (Element -> Html msg)
+labelToHtml : Maybe String -> List Int -> Input id val -> (UserAttributes -> Html msg)
 labelToHtml label path node element =
     case label of
         Just str ->
@@ -354,7 +477,7 @@ groupToHtml attributes path ((Input tree) as input) =
         }
 
 
-legendToHtml : Input id val -> Element -> Html msg
+legendToHtml : Input id val -> UserAttributes -> Html msg
 legendToHtml (Input tree) element =
     case Tree.value tree |> .label of
         Just labelStr ->
@@ -385,14 +508,14 @@ repeatableToHtml attributes path ((Input tree) as input) =
                     attributes.onChange (InputsRemoved childPath)
 
                 removeInputButtonCopy =
-                    Tree.value child |> .removeInputsText
+                    Tree.value child |> .removeInputsButtonCopy
 
                 removeInputButtonEnabled =
                     childrenCount > unwrappedInput.repeatableMin
             in
-            attributes.repeatableItemView
+            attributes.repeatableInputView
                 { identifier = Tree.value tree |> .identifier
-                , inputs = toHtmlHelp attributes childPath (Input child)
+                , input = toHtmlHelp attributes childPath (Input child)
                 , removeInputButton =
                     \attrList ->
                         Html.button
@@ -425,7 +548,7 @@ repeatableToHtml attributes path ((Input tree) as input) =
                 Nothing ->
                     True
     in
-    repeatableGroupView
+    repeatableInputsGroupView
         { identifier = unwrappedInput.identifier
         , legend = toAttrs >> legendToHtml input
         , inputs = List.indexedMap inputsView children
@@ -442,14 +565,14 @@ repeatableToHtml attributes path ((Input tree) as input) =
                             )
                         :: userProvidedAttributes (toAttrs attrList)
                     )
-                    [ Html.text unwrappedInput.addInputsText ]
+                    [ Html.text unwrappedInput.addInputsButtonCopy ]
         , addInputButtonOnClick =
             if addInputButtonEnabled then
                 Just (attributes.onChange (InputsAdded path))
 
             else
                 Nothing
-        , addInputButtonCopy = unwrappedInput.addInputsText
+        , addInputButtonCopy = unwrappedInput.addInputsButtonCopy
         }
 
 
@@ -459,7 +582,7 @@ inputToHtml :
     -> List Int
     -> Input id val
     -> List (Html.Attribute msg)
-    -> (Element -> Html msg)
+    -> (UserAttributes -> Html msg)
 inputToHtml { onChange } inputType path (Input tree) htmlAttrs element =
     let
         unwrappedInput =
@@ -482,7 +605,7 @@ textAreaToHtml :
     ViewAttributes id val msg
     -> List Int
     -> Input id val
-    -> (Element -> Html msg)
+    -> (UserAttributes -> Html msg)
 textAreaToHtml { onChange } path (Input input) element =
     let
         valueStr =
@@ -511,7 +634,7 @@ selectToHtml :
     ViewAttributes id val msg
     -> List Int
     -> Input id val
-    -> (Element -> Html msg)
+    -> (UserAttributes -> Html msg)
 selectToHtml { onChange } path ((Input tree) as input) element =
     let
         unwappedInput =
@@ -542,7 +665,7 @@ radioToHtml :
     ViewAttributes id val msg
     -> List Int
     -> Input id val
-    -> (Element -> Html msg)
+    -> (UserAttributes -> Html msg)
 radioToHtml { onChange } path (Input tree) element =
     let
         unwrappedInput =
@@ -585,7 +708,7 @@ checkboxToHtml :
     ViewAttributes id val msg
     -> List Int
     -> Input id val
-    -> (Element -> Html msg)
+    -> (UserAttributes -> Html msg)
 checkboxToHtml { onChange } path (Input input) element =
     Html.input
         (List.concat
@@ -680,8 +803,8 @@ groupView view =
     Html.fieldset [] (view.legend [] :: view.inputs)
 
 
-repeatableGroupView : RepeatableGroupView id msg -> Html msg
-repeatableGroupView params =
+repeatableInputsGroupView : RepeatableInputsGroupView id msg -> Html msg
+repeatableInputsGroupView params =
     Html.fieldset
         []
         [ Html.div [] (params.legend [] :: params.inputs)
@@ -689,11 +812,11 @@ repeatableGroupView params =
         ]
 
 
-repeatableItemView : RepeatableItemView id msg -> Html msg
-repeatableItemView params =
+repeatableInputView : RepeatableInputView id msg -> Html msg
+repeatableInputView params =
     Html.div
         [ Attributes.class "group-repeat" ]
-        [ params.inputs
+        [ params.input
         , params.removeInputButton []
         ]
 
@@ -727,10 +850,10 @@ inputView { isRequired, label, input, errors, hint } =
 {-| Represents an attribute that can be applied to an element.
 -}
 type Attribute msg
-    = Attribute (Element -> Element)
+    = Attribute (UserAttributes -> UserAttributes)
 
 
-type alias Element =
+type alias UserAttributes =
     { classList : List ( String, Bool )
     , styles : List ( String, String )
     }
@@ -794,7 +917,7 @@ mapInputType inputType =
             Text
 
 
-toAttrs : List (Attribute msg) -> Element
+toAttrs : List (Attribute msg) -> UserAttributes
 toAttrs =
     List.foldl (\(Attribute f) attrs -> f attrs) { classList = [], styles = [] }
 
@@ -820,19 +943,19 @@ style key val =
     Attribute (\attrs -> { attrs | styles = ( key, val ) :: attrs.styles })
 
 
-userProvidedAttributes : Element -> List (Html.Attribute msg)
+userProvidedAttributes : UserAttributes -> List (Html.Attribute msg)
 userProvidedAttributes element =
     Attributes.classList element.classList
         :: List.map (\( k, v ) -> Attributes.style k v) element.styles
 
 
-errorsToString : Error id val -> String
-errorsToString err =
+errorToString : { inputType : InputType, error : Error id val } -> String
+errorToString { error } =
     let
         toString =
             Value.toString >> Maybe.withDefault ""
     in
-    case err of
+    case error of
         ValueTooLarge _ data ->
             "Should be lesser than " ++ toString data.max
 
@@ -845,7 +968,7 @@ errorsToString err =
         IsBlank _ ->
             "Should be provided"
 
-        CustomError message ->
+        CustomError _ message ->
             message
 
         _ ->
