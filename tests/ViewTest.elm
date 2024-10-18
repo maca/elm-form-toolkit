@@ -3,14 +3,9 @@ module ViewTest exposing (suite)
 import Expect
 import FormToolkit.Decode as Decode exposing (Error(..))
 import FormToolkit.Input as Input
-import FormToolkit.View as View
-import Html.Attributes exposing (name)
 import Json.Decode exposing (Error(..))
-import Json.Encode
+import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
-import Test.Html.Event as Event
-import Test.Html.Query as Query exposing (find, findAll, index)
-import Test.Html.Selector exposing (attribute, containing, tag, text)
 
 
 suite : Test
@@ -20,7 +15,7 @@ suite =
             \_ ->
                 let
                     { result } =
-                        initActions bandFields
+                        Interaction.init bandDecoder bandFields
                             |> fillInput "band-name" "Love and Rockets"
                             |> fillInput "member-name" "Daniel Ash"
                             |> fillInput "member-age" "67"
@@ -42,65 +37,6 @@ suite =
                         }
                     )
         ]
-
-
-type alias Actions id val a =
-    { input : Input.Input id val
-    , decoder : Decode.Decoder id val a
-    , result : Result (List (Decode.Error id val)) a
-    }
-
-
-fillInputWithIndex : Int -> String -> String -> Actions id val a -> Actions id val a
-fillInputWithIndex idx inputName inputText =
-    interact (findAll [ attribute (name inputName) ] >> index idx) (Event.input inputText)
-
-
-clickButton : String -> Actions id val a -> Actions id val a
-clickButton buttonText =
-    interact (find [ tag "button", containing [ text buttonText ] ]) Event.click
-
-
-fillInput : String -> String -> Actions id val a -> Actions id val a
-fillInput inputName inputText =
-    interact (findInput inputName) (Event.input inputText)
-
-
-findInput : String -> Query.Single msg -> Query.Single msg
-findInput inputName =
-    find [ attribute (name inputName) ]
-
-
-initActions : Input.Input BandFields val -> Actions BandFields val Band
-initActions input =
-    { input = input
-    , decoder = bandDecoder
-    , result = Err [ Decode.CustomError Nothing "Not modified" ]
-    }
-
-
-interact :
-    (Query.Single (Input.Msg id val) -> Query.Single (Input.Msg id val))
-    -> ( String, Json.Encode.Value )
-    -> Actions id val a
-    -> Actions id val a
-interact matcher event actions =
-    let
-        query =
-            actions.input
-                |> View.fromInput identity
-                |> View.toHtml
-                |> Query.fromHtml
-
-        ( input, result ) =
-            matcher query
-                |> Event.simulate event
-                |> Event.toResult
-                |> Result.map (\msg -> Input.update actions.decoder msg actions.input)
-                |> Result.mapError (Decode.CustomError Nothing)
-                |> Result.withDefault ( actions.input, actions.result )
-    in
-    { actions | result = result, input = input }
 
 
 type BandFields
