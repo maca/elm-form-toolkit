@@ -109,7 +109,7 @@ custom =
 -}
 toString : Value val -> Maybe String
 toString (Value value) =
-    Internal.toString value |> Result.toMaybe
+    Internal.toString value
 
 
 {-| Convert boolean values to `Bool`.
@@ -121,7 +121,7 @@ toString (Value value) =
 -}
 toBool : Value val -> Maybe Bool
 toBool (Value value) =
-    Internal.toBool value |> Result.toMaybe
+    Internal.toBool value
 
 
 {-| Convert float values to `Float`.
@@ -133,7 +133,7 @@ toBool (Value value) =
 -}
 toFloat : Value val -> Maybe Float
 toFloat (Value value) =
-    Internal.toFloat value |> Result.toMaybe
+    Internal.toFloat value
 
 
 {-| Convert int values to `Int`.
@@ -145,7 +145,7 @@ toFloat (Value value) =
 -}
 toInt : Value val -> Maybe Int
 toInt (Value value) =
-    Internal.toInt value |> Result.toMaybe
+    Internal.toInt value
 
 
 {-| Convert poxis values to `Posix`.
@@ -158,13 +158,13 @@ toInt (Value value) =
 -}
 toPosix : Value val -> Maybe Time.Posix
 toPosix (Value value) =
-    Internal.toPosix value |> Result.toMaybe
+    Internal.toPosix value
 
 
 {-| -}
 toCustom : Value val -> Maybe val
 toCustom (Value value) =
-    Internal.toCustom value |> Result.toMaybe
+    Internal.toCustom value
 
 
 {-| Apply a function to a custom value preserving other kind of values.

@@ -1,8 +1,11 @@
 module Internal.Input exposing
-    ( Tree, Input(..), Attrs, InputType(..), Status(..)
+    ( Input, Attrs, InputType(..), Status(..)
     , blur, focus, init, isBlank, map, root
     , updateValue
     , Msg(..), inputChanged
+    , identifier, inputType, max, min, name, value
+    , isGroup, isRequired
+    , setError, setValue
     )
 
 {-|
@@ -11,13 +14,16 @@ module Internal.Input exposing
 @docs blur, focus, init, isBlank, map, root
 @docs updateValue
 @docs Msg, inputChanged
+@docs identifier, inputType, max, min, name, value
+@docs isGroup, isRequired
+@docs setError, setValue
 
 -}
 
 import Array
 import Internal.Value exposing (Value)
-import List.Extra as List
-import RoseTree.Tree as Tree exposing (Tree)
+import List.Extra
+import RoseTree.Tree as Tree
 
 
 type Status
@@ -39,7 +45,7 @@ type InputType id val err
     | Radio
     | Checkbox
     | Group
-    | Repeatable (Tree id val err)
+    | Repeatable (Input id val err)
 
 
 type alias Attrs id val err =
@@ -63,12 +69,8 @@ type alias Attrs id val err =
     }
 
 
-type alias Tree id val err =
+type alias Input id val err =
     Tree.Tree (Attrs id val err)
-
-
-type Input id val err
-    = Input (Tree id val err)
 
 
 root : Attrs id val err
@@ -77,9 +79,9 @@ root =
 
 
 init : InputType id val err -> List (Attrs id val err -> Attrs id val err) -> Attrs id val err
-init inputType =
+init inputType_ =
     List.foldl (\f i -> f i)
-        { inputType = inputType
+        { inputType = inputType_
         , name = Nothing
         , label = Nothing
         , hint = Nothing
@@ -100,8 +102,8 @@ init inputType =
 
 
 updateValue : Value val -> Attrs id val err -> Attrs id val err
-updateValue value input =
-    { input | value = value, errors = [] }
+updateValue val input =
+    { input | value = val, errors = [] }
 
 
 getChoice : String -> Attrs id val err -> Value val
@@ -127,9 +129,9 @@ blur input =
     { input | status = Touched }
 
 
-isBlank : Attrs id val err -> Bool
-isBlank { value, inputType } =
-    case inputType of
+isBlank : Input id val err -> Bool
+isBlank input =
+    case Tree.value input |> .inputType of
         Group ->
             False
 
@@ -137,7 +139,70 @@ isBlank { value, inputType } =
             False
 
         _ ->
-            Internal.Value.isBlank value
+            Internal.Value.isBlank (value input)
+
+
+identifier : Input id val err -> Maybe id
+identifier input =
+    Tree.value input |> .identifier
+
+
+value : Input id val err -> Value val
+value input =
+    Tree.value input |> .value
+
+
+name : Input id val err -> Maybe String
+name input =
+    Tree.value input |> .name
+
+
+inputType : Input id val err -> InputType id val err
+inputType input =
+    Tree.value input |> .inputType
+
+
+min : Input id val err -> Value val
+min input =
+    Tree.value input |> .min
+
+
+max : Input id val err -> Value val
+max input =
+    Tree.value input |> .max
+
+
+isRequired : Input id val err -> Bool
+isRequired input =
+    Tree.value input |> .isRequired
+
+
+isGroup : Input id val err -> Bool
+isGroup input =
+    case Tree.value input |> .inputType of
+        Group ->
+            True
+
+        Repeatable _ ->
+            True
+
+        _ ->
+            False
+
+
+setError : err -> Input id val err -> Input id val err
+setError error =
+    Tree.updateValue
+        (\input ->
+            { input
+                | errors = List.Extra.unique (error :: input.errors)
+            }
+        )
+
+
+setValue : Value val -> Input id val err -> Input id val err
+setValue val =
+    Tree.updateValue (\input -> { input | value = val })
 
 
 map : (a -> b) -> (Value val1 -> Value val2) -> (err1 -> err2) -> Attrs a val1 err1 -> Attrs b val2 err2
@@ -163,8 +228,8 @@ map func valToVal errToErr input =
 
 
 mapInputType : (a -> b) -> (err1 -> err2) -> (Value val1 -> Value val2) -> InputType a val1 err1 -> InputType b val2 err2
-mapInputType func errToErr valToVal inputType =
-    case inputType of
+mapInputType func errToErr valToVal inputType_ =
+    case inputType_ of
         Repeatable tree ->
             Repeatable (Tree.mapValues (map func valToVal errToErr) tree)
 
@@ -214,7 +279,7 @@ type Msg id val
 
 
 inputChanged : Input id val err -> List Int -> String -> Msg id val
-inputChanged (Input tree) path str =
+inputChanged tree path str =
     let
         unwrappedInput =
             Tree.value tree

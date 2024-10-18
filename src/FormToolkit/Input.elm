@@ -60,12 +60,8 @@ import FormToolkit.Decode exposing (Decoder, Error(..))
 import FormToolkit.Value as Value
 import FormToolkit.View as View
 import Html exposing (Html)
-import Internal.Input as Internal exposing (Input(..), Msg(..))
+import Internal.Input as Internal exposing (Input, Msg(..))
 import RoseTree.Tree as Tree
-
-
-type alias Tree id val =
-    Internal.Tree id val (Error id val)
 
 
 {-| Represents a form input element, which can be a field or a group of fields.
@@ -118,7 +114,7 @@ update decoder msg input =
 
             InputsAdded path ->
                 case
-                    Tree.getValueAt path (toTree input)
+                    Tree.getValueAt path input
                         |> Maybe.map .inputType
                 of
                     Just (Internal.Repeatable template) ->
@@ -128,7 +124,7 @@ update decoder msg input =
                         input
 
             InputsRemoved path ->
-                Input (Tree.removeAt path (toTree input))
+                Tree.removeAt path input
 
 
 {-|
@@ -164,9 +160,15 @@ toView =
     View.fromInput
 
 
-updateAt : List Int -> (Tree id val -> Tree id val) -> Input id val -> Input id val
+updateAt : List Int -> (Input id val -> Input id val) -> Input id val -> Input id val
 updateAt path func input =
-    Input (Tree.updateAt path func (toTree input))
+    -- WTF?
+    case path of
+        [] ->
+            func input
+
+        _ ->
+            Tree.updateAt path func input
 
 
 {-| Creates a text input field.
@@ -333,10 +335,9 @@ Groups multiple inputs together.
 -}
 group : List (Attribute id val) -> List (Input id val) -> Input id val
 group attributes inputs =
-    List.map toTree inputs
+    inputs
         |> Tree.branch
             (Internal.init Internal.Group (unwrapAttrs attributes))
-        |> Input
 
 
 {-| Creates a repeatable group of inputs.
@@ -358,20 +359,21 @@ repeatable : List (Attribute id val) -> Input id val -> List (Input id val) -> I
 repeatable attributes template inputs =
     let
         params =
-            Internal.init (Internal.Repeatable (toTree template))
+            Internal.init (Internal.Repeatable template)
                 (unwrapAttrs attributes)
 
         children =
-            List.map toTree inputs
-                ++ List.repeat (params.repeatableMin - List.length inputs)
-                    (toTree template)
+            inputs
+                ++ List.repeat
+                    (params.repeatableMin - List.length inputs)
+                    template
     in
-    Input (Tree.branch params children)
+    Tree.branch params children
 
 
 init : Internal.InputType id val (Error id val) -> List (Attribute id val) -> Input id val
 init inputType attributes =
-    Input (Tree.leaf (Internal.init inputType (unwrapAttrs attributes)))
+    Tree.leaf (Internal.init inputType (unwrapAttrs attributes))
 
 
 unwrapAttrs :
@@ -379,11 +381,6 @@ unwrapAttrs :
     -> List (Internal.Attrs id val (Error id val) -> Internal.Attrs id val (Error id val))
 unwrapAttrs =
     List.map (\(Attribute f) -> f)
-
-
-toTree : Input id val -> Tree id val
-toTree (Input tree) =
-    tree
 
 
 {-| Represents an attribute that can be applied to an input.
@@ -581,14 +578,14 @@ repeatableMax integer =
 {-| Collects all errors from an input and its children.
 -}
 errors : Input id val -> List (Error id val)
-errors (Input tree) =
+errors tree =
     case Tree.children tree of
         [] ->
             Tree.value tree |> .errors
 
         children ->
             (Tree.value tree |> .errors)
-                :: List.map (errors << Input) children
+                :: List.map errors children
                 |> List.concat
 
 
@@ -634,8 +631,8 @@ identifier of different type.
 
 -}
 map : (a -> b) -> Input a val -> Input b val
-map func (Input tree) =
-    Input (Tree.mapValues (Internal.map func identity (mapError func identity)) tree)
+map func tree =
+    Tree.mapValues (Internal.map func identity (mapError func identity)) tree
 
 
 mapError : (a -> b) -> (Value.Value val1 -> Value.Value val2) -> Error a val1 -> Error b val2
@@ -659,6 +656,9 @@ mapError transformId transformVal error =
                 , min = transformVal params.min
                 , max = transformVal params.max
                 }
+
+        IsGroupNotInput id ->
+            IsGroupNotInput (Maybe.map transformId id)
 
         IsBlank id ->
             IsBlank (Maybe.map transformId id)
@@ -710,16 +710,14 @@ inputs of different value type.
 
 -}
 mapValues : (Value.Value val1 -> Value.Value val2) -> Input id val1 -> Input id val2
-mapValues func (Input tree) =
-    Input
-        (Tree.mapValues
-            (Internal.map identity
-                (\val ->
-                    case func (Value.Value val) of
-                        Value.Value val_ ->
-                            val_
-                )
-                (mapError identity func)
+mapValues func tree =
+    Tree.mapValues
+        (Internal.map identity
+            (\val ->
+                case func (Value.Value val) of
+                    Value.Value val_ ->
+                        val_
             )
-            tree
+            (mapError identity func)
         )
+        tree

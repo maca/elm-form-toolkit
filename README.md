@@ -27,8 +27,6 @@ Intends to
   forwarded as is to a backend.
 
 ```elm
-module Main exposing (main)
-
 import Browser
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input exposing (Input)

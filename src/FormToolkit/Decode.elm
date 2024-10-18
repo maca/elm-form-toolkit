@@ -2,7 +2,7 @@ module FormToolkit.Decode exposing
     ( Decoder
     , field
     , string, int, float, bool, posix, maybe, list, value, json
-    , succeed, fail
+    , succeed, fail, custom, format
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     , decode, validateAndDecode
@@ -19,7 +19,7 @@ know `Json.Decode` you know how to use this module ;)
 
 @docs field
 @docs string, int, float, bool, posix, maybe, list, value, json
-@docs succeed, fail
+@docs succeed, fail, custom, format
 
 
 # Maps, combinators and pipeline style decoding
@@ -36,32 +36,29 @@ know `Json.Decode` you know how to use this module ;)
 -}
 
 import FormToolkit.Value as Value
-import Internal.Input exposing (Input(..))
+import Internal.Input as Input
 import Internal.Value
 import Json.Decode
 import Json.Encode
+import List.Extra
 import RoseTree.Tree as Tree
 import Time
 
 
 type Partial id val a
-    = Failure (Tree id val) (List (Error id val))
-    | Success (Tree id val) a
+    = Failure (Input id val) (List (Error id val))
+    | Success (Input id val) a
 
 
 {-| A decoder that takes a tree of input data and returns a decoded result or an
 error if the decoding fails.
 -}
 type Decoder id val a
-    = Decoder (Tree id val -> Partial id val a)
-
-
-type alias Tree id val =
-    Tree.Tree (Internal.Input.Attrs id val (Error id val))
+    = Decoder (Input id val -> Partial id val a)
 
 
 type alias Input id val =
-    Internal.Input.Input id val (Error id val)
+    Input.Input id val (Error id val)
 
 
 {-| Decoder for a field with the given identifier using a provided decoder.
@@ -77,19 +74,19 @@ type alias Input id val =
             [ Input.text
                 [ Input.label "First name"
                 , Input.identifier FirstName
-                , Input.value (Value.string "Rosa")
+                , Input.value (Value.string "Iris")
                 ]
             , Input.text
                 [ Input.label "Last name"
                 , Input.identifier LastName
-                , Input.value (Value.string "Luxemburg")
+                , Input.value (Value.string "Hefets")
                 ]
             ]
 
     decoded =
         form |> decode (field FirstName string)
 
-    -- Ok "Rosa"
+    -- Ok "Iris"
 
 -}
 field : id -> Decoder id val a -> Decoder id val a
@@ -104,26 +101,21 @@ field id decoder =
                     Failure (Tree.replaceAt path node tree) errors
 
                 ( Nothing, _ ) ->
-                    let
-                        err =
-                            InputNotFound id
-                    in
-                    Failure (setError err tree) [ err ]
+                    failure tree (InputNotFound id)
         )
 
 
-fieldHelp : id -> Decoder id val a -> Tree id val -> ( Maybe (Partial id val a), List Int )
-fieldHelp id decoder tree =
+fieldHelp : id -> Decoder id val a -> Input id val -> ( Maybe (Partial id val a), List Int )
+fieldHelp id decoder =
     Tree.foldWithPath
-        (\path node acc ->
-            if .identifier (Tree.value node) == Just id then
-                ( Just (apply decoder node), path )
+        (\path tree acc ->
+            if Input.identifier tree == Just id then
+                ( Just (apply decoder tree), path )
 
             else
                 acc
         )
         ( Nothing, [] )
-        tree
 
 
 {-| Decodes the input value as a `String`.
@@ -201,12 +193,12 @@ posix =
 maybe : Decoder id val a -> Decoder id val (Maybe a)
 maybe decoder =
     Decoder
-        (\tree ->
-            if Internal.Input.isBlank (Tree.value tree) then
-                Success tree Nothing
+        (\input ->
+            if Input.isBlank input then
+                Success input Nothing
 
             else
-                mapHelp Just decoder tree
+                mapHelp Just decoder input
         )
 
 
@@ -224,27 +216,27 @@ maybe decoder =
 list : Decoder id val a -> Decoder id val (List a)
 list decoder =
     Decoder
-        (\tree ->
+        (\input ->
             let
                 ( children, result ) =
-                    listHelp decoder tree
+                    listHelp decoder input
 
-                tree2 =
-                    Tree.branch (Tree.value tree) children
+                input2 =
+                    Tree.branch (Tree.value input) children
             in
             case result of
                 Ok elements ->
-                    Success tree2 elements
+                    Success input2 elements
 
                 Err errors ->
-                    Failure tree2 errors
+                    Failure input2 errors
         )
 
 
 listHelp :
     Decoder id val a
-    -> Tree id val
-    -> ( List (Tree id val), Result (List (Error id val)) (List a) )
+    -> Input id val
+    -> ( List (Input id val), Result (List (Error id val)) (List a) )
 listHelp decoder =
     Tree.children
         >> List.foldr
@@ -262,7 +254,7 @@ listHelp decoder =
                                 Err errors2
 
                             Err errors ->
-                                Err (errors ++ errors2)
+                                Err (List.Extra.unique (errors2 ++ errors))
                         )
             )
             ( [], Ok [] )
@@ -291,12 +283,12 @@ Usefull if you just one to forward the form values to a backend.
         [ Input.text
             [ Input.label "First name"
             , Input.name "first-name"
-            , Input.value (Value.string "Rosa")
+            , Input.value (Value.string "Naomi")
             ]
         , Input.text
             [ Input.label "Last name"
             , Input.name "last-name"
-            , Input.value (Value.string "Luxemburg")
+            , Input.value (Value.string "Klein")
             ]
         , Input.repeatable [ Input.name "fruits" ]
             (Input.text [])
@@ -312,61 +304,66 @@ Usefull if you just one to forward the form values to a backend.
         ]
         |> decode json
         |> Result.map (Json.Encode.encode 0)
-        == Ok "{\"first-name\":\"Rosa\",\"last-name\":\"Luxemburg\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
+        == Ok "{\"first-name\":\"Naomi\",\"last-name\":\"Klein\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
 -}
 json : Decoder id val Json.Decode.Value
 json =
-    custom (\(Input tree) -> jsonEncodeObject tree)
+    Decoder
+        (\input ->
+            case jsonEncodeObject input of
+                Ok a ->
+                    Success input a
+
+                Err err ->
+                    failure input err
+        )
 
 
-jsonEncodeObject : Tree id val -> Result (Error id val) Json.Encode.Value
-jsonEncodeObject tree =
-    jsonEncodeHelp tree [] |> Result.map Json.Encode.object
+jsonEncodeObject : Input id val -> Result (Error id val) Json.Encode.Value
+jsonEncodeObject input =
+    jsonEncodeHelp input [] |> Result.map Json.Encode.object
 
 
 jsonEncodeHelp :
-    Tree id val
+    Input id val
     -> List ( String, Json.Decode.Value )
     -> Result (Error id val) (List ( String, Json.Decode.Value ))
-jsonEncodeHelp tree acc =
+jsonEncodeHelp input acc =
     let
-        input =
-            Tree.value tree
-
         accumulate jsonValue =
-            case input.name of
+            case Input.name input of
                 Just name ->
                     Ok (( name, jsonValue ) :: acc)
 
                 Nothing ->
-                    Err (RepeatableHasNoName input.identifier)
+                    Err (RepeatableHasNoName (Input.identifier input))
     in
-    case input.inputType of
-        Internal.Input.Group ->
-            case input.name of
+    case Input.inputType input of
+        Input.Group ->
+            case Input.name input of
                 Nothing ->
-                    Tree.children tree
+                    Tree.children input
                         |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
                             (Ok acc)
 
                 _ ->
-                    Tree.children tree
+                    Tree.children input
                         |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
                             (Ok [])
                         |> Result.map Json.Encode.object
                         |> Result.andThen accumulate
 
-        Internal.Input.Repeatable _ ->
-            Tree.children tree
+        Input.Repeatable _ ->
+            Tree.children input
                 |> List.foldr (\e -> Result.map2 (::) (jsonEncodeObject e)) (Ok [])
                 |> Result.map (Json.Encode.list identity)
                 |> Result.andThen accumulate
 
         _ ->
-            case input.name of
+            case Input.name input of
                 Just name ->
-                    Ok (( name, Internal.Value.encode input.value ) :: acc)
+                    Ok (( name, Internal.Value.encode (Input.value input) ) :: acc)
 
                 Nothing ->
                     Ok acc
@@ -404,105 +401,82 @@ succeed a =
     custom (always (Ok a))
 
 
-{-| A decoder that always fails with the given error.
+{-| A decoder that always fails with a custom error.
 -}
-fail : Error id val -> Decoder id val a
-fail error =
-    custom (always (Err error))
+fail : String -> Decoder id val a
+fail err =
+    custom (always (Err err))
 
 
-custom : (Input id val -> Result (Error id val) a) -> Decoder id val a
+{-| -}
+custom : (Value.Value val -> Result String a) -> Decoder id val a
 custom func =
-    Decoder
-        (\tree ->
-            case func (Input tree) of
-                Ok a ->
-                    Success tree a
-
-                Err err ->
-                    Failure (setError err tree) [ err ]
+    parseHelp
+        (\input ->
+            func (Value.Value (Input.value input))
+                |> Result.mapError
+                    (CustomError (Input.identifier input))
         )
 
 
-validate :
-    (Input id val -> Result (Error id val) (Value.Value val))
-    -> Decoder id val a
-    -> Decoder id val a
-validate func decoder =
+{-| -}
+format : (String -> String) -> Decoder id val String
+format func =
     Decoder
-        (\tree ->
-            case validateHelp (func << inputFromInternal) tree of
-                ( tree2, [] ) ->
-                    Success tree2 ()
-
-                ( tree2, errors ) ->
-                    Failure tree2 errors
-        )
-        |> andThen (\() -> decoder)
-
-
-validateHelp :
-    (Internal.Input.Attrs id val (Error id val) -> Result (Error id val) (Value.Value val))
-    -> Tree id val
-    -> ( Tree id val, List (Error id val) )
-validateHelp func tree =
-    let
-        treeOfTuples =
-            Tree.mapValues
-                (\input ->
-                    case func input of
-                        Ok (Value.Value val) ->
-                            ( { input | value = val }
-                            , Nothing
+        (\input ->
+            case Input.value input |> Internal.Value.toString of
+                Just str ->
+                    Success
+                        (Tree.updateValue
+                            (\attrs ->
+                                { attrs | value = Internal.Value.Text (func str) }
                             )
-
-                        Err error ->
-                            ( { input | errors = error :: input.errors }
-                            , Just error
-                            )
-                )
-                tree
-    in
-    ( Tree.mapValues Tuple.first treeOfTuples
-    , Tree.foldr
-        (\node acc ->
-            case Tree.value node |> Tuple.second of
-                Just e ->
-                    e :: acc
+                            input
+                        )
+                        ()
 
                 Nothing ->
-                    acc
+                    Success input ()
         )
-        []
-        treeOfTuples
-    )
+        |> andThen (\() -> string)
 
 
-{-| Decodes the input value using a custom parsing function.
--}
 parseValue : (Value.Value val -> Maybe a) -> Decoder id val a
 parseValue func =
-    custom
-        (\(Input tree) ->
-            let
-                input =
-                    Tree.value tree
-            in
-            .value input
-                |> Value.Value
-                |> func
-                |> Result.fromMaybe (ParseError input.identifier)
+    parseHelp
+        (\input ->
+            if Input.isGroup input then
+                Err (IsGroupNotInput (Input.identifier input))
+
+            else
+                func (Value.Value (Input.value input))
+                    |> Maybe.map Ok
+                    |> Maybe.withDefault
+                        (Err (ParseError (Input.identifier input)))
         )
 
 
-setError : Error id val -> Tree id val -> Tree id val
-setError error =
-    Tree.updateValue (\input -> { input | errors = error :: input.errors })
+parseHelp : (Input id val -> Result (Error id val) a) -> Decoder id val a
+parseHelp func =
+    Decoder
+        (\input ->
+            case func input of
+                Ok a ->
+                    Success input a
+
+                Err err ->
+                    failure input err
+        )
 
 
-inputFromInternal : Internal.Input.Attrs id val (Error id val) -> Input id val
+failure : Input id val -> Error id val -> Partial id val a
+failure input err =
+    Failure (Input.setError err input) [ err ]
+
+
+inputFromInternal : Input.Attrs id val (Error id val) -> Input id val
 inputFromInternal node =
-    Input (Tree.leaf node)
+    Tree.leaf node
 
 
 {-| Chains together decoders that depend on previous decoding results.
@@ -535,13 +509,13 @@ inputFromInternal node =
 andThen : (a -> Decoder id val b) -> Decoder id val a -> Decoder id val b
 andThen func (Decoder decoder) =
     Decoder
-        (\tree ->
-            case decoder tree of
-                Success tree2 a ->
-                    apply (func a) tree2
+        (\input ->
+            case decoder input of
+                Success input2 a ->
+                    apply (func a) input2
 
-                Failure tree2 errors ->
-                    Failure tree2 errors
+                Failure input2 errors ->
+                    Failure input2 errors
         )
 
 
@@ -564,11 +538,11 @@ andThen func (Decoder decoder) =
         Input.group []
             [ Input.text
                 [ Input.identifier FirstName
-                , Input.value (Value.string "Rosa")
+                , Input.value (Value.string "Ilan")
                 ]
             , Input.text
                 [ Input.identifier LastName
-                , Input.value (Value.string "Luxemburg")
+                , Input.value (Value.string "Pappé")
                 ]
             , Input.int
                 [ Input.identifier Age
@@ -586,7 +560,7 @@ andThen func (Decoder decoder) =
     result =
         form |> decode personDecoder
 
-    -- Ok { firstName = "Rosa" , lastName = "Luxemburg" , age = 42 }
+    -- Ok { firstName = "Ilan" , lastName = "Pappé" , age = 42 }
 
 -}
 andMap : Decoder id val a -> Decoder id val (a -> b) -> Decoder id val b
@@ -606,14 +580,14 @@ map func decoder =
     Decoder (mapHelp func decoder)
 
 
-mapHelp : (a -> b) -> Decoder id val a -> Tree id val -> Partial id val b
-mapHelp func (Decoder decoder) tree =
-    case decoder tree of
-        Success tree2 a ->
-            Success tree2 (func a)
+mapHelp : (a -> b) -> Decoder id val a -> Input id val -> Partial id val b
+mapHelp func (Decoder decoder) input =
+    case decoder input of
+        Success input2 a ->
+            Success input2 (func a)
 
-        Failure tree2 errors ->
-            Failure tree2 errors
+        Failure input2 errors ->
+            Failure input2 errors
 
 
 {-| Combines two decoders using a function.
@@ -633,29 +607,29 @@ mapHelp func (Decoder decoder) tree =
                 (field "FirstName" string)
                 (field "LastName" string)
             )
-        == Ok ( "Rosa", "Luxemburg" )
+        == Ok ( "Iris", "Luxemburg" )
 
 -}
 map2 : (a -> b -> c) -> Decoder id val a -> Decoder id val b -> Decoder id val c
 map2 func a b =
     Decoder
-        (\tree ->
-            case apply a tree of
-                Success tree2 res ->
-                    case apply b tree2 of
-                        Success tree3 res2 ->
-                            Success tree3 (func res res2)
+        (\input ->
+            case apply a input of
+                Success input2 res ->
+                    case apply b input2 of
+                        Success input3 res2 ->
+                            Success input3 (func res res2)
 
-                        Failure tree3 errors ->
-                            Failure tree3 errors
+                        Failure input3 errors ->
+                            Failure input3 errors
 
                 Failure tree2 errors ->
                     case apply b tree2 of
-                        Success tree3 _ ->
-                            Failure tree3 errors
+                        Success input3 _ ->
+                            Failure input3 errors
 
-                        Failure tree3 errors2 ->
-                            Failure tree3 (errors ++ errors2)
+                        Failure input3 errors2 ->
+                            Failure input3 (List.Extra.unique (errors2 ++ errors))
         )
 
 
@@ -803,90 +777,133 @@ validateAndDecode :
     Decoder id val a
     -> Input id val
     -> ( Input id val, Result (List (Error id val)) a )
-validateAndDecode decoder (Input tree) =
+validateAndDecode decoder tree =
     case
         apply
             (decoder
-                |> validate checkRequired
-                |> validate checkInRange
+                |> validateInput checkRequired
+                |> validateInput checkInRange
             )
             tree
     of
         Success tree2 a ->
-            ( Input tree2, Ok a )
+            ( tree2, Ok a )
 
         Failure tree2 errors ->
-            ( Input tree2, Err errors )
+            ( tree2, Err errors )
 
 
-apply : Decoder id val a -> Tree id val -> Partial id val a
+validateInput :
+    (Input id val -> Result (Error id val) (Value.Value val))
+    -> Decoder id val a
+    -> Decoder id val a
+validateInput func decoder =
+    Decoder
+        (\tree ->
+            case validateHelp (func << inputFromInternal) tree of
+                ( tree2, [] ) ->
+                    Success tree2 ()
+
+                ( tree2, errors ) ->
+                    Failure tree2 errors
+        )
+        |> andThen (\() -> decoder)
+
+
+validateHelp :
+    (Input.Attrs id val (Error id val) -> Result (Error id val) (Value.Value val))
+    -> Input id val
+    -> ( Input id val, List (Error id val) )
+validateHelp func tree =
+    let
+        treeOfTuples =
+            Tree.mapValues
+                (\input ->
+                    case func input of
+                        Ok (Value.Value val) ->
+                            ( { input | value = val }
+                            , Nothing
+                            )
+
+                        Err error ->
+                            ( { input | errors = List.Extra.unique (error :: input.errors) }
+                            , Just error
+                            )
+                )
+                tree
+    in
+    ( Tree.mapValues Tuple.first treeOfTuples
+    , Tree.foldr
+        (\node acc ->
+            case Tree.value node |> Tuple.second of
+                Just e ->
+                    e :: acc
+
+                Nothing ->
+                    acc
+        )
+        []
+        treeOfTuples
+    )
+
+
+apply : Decoder id val a -> Input id val -> Partial id val a
 apply (Decoder decoder) =
     decoder
 
 
 checkRequired : Input id val -> Result (Error id val) (Value.Value val)
-checkRequired (Input tree) =
-    let
-        input =
-            Tree.value tree
-    in
-    if input.isRequired && Internal.Value.isBlank input.value then
-        Err (IsBlank input.identifier)
+checkRequired input =
+    if Input.isRequired input && Input.isBlank input then
+        Err (IsBlank (Input.identifier input))
 
     else
-        Ok (Value.Value input.value)
+        Ok (Value.Value (Input.value input))
 
 
 checkInRange : Input id val -> Result (Error id val) (Value.Value val)
-checkInRange (Input tree) =
-    let
-        input =
-            Tree.value tree
-
-        actual =
-            Value.Value input.value
-    in
+checkInRange tree =
     case
-        ( Internal.Value.compare input.value input.min
-        , Internal.Value.compare input.value input.max
+        ( Internal.Value.compare (Input.value tree) (Input.min tree)
+        , Internal.Value.compare (Input.value tree) (Input.max tree)
         )
     of
         ( Just LT, Just _ ) ->
             Err
-                (ValueNotInRange input.identifier
-                    { value = actual
-                    , min = Value.Value input.min
-                    , max = Value.Value input.max
+                (ValueNotInRange (Input.identifier tree)
+                    { value = Value.Value (Input.value tree)
+                    , min = Value.Value (Input.min tree)
+                    , max = Value.Value (Input.max tree)
                     }
                 )
 
         ( Just _, Just GT ) ->
             Err
-                (ValueNotInRange input.identifier
-                    { value = actual
-                    , min = Value.Value input.min
-                    , max = Value.Value input.max
+                (ValueNotInRange (Input.identifier tree)
+                    { value = Value.Value (Input.value tree)
+                    , min = Value.Value (Input.min tree)
+                    , max = Value.Value (Input.max tree)
                     }
                 )
 
         ( Just LT, Nothing ) ->
             Err
-                (ValueTooSmall input.identifier
-                    { value = actual
-                    , min = Value.Value input.min
+                (ValueTooSmall (Input.identifier tree)
+                    { value = Value.Value (Input.value tree)
+                    , min = Value.Value (Input.min tree)
                     }
                 )
 
         ( Nothing, Just GT ) ->
             Err
-                (ValueTooLarge input.identifier
-                    { value = actual
-                    , max = Value.Value input.max
+                (ValueTooLarge (Input.identifier tree)
+                    { value = Value.Value (Input.value tree)
+                    , max = Value.Value (Input.max tree)
                     }
                 )
 
         _ ->
-            Ok actual
+            Ok (Value.Value (Input.value tree))
 
 
 {-| Represents an error that occurred during decoding or validation.
@@ -901,6 +918,7 @@ type Error id val
         , max : Value.Value val
         }
     | IsBlank (Maybe id)
+    | IsGroupNotInput (Maybe id)
     | ParseError (Maybe id)
     | ListError (Maybe id) { index : Int, error : Error id val }
     | RepeatableHasNoName (Maybe id)
@@ -921,6 +939,9 @@ errorToFieldIdentifier error =
             maybeId
 
         ValueNotInRange maybeId _ ->
+            maybeId
+
+        IsGroupNotInput maybeId ->
             maybeId
 
         ParseError maybeId ->

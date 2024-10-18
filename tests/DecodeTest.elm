@@ -6,6 +6,7 @@ import FormToolkit.Input as Input
 import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode
+import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
 import Time
 
@@ -157,8 +158,70 @@ suite =
                             |> Input.errors
                             |> Expect.equal [ IsBlank (Just BlankField) ]
                 ]
+            , test "errors are presented in correct order" <|
+                \_ ->
+                    let
+                        ( _, result ) =
+                            Input.group [] [ stringInput, intInput ]
+                                |> Decode.validateAndDecode
+                                    (Decode.succeed (\_ _ -> ())
+                                        |> Decode.andMap
+                                            (Decode.field StringField Decode.float)
+                                        |> Decode.andMap
+                                            (Decode.field IntField Decode.float)
+                                    )
+                    in
+                    result
+                        |> Expect.equal
+                            (Err
+                                [ ParseError (Just StringField)
+                                , ParseError (Just IntField)
+                                ]
+                            )
+            , test "errors are not repeated" <|
+                \_ ->
+                    let
+                        ( updatedInput, result ) =
+                            Input.group [] [ stringInput ]
+                                |> Decode.validateAndDecode
+                                    (Decode.succeed (\_ _ -> ())
+                                        |> Decode.andMap
+                                            (Decode.field StringField Decode.float)
+                                        |> Decode.andMap
+                                            (Decode.field StringField Decode.float)
+                                    )
+                    in
+                    Expect.all
+                        [ \_ ->
+                            result
+                                |> Expect.equal
+                                    (Err [ ParseError (Just StringField) ])
+                        , \_ ->
+                            Input.errors updatedInput
+                                |> Expect.equal
+                                    [ ParseError (Just StringField) ]
+                        ]
+                        ()
 
             -- , describe "and errors are presented in the correct order" []
+            -- , test errors are not repeated after multiple updates
+            -- , test group decoding yields error (implemented)
+            -- , describe "blank string" should be blank
+            ]
+        , describe "format"
+            [ test "transforms string" <|
+                \_ ->
+                    let
+                        { result } =
+                            stringInput
+                                |> Interaction.init (Decode.format removeVowels)
+                                |> fillInput "string-field"
+                                    "the quick fox jumps over the lazy dog"
+                                |> fillInput "string-field"
+                                    "the quick fox jumps over the lazy dog"
+                    in
+                    Expect.equal result
+                        (Ok "th qck fx jmps vr th lzy dg")
             ]
         ]
 
@@ -248,3 +311,12 @@ simpleJsonDecoder =
 groupWithNameDecoder : Json.Decode.Decoder ( String, Int )
 groupWithNameDecoder =
     Json.Decode.field "group" simpleJsonDecoder
+
+
+removeVowels : String -> String
+removeVowels =
+    String.replace "a" ""
+        >> String.replace "e" ""
+        >> String.replace "i" ""
+        >> String.replace "o" ""
+        >> String.replace "u" ""

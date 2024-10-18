@@ -35,38 +35,42 @@ type Msg
 
 teamFields : Input.Input TeamFields val
 teamFields =
-    Input.group []
-        [ Input.text
-            [ Input.label "Team Name"
-            , Input.required True
-            , Input.identifier TeamName
-            , Input.name "team-name"
-            ]
-        , Input.group
-            [ Input.label "Members (max 5)" ]
-            [ Input.repeatable
-                [ Input.identifier TeamMembers
-                , Input.repeatableMin 1
-                , Input.repeatableMax 5
-                , Input.name "team-members"
-                ]
-                (Input.group []
-                    [ Input.text
-                        [ Input.label "Member Name"
-                        , Input.required True
-                        , Input.identifier MemberName
-                        , Input.name "member-name"
-                        ]
-                    , Input.int
-                        [ Input.label "Member Age"
-                        , Input.identifier MemberAge
-                        , Input.name "member-age"
-                        ]
-                    ]
-                )
-                []
-            ]
+    -- Input.group []
+    -- [
+    Input.text
+        [ Input.label "Team Name"
+        , Input.required True
+        , Input.identifier TeamName
+        , Input.name "team-name"
         ]
+
+
+
+-- , Input.group
+--     [ Input.label "Members (max 5)" ]
+--     [ Input.repeatable
+--         [ Input.identifier TeamMembers
+--         , Input.repeatableMin 1
+--         , Input.repeatableMax 5
+--         , Input.name "team-members"
+--         ]
+--         (Input.group []
+--             [ Input.text
+--                 [ Input.label "Member Name"
+--                 , Input.required True
+--                 , Input.identifier MemberName
+--                 , Input.name "member-name"
+--                 ]
+--             , Input.int
+--                 [ Input.label "Member Age"
+--                 , Input.identifier MemberAge
+--                 , Input.name "member-age"
+--                 ]
+--             ]
+--         )
+--         []
+--     ]
+-- ]
 
 
 init : Model
@@ -87,9 +91,9 @@ update msg model =
             let
                 ( formFields, result ) =
                     -- Validates and produces result with decoder and updates with Msg
-                    Input.update teamDecoder inputMsg model.formFields
+                    Input.update (Decode.format removeVowels) inputMsg model.formFields
             in
-            { model | formFields = formFields, team = Result.toMaybe result }
+            { model | formFields = formFields, team = Nothing }
 
         FormSubmitted ->
             { model
@@ -131,12 +135,22 @@ type alias Person =
 teamDecoder : Decode.Decoder TeamFields val Team
 teamDecoder =
     Decode.map2 Team
-        (Decode.field TeamName Decode.string)
-        (Decode.field TeamMembers (Decode.list personDecoder))
+        (Decode.field TeamName (Decode.format (String.replace "a" "")))
+        (Decode.field TeamMembers (Decode.succeed []))
 
 
-personDecoder : Decode.Decoder TeamFields val Person
-personDecoder =
-    Decode.map2 Person
-        (Decode.field MemberName Decode.string)
-        (Decode.field MemberAge Decode.int)
+
+-- personDecoder : Decode.Decoder TeamFields val Person
+-- personDecoder =
+--     Decode.map2 Person
+--         (Decode.field MemberName (Decode.format (String.replace "a" "")))
+--         (Decode.field MemberAge Decode.int)
+
+
+removeVowels : String -> String
+removeVowels =
+    String.replace "a" ""
+        >> String.replace "e" ""
+        >> String.replace "i" ""
+        >> String.replace "o" ""
+        >> String.replace "u" ""

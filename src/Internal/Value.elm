@@ -39,94 +39,94 @@ type Value val
     | Blank
 
 
-toString : Value val -> Result () String
+toString : Value val -> Maybe String
 toString value =
     case value of
         Text string ->
-            Ok string
+            Just string
 
         Integer number ->
-            Ok (String.fromInt number)
+            Just (String.fromInt number)
 
         Float number ->
-            Ok (String.fromFloat number)
+            Just (String.fromFloat number)
 
         Month posix ->
-            Ok <| String.slice 0 7 (Iso8601.fromTime posix)
+            Just <| String.slice 0 7 (Iso8601.fromTime posix)
 
         Date posix ->
-            Ok <| String.slice 0 10 (Iso8601.fromTime posix)
+            Just <| String.slice 0 10 (Iso8601.fromTime posix)
 
         Time posix ->
-            Ok (Iso8601.fromTime posix)
+            Just (Iso8601.fromTime posix)
 
         Boolean True ->
-            Err ()
+            Nothing
 
         Boolean False ->
-            Err ()
+            Nothing
 
         Custom _ ->
-            Err ()
+            Nothing
 
         Blank ->
-            Err ()
+            Nothing
 
 
-toInt : Value val -> Result () Int
+toInt : Value val -> Maybe Int
 toInt value =
     case value of
         Integer val ->
-            Ok val
+            Just val
 
         _ ->
-            Err ()
+            Nothing
 
 
-toFloat : Value val -> Result () Float
+toFloat : Value val -> Maybe Float
 toFloat value =
     case value of
         Float val ->
-            Ok val
+            Just val
 
         _ ->
-            Err ()
+            Nothing
 
 
-toBool : Value val -> Result () Bool
+toBool : Value val -> Maybe Bool
 toBool value =
     case value of
         Boolean val ->
-            Ok val
+            Just val
 
         _ ->
-            Err ()
+            Nothing
 
 
-toPosix : Value val -> Result () Posix
+toPosix : Value val -> Maybe Posix
 toPosix value =
     case value of
         Month val ->
-            Ok val
+            Just val
 
         Date val ->
-            Ok val
+            Just val
 
         Time val ->
-            Ok val
+            Just val
 
         _ ->
-            Err ()
+            Nothing
 
 
-toCustom : Value val -> Result () val
+toCustom : Value val -> Maybe val
 toCustom value =
     case value of
         Custom val ->
-            Ok val
+            Just val
 
         _ ->
-            Err ()
+            Nothing
 
 
 encode : Value val -> Encode.Value
@@ -146,8 +146,8 @@ encode value =
 
         _ ->
             toString value
-                |> Result.map Encode.string
-                |> Result.withDefault Encode.null
+                |> Maybe.map Encode.string
+                |> Maybe.withDefault Encode.null
 
 
 fromString : String -> Value val

@@ -37,7 +37,8 @@ import Html.Attributes as Attributes exposing (attribute, classList)
 import Html.Events as Events
 import Internal.Input as Internal
     exposing
-        ( Input(..)
+        ( Input
+        , InputType(..)
         , Msg(..)
         , Status(..)
         )
@@ -91,6 +92,7 @@ type alias GroupView id msg =
     { legendText : Maybe String
     , inputs : List (Html msg)
     , identifier : Maybe id
+    , errors : List String
     }
 
 
@@ -98,6 +100,7 @@ type alias RepeatableInputsGroupView id msg =
     { legendText : Maybe String
     , inputs : List (Html msg)
     , addInputButton : List (Attribute msg) -> Html msg
+    , errors : List String
     , advanced :
         { identifier : Maybe id
         , addInputButtonOnClick : Maybe msg
@@ -111,6 +114,7 @@ type alias RepeatableInputView id msg =
     , removeInputButton : List (Attribute msg) -> Html msg
     , advanced :
         { identifier : Maybe id
+        , index : Int
         , removeInputButtonOnClick : Maybe msg
         , removeInputButtonCopy : String
         }
@@ -186,11 +190,11 @@ partial id (View input _ attributes) =
 
 
 findNode : id -> Input id val -> Maybe ( Input id val, List Int )
-findNode id (Input tree) =
+findNode id tree =
     Tree.foldWithPath
         (\path node foundPath ->
             if .identifier (Tree.value node) == Just id then
-                Just ( Input node, path )
+                Just ( node, path )
 
             else
                 foundPath
@@ -378,6 +382,7 @@ customizeGroup :
     ({ legendText : Maybe String
      , inputs : List (Html msg)
      , identifier : Maybe id
+     , errors : List String
      }
      -> Html msg
     )
@@ -423,6 +428,7 @@ customizeRepeatableInputsGroup :
     ({ legendText : Maybe String
      , inputs : List (Html msg)
      , addInputButton : List (Attribute msg) -> Html msg
+     , errors : List String
      , advanced :
         { identifier : Maybe id
         , addInputButtonOnClick : Maybe msg
@@ -437,9 +443,8 @@ customizeRepeatableInputsGroup viewFunc (View input path params) =
     View input path { params | repeatableInputsGroupView = viewFunc }
 
 
-{-| Provide a function to be used as a template for adding fields to a
-repeatable inputs group, see
-[Input.repeatable](FormToolkit.Input#repeatable).
+{-| Customize the rendering of each of the elements of a repeatable group of
+inputs, see [Input.repeatable](FormToolkit.Input#repeatable).
 
 To customize the group of inputs see
 [customizeRepeatableInputsGroup](#customizeRepeatableInputsGroup).
@@ -467,6 +472,7 @@ customizeRepeatableInput :
      , removeInputButton : List (Attribute msg) -> Html msg
      , advanced :
         { identifier : Maybe id
+        , index : Int
         , removeInputButtonOnClick : Maybe msg
         , removeInputButtonCopy : String
         }
@@ -480,7 +486,7 @@ customizeRepeatableInput viewFunc (View input path params) =
 
 
 toHtmlHelp : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
-toHtmlHelp attributes path ((Input tree) as input) =
+toHtmlHelp attributes path (tree as input) =
     let
         unwrappedInput =
             Tree.value tree
@@ -491,14 +497,7 @@ toHtmlHelp attributes path ((Input tree) as input) =
                 , label = toAttrs >> labelToHtml unwrappedInput.label path input
                 , input = toAttrs >> inputHtml
                 , errors =
-                    inputErrors input
-                        |> List.map
-                            (\error ->
-                                attributes.errorToString
-                                    { error = error
-                                    , inputType = mapInputType unwrappedInput.inputType
-                                    }
-                            )
+                    inputErrors input |> List.map attributes.errorToString
                 , hint =
                     \attrList ->
                         case unwrappedInput.hint of
@@ -590,7 +589,7 @@ labelToHtml label path input element =
 
 
 groupToHtml : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
-groupToHtml attributes path (Input tree) =
+groupToHtml attributes path (tree as input) =
     let
         { identifier, label } =
             Tree.value tree
@@ -601,14 +600,15 @@ groupToHtml attributes path (Input tree) =
             Tree.children tree
                 |> List.indexedMap
                     (\idx ->
-                        Input >> toHtmlHelp attributes (path ++ [ idx ])
+                        toHtmlHelp attributes (path ++ [ idx ])
                     )
         , identifier = identifier
+        , errors = inputErrors input |> List.map attributes.errorToString
         }
 
 
 repeatableToHtml : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
-repeatableToHtml attributes path (Input tree) =
+repeatableToHtml attributes path (tree as input) =
     let
         unwrappedInput =
             Tree.value tree
@@ -634,7 +634,7 @@ repeatableToHtml attributes path (Input tree) =
                     childrenCount > unwrappedInput.repeatableMin
             in
             attributes.repeatableInputView
-                { input = toHtmlHelp attributes childPath (Input child)
+                { input = toHtmlHelp attributes childPath child
                 , removeInputButton =
                     \attrList ->
                         Html.button
@@ -658,6 +658,7 @@ repeatableToHtml attributes path (Input tree) =
 
                         else
                             Nothing
+                    , index = idx
                     , removeInputButtonCopy = removeInputButtonCopy
                     }
                 }
@@ -687,6 +688,8 @@ repeatableToHtml attributes path (Input tree) =
                         :: userProvidedAttributes (toAttrs attrList)
                     )
                     [ Html.text unwrappedInput.addInputsButtonCopy ]
+        , errors =
+            inputErrors input |> List.map attributes.errorToString
         , advanced =
             { identifier = unwrappedInput.identifier
             , addInputButtonOnClick =
@@ -707,7 +710,7 @@ inputToHtml :
     -> Input id val
     -> List (Html.Attribute msg)
     -> (UserAttributes -> Html msg)
-inputToHtml { onChange } inputType path (Input tree) htmlAttrs element =
+inputToHtml { onChange } inputType path tree htmlAttrs element =
     let
         unwrappedInput =
             Tree.value tree
@@ -717,8 +720,8 @@ inputToHtml { onChange } inputType path (Input tree) htmlAttrs element =
             [ htmlAttrs
             , Attributes.type_ inputType
                 :: valueAttribute Attributes.value unwrappedInput.value
-                :: onInputChanged onChange (Input tree) path
-                :: inputAttrs onChange path (Input tree)
+                :: onInputChanged onChange tree path
+                :: inputAttrs onChange path tree
             , userProvidedAttributes element
             ]
         )
@@ -730,13 +733,13 @@ textAreaToHtml :
     -> List Int
     -> Input id val
     -> (UserAttributes -> Html msg)
-textAreaToHtml { onChange } path (Input input) element =
+textAreaToHtml { onChange } path input element =
     let
         valueStr =
             Tree.value input
                 |> .value
                 |> Internal.Value.toString
-                |> Result.withDefault ""
+                |> Maybe.withDefault ""
     in
     Html.div
         [ Attributes.class "grow-wrap"
@@ -744,9 +747,9 @@ textAreaToHtml { onChange } path (Input input) element =
         ]
         [ Html.textarea
             (List.concat
-                [ onInputChanged onChange (Input input) path
+                [ onInputChanged onChange input path
                     :: Attributes.value valueStr
-                    :: inputAttrs onChange path (Input input)
+                    :: inputAttrs onChange path input
                 , userProvidedAttributes element
                 ]
             )
@@ -759,7 +762,7 @@ selectToHtml :
     -> List Int
     -> Input id val
     -> (UserAttributes -> Html msg)
-selectToHtml { onChange } path ((Input tree) as input) element =
+selectToHtml { onChange } path (tree as input) element =
     let
         unwappedInput =
             Tree.value tree
@@ -790,7 +793,7 @@ radioToHtml :
     -> List Int
     -> Input id val
     -> (UserAttributes -> Html msg)
-radioToHtml { onChange } path (Input input) element =
+radioToHtml { onChange } path input element =
     let
         unwrappedInput =
             Tree.value input
@@ -813,7 +816,7 @@ radioToHtml { onChange } path (Input input) element =
                             :: Attributes.required unwrappedInput.isRequired
                             :: Attributes.value (String.fromInt index)
                             :: Attributes.type_ "radio"
-                            :: onInputChanged onChange (Input input) path
+                            :: onInputChanged onChange input path
                             :: onInputFocused onChange path
                             :: onInputBlured onChange path
                             :: userProvidedAttributes element
@@ -833,22 +836,22 @@ checkboxToHtml :
     -> List Int
     -> Input id val
     -> (UserAttributes -> Html msg)
-checkboxToHtml { onChange } path (Input input) element =
+checkboxToHtml { onChange } path input element =
     Html.input
         (List.concat
             [ Attributes.type_ "checkbox"
                 :: (Tree.value input
                         |> .value
                         |> Internal.Value.toBool
-                        |> Result.map Attributes.checked
-                        |> Result.withDefault (Attributes.class "")
+                        |> Maybe.map Attributes.checked
+                        |> Maybe.withDefault (Attributes.class "")
                    )
                 :: Events.onCheck
                     (Internal.Value.fromBool
                         >> InputChanged path
                         >> onChange
                     )
-                :: inputAttrs onChange path (Input input)
+                :: inputAttrs onChange path input
             , userProvidedAttributes element
             ]
         )
@@ -861,12 +864,12 @@ valueAttribute :
     -> Html.Attribute msg
 valueAttribute f inputValue =
     Internal.Value.toString inputValue
-        |> Result.map f
-        |> Result.withDefault (Attributes.class "")
+        |> Maybe.map f
+        |> Maybe.withDefault (Attributes.class "")
 
 
 inputAttrs : (Msg id val -> msg) -> List Int -> Input id val -> List (Html.Attribute msg)
-inputAttrs attrs path ((Input tree) as input) =
+inputAttrs attrs path (tree as input) =
     let
         unwrappedInput =
             Tree.value tree
@@ -916,7 +919,7 @@ onInputBlured tagger path =
 
 
 inputId : Input id val -> List Int -> String
-inputId (Input input) path =
+inputId input path =
     identifierString (Tree.value input |> .name) path
 
 
@@ -940,36 +943,54 @@ identifierString maybe path =
             String.join "-" (List.map String.fromInt path)
 
 
-inputErrors : Input id val -> List (Error id val)
-inputErrors (Input tree) =
+inputErrors : Input id val -> List { error : Error id val, inputType : InputType }
+inputErrors tree =
     let
-        { errors, status } =
+        { errors, status, inputType } =
             Tree.value tree
+
+        errorRecords =
+            List.map
+                (\error ->
+                    { error = error
+                    , inputType = mapInputType inputType
+                    }
+                )
+                errors
     in
-    case status of
-        Touched ->
-            errors
+    case ( status, inputType ) of
+        ( Touched, _ ) ->
+            errorRecords
+
+        ( _, Internal.Repeatable _ ) ->
+            errorRecords
+
+        ( _, Internal.Group ) ->
+            errorRecords
 
         _ ->
             []
 
 
 groupView : GroupView id msg -> Html msg
-groupView { inputs, legendText } =
+groupView { inputs, legendText, errors } =
     Html.fieldset []
-        ((case legendText of
-            Just str ->
-                Html.legend [] [ Html.text str ]
+        (List.concat
+            [ (case legendText of
+                Just str ->
+                    Html.legend [] [ Html.text str ]
 
-            Nothing ->
-                Html.text ""
-         )
-            :: inputs
+                Nothing ->
+                    Html.text ""
+              )
+                :: inputs
+            , [ viewErrors errors ]
+            ]
         )
 
 
 repeatableInputsGroupView : RepeatableInputsGroupView id msg -> Html msg
-repeatableInputsGroupView { legendText, addInputButton, inputs } =
+repeatableInputsGroupView { legendText, addInputButton, inputs, errors } =
     Html.fieldset []
         [ case legendText of
             Just str ->
@@ -979,6 +1000,7 @@ repeatableInputsGroupView { legendText, addInputButton, inputs } =
                 Html.text ""
         , Html.div [] inputs
         , addInputButton []
+        , viewErrors errors
         ]
 
 
@@ -1002,12 +1024,22 @@ inputView { isRequired, label, input, errors, hint } =
             [ Attributes.class "input-wrapper" ]
             [ input [] ]
         , case errors of
-            err :: _ ->
-                Html.p [ Attributes.class "error" ] [ Html.text err ]
-
             [] ->
                 hint []
+
+            _ ->
+                viewErrors errors
         ]
+
+
+viewErrors : List String -> Html msg
+viewErrors errors =
+    case errors of
+        err :: _ ->
+            Html.p [ Attributes.class "error" ] [ Html.text err ]
+
+        [] ->
+            Html.text ""
 
 
 {-| Represents an attribute that can be applied to an element.
@@ -1130,6 +1162,9 @@ errorToString { error } =
 
         IsBlank _ ->
             "Should be provided"
+
+        IsGroupNotInput _ ->
+            "A group cannot have a value but the decoder is attempting to read the value"
 
         CustomError _ message ->
             message
