@@ -77,19 +77,19 @@ type alias Input id val =
             [ Input.text
                 [ Input.label "First name"
                 , Input.identifier FirstName
-                , Input.value (Value.string "Juan")
+                , Input.value (Value.string "Rosa")
                 ]
             , Input.text
                 [ Input.label "Last name"
                 , Input.identifier LastName
-                , Input.value (Value.string "Perez")
+                , Input.value (Value.string "Luxemburg")
                 ]
             ]
 
     decoded =
         form |> decode (field FirstName string)
 
-    -- Ok "Juan"
+    -- Ok "Rosa"
 
 -}
 field : id -> Decoder id val a -> Decoder id val a
@@ -291,12 +291,12 @@ Usefull if you just one to forward the form values to a backend.
         [ Input.text
             [ Input.label "First name"
             , Input.name "first-name"
-            , Input.value (Value.string "Juan")
+            , Input.value (Value.string "Rosa")
             ]
         , Input.text
             [ Input.label "Last name"
             , Input.name "last-name"
-            , Input.value (Value.string "Perez")
+            , Input.value (Value.string "Luxemburg")
             ]
         , Input.repeatable [ Input.name "fruits" ]
             (Input.text [])
@@ -312,7 +312,7 @@ Usefull if you just one to forward the form values to a backend.
         ]
         |> decode json
         |> Result.map (Json.Encode.encode 0)
-        == Ok "{\"first-name\":\"Juan\",\"last-name\":\"Perez\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
+        == Ok "{\"first-name\":\"Rosa\",\"last-name\":\"Luxemburg\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
 -}
 json : Decoder id val Json.Decode.Value
@@ -564,11 +564,11 @@ andThen func (Decoder decoder) =
         Input.group []
             [ Input.text
                 [ Input.identifier FirstName
-                , Input.value (Value.string "Juan")
+                , Input.value (Value.string "Rosa")
                 ]
             , Input.text
                 [ Input.identifier LastName
-                , Input.value (Value.string "Perez")
+                , Input.value (Value.string "Luxemburg")
                 ]
             , Input.int
                 [ Input.identifier Age
@@ -586,7 +586,7 @@ andThen func (Decoder decoder) =
     result =
         form |> decode personDecoder
 
-    -- Ok { firstName = "Juan" , lastName = "Pérez" , age = 42 }
+    -- Ok { firstName = "Rosa" , lastName = "Luxemburg" , age = 42 }
 
 -}
 andMap : Decoder id val a -> Decoder id val (a -> b) -> Decoder id val b
@@ -621,11 +621,11 @@ mapHelp func (Decoder decoder) tree =
     Input.group []
         [ Input.text
             [ Input.identifier "FirstName"
-            , Input.value (Value.string "Juan")
+            , Input.value (Value.string "Rosa")
             ]
         , Input.text
             [ Input.identifier "LastName"
-            , Input.value (Value.string "Pérez")
+            , Input.value (Value.string "Luxemburg")
             ]
         ]
         |> decode
@@ -633,7 +633,7 @@ mapHelp func (Decoder decoder) tree =
                 (field "FirstName" string)
                 (field "LastName" string)
             )
-        == Ok ( "Juan", "Pérez" )
+        == Ok ( "Rosa", "Luxemburg" )
 
 -}
 map2 : (a -> b -> c) -> Decoder id val a -> Decoder id val b -> Decoder id val c
@@ -680,11 +680,11 @@ map2 func a b =
         Input.group []
             [ Input.text
                 [ Input.identifier "FirstName"
-                , Input.value (Value.string "Juan")
+                , Input.value (Value.string "Rosa")
                 ]
             , Input.text
                 [ Input.identifier "LastName"
-                , Input.value (Value.string "Pérez")
+                , Input.value (Value.string "Luxemburg")
                 ]
             , Input.int
                 [ Input.identifier "Age"
@@ -695,7 +695,7 @@ map2 func a b =
     result =
         form |> decode personDecoder
 
-    -- Ok { firstName = "Juan", lastName = "Pérez", age = 42 }
+    -- Ok { firstName = "Rosa", lastName = "Luxemburg", age = 42 }
 
 -}
 map3 :

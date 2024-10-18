@@ -1,8 +1,8 @@
 module DecodeTest exposing (suite)
 
 import Expect
-import FormToolkit.Decode as Decode
-import FormToolkit.Input as Input exposing (Error(..))
+import FormToolkit.Decode as Decode exposing (Error(..))
+import FormToolkit.Input as Input
 import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode
@@ -172,7 +172,7 @@ type Field
     | BlankField
 
 
-stringInput : Input.Input Field
+stringInput : Input.Input Field val
 stringInput =
     Input.text
         [ Input.label "Enter your string"
@@ -182,7 +182,7 @@ stringInput =
         ]
 
 
-intInput : Input.Input Field
+intInput : Input.Input Field val
 intInput =
     Input.text
         [ Input.label "Enter your int"
@@ -192,7 +192,7 @@ intInput =
         ]
 
 
-boolInput : Input.Input Field
+boolInput : Input.Input Field val
 boolInput =
     Input.text
         [ Input.label "Enter your bool"
@@ -201,7 +201,7 @@ boolInput =
         ]
 
 
-floatInput : Input.Input Field
+floatInput : Input.Input Field val
 floatInput =
     Input.text
         [ Input.label "Enter your float"
@@ -210,7 +210,7 @@ floatInput =
         ]
 
 
-posixInput : Input.Input Field
+posixInput : Input.Input Field val
 posixInput =
     Input.text
         [ Input.label "Enter your posix"
@@ -219,7 +219,7 @@ posixInput =
         ]
 
 
-blankInput : Input.Input Field
+blankInput : Input.Input Field val
 blankInput =
     Input.text
         [ Input.label "Enter nothing"
@@ -228,12 +228,12 @@ blankInput =
         ]
 
 
-groupWithName : Input.Input Field
+groupWithName : Input.Input Field val
 groupWithName =
     Input.group [ Input.name "group" ] [ stringInput, intInput ]
 
 
-groupWithNoName : Input.Input Field
+groupWithNoName : Input.Input Field val
 groupWithNoName =
     Input.group [] [ stringInput, intInput ]
 

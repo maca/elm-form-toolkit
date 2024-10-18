@@ -33,7 +33,7 @@ module FormToolkit.View exposing
 import FormToolkit.Decode exposing (Error(..))
 import FormToolkit.Value as Value exposing (Value)
 import Html exposing (Html)
-import Html.Attributes as Attributes exposing (classList)
+import Html.Attributes as Attributes exposing (attribute, classList)
 import Html.Events as Events
 import Internal.Input as Internal
     exposing
@@ -68,7 +68,7 @@ type alias InputView id val msg =
     { isRequired : Bool
     , label : List (Attribute msg) -> Html msg
     , input : List (Attribute msg) -> Html msg
-    , hint : Maybe String
+    , hint : List (Attribute msg) -> Html msg
     , errors : List String
     , advanced :
         { identifier : Maybe id
@@ -81,20 +81,21 @@ type alias InputView id val msg =
         , inputOptions : List ( String, Value val )
         , inputOnChange : Value val -> msg
         , labelText : Maybe String
+        , hintText : Maybe String
         , idString : String
         }
     }
 
 
 type alias GroupView id msg =
-    { legend : List (Attribute msg) -> Html msg
+    { legendText : Maybe String
     , inputs : List (Html msg)
     , identifier : Maybe id
     }
 
 
 type alias RepeatableInputsGroupView id msg =
-    { legend : List (Attribute msg) -> Html msg
+    { legendText : Maybe String
     , inputs : List (Html msg)
     , addInputButton : List (Attribute msg) -> Html msg
     , advanced :
@@ -207,7 +208,7 @@ field, or for fields of a certain type.
         | Temperature
         | Flavour
 
-    view : View Fields Never
+    view : View Fields val ()
     view =
         Input.group []
             [ Input.text
@@ -233,7 +234,7 @@ field, or for fields of a certain type.
                     ]
                 ]
             ]
-            |> View.fromInput (always never)
+            |> View.fromInput (always ())
             |> View.customizeError
                 (\{ inputType, error } ->
                     let
@@ -279,19 +280,23 @@ customizeError viewFunc (View input path params) =
     View input path { params | errorToString = viewFunc }
 
 
-{-| Customize the rendering of an input by passing a function.
-Note that the provided parameters `label` and `input` are functions that take a
-list of [Attribute](#Attribute) and build an `Html` element.
-`isRequired` indicates that the field will fail validation if no input is present,
-`inputType` allows matching inputs of a certain [InputType](#InputType), and `identifier`
-allows matching a specific input identified by [identifier](FormToolkit.Input#identifier).
+{-| Provide a function to override the rendering of an input.
+
+`label` and `input` are functions that take a list of
+[Attribute](#Attribute)s.
+
+Use `advanced` parameters for a greater level of customization of the input
+and label.
+It is possible to target specific [input types](#InputType) or
+[specific inputs](FormToolkit.Input#identifier) by using `inputType` or
+`identifier` parameters.
 
 The example bellow would render the input exactly as it normaly renders :P
 
-    view : View id Never
+    view : View id val ()
     view =
-        Input.text [ Input.label "Name", Input.identifier Name ]
-            |> View.fromInput (always never)
+        Input.text [ Input.label "Name" ]
+            |> View.fromInput (always ())
             |> customizeInput
                 (\{ isRequired, label, input, errors, hint } ->
                     Html.div
@@ -302,7 +307,7 @@ The example bellow would render the input exactly as it normaly renders :P
                           label [ class "input-label" ]
                         , Html.div
                             [ Attributes.class "input-wrapper" ]
-                            [ -- ↓ same here, label `for` will reference this input
+                            [ -- ↓ same here, label `for` already references the input
                               input []
                             ]
                         , case errors of
@@ -310,14 +315,7 @@ The example bellow would render the input exactly as it normaly renders :P
                                 Html.p [ Attributes.class "error" ] [ Html.text err ]
 
                             [] ->
-                                case hint of
-                                    Just hintText ->
-                                        Html.div
-                                            [ Attributes.class "hint" ]
-                                            [ Html.text hintText ]
-
-                                    Nothing ->
-                                        Html.text ""
+                                hint []
                         ]
                 )
 
@@ -326,7 +324,7 @@ customizeInput :
     ({ isRequired : Bool
      , label : List (Attribute msg) -> Html msg
      , input : List (Attribute msg) -> Html msg
-     , hint : Maybe String
+     , hint : List (Attribute msg) -> Html msg
      , errors : List String
      , advanced :
         { identifier : Maybe id
@@ -339,6 +337,7 @@ customizeInput :
         , inputOptions : List ( String, Value val )
         , inputOnChange : Value val -> msg
         , labelText : Maybe String
+        , hintText : Maybe String
         , idString : String
         }
      }
@@ -350,10 +349,33 @@ customizeInput viewFunc (View input path params) =
     View input path { params | inputView = viewFunc }
 
 
-{-| TODO
+{-| Provide a function to customize the rendering of a group of inputs.
+
+    view : View id val ()
+    view =
+        Input.group []
+            [ Input.text [ Input.label "Name" ]
+            , Input.text [ Input.label "Last Name" ]
+            ]
+            |> View.fromInput (always ())
+            |> customizeInput
+                (\{ inputs, legendText } ->
+                    Html.fieldset
+                        [ Html.Attribute.class "input-group" ]
+                        ((case legendText of
+                            Just str ->
+                                Html.legend [] [ Html.text str ]
+
+                            Nothing ->
+                                Html.text ""
+                         )
+                            :: inputs
+                        )
+                )
+
 -}
 customizeGroup :
-    ({ legend : List (Attribute msg) -> Html msg
+    ({ legendText : Maybe String
      , inputs : List (Html msg)
      , identifier : Maybe id
      }
@@ -365,10 +387,40 @@ customizeGroup viewFunc (View input path params) =
     View input path { params | groupView = viewFunc }
 
 
-{-| TODO
+{-| Customize the positioning, and appearance of each of the inputs of a repeatable
+group of inputs and the and the button to add new inputs, see
+[Input.repeatable](FormToolkit.Input#repeatable).
+
+To customize the template used to add a new input see
+[customizeRepeatableInput](#customizeRepeatableInput).
+
+    view : View String val ()
+    view =
+        Input.repeatable [ Input.identifier "People" ]
+            (Input.group []
+                [ [ Input.text [ Input.label "Name" ]
+                  , Input.text [ Input.label "Last Name" ]
+                  ]
+                ]
+            )
+            |> View.fromInput (always ())
+            |> customizeRepeatableInputsGroup
+                (\{ legendText, inputs, addInputButton } ->
+                    Html.fieldset []
+                        [ case legendText of
+                            Just str ->
+                                Html.legend [] [ Html.text str ]
+
+                            Nothing ->
+                                Html.text ""
+                        , Html.div [] inputs
+                        , addInputButton []
+                        ]
+                )
+
 -}
 customizeRepeatableInputsGroup :
-    ({ legend : List (Attribute msg) -> Html msg
+    ({ legendText : Maybe String
      , inputs : List (Html msg)
      , addInputButton : List (Attribute msg) -> Html msg
      , advanced :
@@ -385,7 +437,30 @@ customizeRepeatableInputsGroup viewFunc (View input path params) =
     View input path { params | repeatableInputsGroupView = viewFunc }
 
 
-{-| TODO
+{-| Provide a function to be used as a template for adding fields to a
+repeatable inputs group, see
+[Input.repeatable](FormToolkit.Input#repeatable).
+
+To customize the group of inputs see
+[customizeRepeatableInputsGroup](#customizeRepeatableInputsGroup).
+
+    view : View String val ()
+    view =
+        Input.repeatable [ Input.identifier "People" ]
+            (Input.group []
+                [ [ Input.text [ Input.label "Name" ]
+                  , Input.text [ Input.label "Last Name" ]
+                  ]
+                ]
+            )
+            |> View.fromInput (always ())
+            |> customizeRepeatableInput
+                (\{ input, removeInputButton } ->
+                    Html.div
+                        [ Attributes.class "group-repeat" ]
+                        [ input, removeInputButton [] ]
+                )
+
 -}
 customizeRepeatableInput :
     ({ input : Html msg
@@ -404,8 +479,6 @@ customizeRepeatableInput viewFunc (View input path params) =
     View input path { params | repeatableInputView = viewFunc }
 
 
-{-| TODO
--}
 toHtmlHelp : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
 toHtmlHelp attributes path ((Input tree) as input) =
     let
@@ -426,7 +499,19 @@ toHtmlHelp attributes path ((Input tree) as input) =
                                     , inputType = mapInputType unwrappedInput.inputType
                                     }
                             )
-                , hint = unwrappedInput.hint
+                , hint =
+                    \attrList ->
+                        case unwrappedInput.hint of
+                            Just hintText ->
+                                Html.div
+                                    (Attributes.class "hint"
+                                        :: Attributes.id (hintId input path)
+                                        :: userProvidedAttributes (toAttrs attrList)
+                                    )
+                                    [ Html.text hintText ]
+
+                            Nothing ->
+                                Html.text ""
                 , advanced =
                     { identifier = unwrappedInput.identifier
                     , inputType = mapInputType unwrappedInput.inputType
@@ -435,11 +520,13 @@ toHtmlHelp attributes path ((Input tree) as input) =
                     , inputValue = Value.Value unwrappedInput.value
                     , inputMin = Value.Value unwrappedInput.min
                     , inputMax = Value.Value unwrappedInput.max
-                    , inputOptions = List.map (Tuple.mapSecond Value.Value) unwrappedInput.options
+                    , inputOptions =
+                        List.map (Tuple.mapSecond Value.Value) unwrappedInput.options
                     , inputOnChange =
                         \(Value.Value val) ->
                             InputChanged path val |> attributes.onChange
                     , labelText = unwrappedInput.label
+                    , hintText = unwrappedInput.hint
                     , idString = inputId input path
                     }
                 }
@@ -492,7 +579,10 @@ labelToHtml label path input element =
     case label of
         Just str ->
             Html.label
-                (Attributes.for (inputId input path) :: userProvidedAttributes element)
+                (Attributes.for (inputId input path)
+                    :: Attributes.id (labelId input path)
+                    :: userProvidedAttributes element
+                )
                 [ Html.text str ]
 
         Nothing ->
@@ -500,13 +590,13 @@ labelToHtml label path input element =
 
 
 groupToHtml : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
-groupToHtml attributes path ((Input tree) as input) =
+groupToHtml attributes path (Input tree) =
     let
-        { identifier } =
+        { identifier, label } =
             Tree.value tree
     in
     attributes.groupView
-        { legend = toAttrs >> legendToHtml input
+        { legendText = label
         , inputs =
             Tree.children tree
                 |> List.indexedMap
@@ -517,18 +607,8 @@ groupToHtml attributes path ((Input tree) as input) =
         }
 
 
-legendToHtml : Input id val -> UserAttributes -> Html msg
-legendToHtml (Input tree) element =
-    case Tree.value tree |> .label of
-        Just labelStr ->
-            Html.legend (userProvidedAttributes element) [ Html.text labelStr ]
-
-        Nothing ->
-            Html.text ""
-
-
 repeatableToHtml : ViewAttributes id val msg -> List Int -> Input id val -> Html msg
-repeatableToHtml attributes path ((Input tree) as input) =
+repeatableToHtml attributes path (Input tree) =
     let
         unwrappedInput =
             Tree.value tree
@@ -591,7 +671,7 @@ repeatableToHtml attributes path ((Input tree) as input) =
                     True
     in
     repeatableInputsGroupView
-        { legend = toAttrs >> legendToHtml input
+        { legendText = unwrappedInput.label
         , inputs = List.indexedMap inputsView children
         , addInputButton =
             \attrList ->
@@ -790,8 +870,26 @@ inputAttrs attrs path ((Input tree) as input) =
     let
         unwrappedInput =
             Tree.value tree
+
+        idForInput =
+            inputId input path
     in
-    [ Attributes.id (inputId input path)
+    [ Attributes.id idForInput
+    , unwrappedInput.label
+        |> Maybe.map
+            (\_ ->
+                attribute "aria-labelledby" (labelId input path)
+            )
+        |> Maybe.withDefault (Attributes.class "")
+    , unwrappedInput.hint
+        |> Maybe.map
+            (\_ ->
+                attribute "aria-describedby" (hintId input path)
+            )
+        |> Maybe.withDefault (Attributes.class "")
+    , unwrappedInput.name
+        |> Maybe.map Attributes.name
+        |> Maybe.withDefault (Attributes.class "")
     , Attributes.required unwrappedInput.isRequired
     , Attributes.autocomplete False
     , Attributes.placeholder (Maybe.withDefault "" unwrappedInput.placeholder)
@@ -822,6 +920,16 @@ inputId (Input input) path =
     identifierString (Tree.value input |> .name) path
 
 
+labelId : Input id val -> List Int -> String
+labelId input path =
+    inputId input path ++ "-label"
+
+
+hintId : Input id val -> List Int -> String
+hintId input path =
+    inputId input path ++ "-hint"
+
+
 identifierString : Maybe String -> List Int -> String
 identifierString maybe path =
     case maybe of
@@ -847,25 +955,39 @@ inputErrors (Input tree) =
 
 
 groupView : GroupView id msg -> Html msg
-groupView view =
-    Html.fieldset [] (view.legend [] :: view.inputs)
+groupView { inputs, legendText } =
+    Html.fieldset []
+        ((case legendText of
+            Just str ->
+                Html.legend [] [ Html.text str ]
+
+            Nothing ->
+                Html.text ""
+         )
+            :: inputs
+        )
 
 
 repeatableInputsGroupView : RepeatableInputsGroupView id msg -> Html msg
-repeatableInputsGroupView params =
-    Html.fieldset
-        []
-        [ Html.div [] (params.legend [] :: params.inputs)
-        , params.addInputButton []
+repeatableInputsGroupView { legendText, addInputButton, inputs } =
+    Html.fieldset []
+        [ case legendText of
+            Just str ->
+                Html.legend [] [ Html.text str ]
+
+            Nothing ->
+                Html.text ""
+        , Html.div [] inputs
+        , addInputButton []
         ]
 
 
 repeatableInputView : RepeatableInputView id msg -> Html msg
-repeatableInputView params =
+repeatableInputView { input, removeInputButton } =
     Html.div
         [ Attributes.class "group-repeat" ]
-        [ params.input
-        , params.removeInputButton []
+        [ input
+        , removeInputButton []
         ]
 
 
@@ -884,14 +1006,7 @@ inputView { isRequired, label, input, errors, hint } =
                 Html.p [ Attributes.class "error" ] [ Html.text err ]
 
             [] ->
-                case hint of
-                    Just hintText ->
-                        Html.div
-                            [ Attributes.class "hint" ]
-                            [ Html.text hintText ]
-
-                    Nothing ->
-                        Html.text ""
+                hint []
         ]
 
 

@@ -478,7 +478,8 @@ required bool =
     Attribute (\input -> { input | isRequired = bool })
 
 
-{-| Sets the text to be rendered as the label for a field.
+{-| Sets the text to be rendered as the label for a field, or for the legend for
+a group or repeatable inputs group.
 -}
 label : String -> Attribute id val
 label str =
