@@ -1,12 +1,18 @@
-module Support.Interaction exposing (Interaction, clickButton, fillInput, fillInputWithIndex, init)
+module Support.Interaction exposing
+    ( Interaction
+    , blur
+    , clickButton
+    , fillInput
+    , fillInputWithIndex
+    , init
+    , interact
+    )
 
-import FormToolkit.Decode as Decode exposing (Error(..))
+import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input
 import FormToolkit.View as View
 import Html.Attributes exposing (name)
-import Json.Decode exposing (Error(..))
 import Json.Encode
-import Test exposing (..)
 import Test.Html.Event as Event
 import Test.Html.Query as Query exposing (find, findAll, index)
 import Test.Html.Selector exposing (attribute, containing, tag, text)
@@ -27,6 +33,11 @@ fillInputWithIndex idx inputName inputText =
 clickButton : String -> Interaction id val a -> Interaction id val a
 clickButton buttonText =
     interact (find [ tag "button", containing [ text buttonText ] ]) Event.click
+
+
+blur : String -> Interaction id val a -> Interaction id val a
+blur inputName =
+    interact (findInput inputName) Event.blur
 
 
 fillInput : String -> String -> Interaction id val a -> Interaction id val a

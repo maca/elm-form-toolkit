@@ -33,12 +33,11 @@ module FormToolkit.View exposing
 import FormToolkit.Decode exposing (Error(..))
 import FormToolkit.Value as Value exposing (Value)
 import Html exposing (Html)
-import Html.Attributes as Attributes exposing (attribute, classList)
+import Html.Attributes as Attributes exposing (attribute)
 import Html.Events as Events
-import Internal.Input as Internal
+import Internal.Input as Input
     exposing
         ( Input
-        , InputType(..)
         , Msg(..)
         , Status(..)
         )
@@ -48,16 +47,20 @@ import RoseTree.Tree as Tree
 
 
 type alias Input id val =
-    Internal.Input id val (Error id val)
+    Input.Input id val (Error id val)
 
 
 type alias Msg id val =
-    Internal.Msg id val
+    Input.Msg id val
 
 
 type alias ViewAttributes id val msg =
     { onChange : Msg id val -> msg
-    , errorToString : { inputType : InputType, error : Error id val } -> String
+    , errorToString :
+        { inputType : InputType
+        , error : Error id val
+        }
+        -> String
     , inputView : InputView id val msg -> Html msg
     , groupView : GroupView id msg -> Html msg
     , repeatableInputsGroupView : RepeatableInputsGroupView id msg -> Html msg
@@ -316,7 +319,7 @@ The example bellow would render the input exactly as it normaly renders :P
                             ]
                         , case errors of
                             err :: _ ->
-                                Html.p [ Attributes.class "error" ] [ Html.text err ]
+                                Html.p [ Attributes.class "errors" ] [ Html.text err ]
 
                             [] ->
                                 hint []
@@ -531,45 +534,45 @@ toHtmlHelp attributes path (tree as input) =
                 }
     in
     case unwrappedInput.inputType of
-        Internal.Group ->
+        Input.Group ->
             groupToHtml attributes path input
 
-        Internal.Repeatable _ ->
+        Input.Repeatable _ ->
             repeatableToHtml attributes path input
 
-        Internal.Text ->
+        Input.Text ->
             wrapInput (inputToHtml attributes "text" path input [])
 
-        Internal.Email ->
+        Input.Email ->
             wrapInput (inputToHtml attributes "email" path input [])
 
-        Internal.Password ->
+        Input.Password ->
             wrapInput (inputToHtml attributes "password" path input [])
 
-        Internal.TextArea ->
+        Input.TextArea ->
             wrapInput (textAreaToHtml attributes path input)
 
-        Internal.Integer ->
+        Input.Integer ->
             inputToHtml attributes "number" path input [ Attributes.step "1" ]
                 |> wrapInput
 
-        Internal.Float ->
+        Input.Float ->
             inputToHtml attributes "number" path input [ Attributes.step "1" ]
                 |> wrapInput
 
-        Internal.Date ->
+        Input.Date ->
             wrapInput (inputToHtml attributes "date" path input [])
 
-        Internal.Month ->
+        Input.Month ->
             wrapInput (inputToHtml attributes "month" path input [])
 
-        Internal.Select ->
+        Input.Select ->
             wrapInput (selectToHtml attributes path input)
 
-        Internal.Radio ->
+        Input.Radio ->
             wrapInput (radioToHtml attributes path input)
 
-        Internal.Checkbox ->
+        Input.Checkbox ->
             wrapInput (checkboxToHtml attributes path input)
 
 
@@ -721,7 +724,7 @@ inputToHtml { onChange } inputType path tree htmlAttrs element =
             , Attributes.type_ inputType
                 :: valueAttribute Attributes.value unwrappedInput.value
                 :: onInputChanged onChange tree path
-                :: inputAttrs onChange path tree
+                :: textInputHtmlAttributes onChange path tree
             , userProvidedAttributes element
             ]
         )
@@ -749,7 +752,7 @@ textAreaToHtml { onChange } path input element =
             (List.concat
                 [ onInputChanged onChange input path
                     :: Attributes.value valueStr
-                    :: inputAttrs onChange path input
+                    :: textInputHtmlAttributes onChange path input
                 , userProvidedAttributes element
                 ]
             )
@@ -770,6 +773,10 @@ selectToHtml { onChange } path (tree as input) element =
     Html.select
         (Attributes.id (inputId input path)
             :: Attributes.required unwappedInput.isRequired
+            :: nameAttribute input
+            :: ariaLabeledByAttribute input path
+            :: ariaDescribedByAttribute input path
+            :: ariaInvalidAttribute input
             :: onInputChanged onChange input path
             :: onInputFocused onChange path
             :: onInputBlured onChange path
@@ -799,31 +806,31 @@ radioToHtml { onChange } path input element =
             Tree.value input
     in
     Html.div
-        [ Attributes.class "radios" ]
+        [ Attributes.class "radios"
+        , Attributes.attribute "role" "radiogroup"
+        , ariaLabeledByAttribute input path
+        , ariaDescribedByAttribute input path
+        ]
         (List.indexedMap
             (\index ( optionText, optionValue ) ->
-                let
-                    optionId =
-                        identifierString
-                            (Maybe.map ((++) (String.fromInt index)) unwrappedInput.name)
-                            path
-                in
                 Html.div
                     []
                     [ Html.input
-                        (Attributes.id optionId
+                        (Attributes.id (optionId input (path ++ [ index ]))
                             :: Attributes.checked (optionValue == unwrappedInput.value)
                             :: Attributes.required unwrappedInput.isRequired
                             :: Attributes.value (String.fromInt index)
                             :: Attributes.type_ "radio"
+                            :: nameAttribute input
                             :: onInputChanged onChange input path
                             :: onInputFocused onChange path
                             :: onInputBlured onChange path
+                            :: ariaInvalidAttribute input
                             :: userProvidedAttributes element
                         )
                         []
                     , Html.label
-                        [ Attributes.for optionId ]
+                        [ Attributes.for (optionId input (path ++ [ index ])) ]
                         [ Html.text optionText ]
                     ]
             )
@@ -851,7 +858,7 @@ checkboxToHtml { onChange } path input element =
                         >> InputChanged path
                         >> onChange
                     )
-                :: inputAttrs onChange path input
+                :: textInputHtmlAttributes onChange path input
             , userProvidedAttributes element
             ]
         )
@@ -868,44 +875,25 @@ valueAttribute f inputValue =
         |> Maybe.withDefault (Attributes.class "")
 
 
-inputAttrs : (Msg id val -> msg) -> List Int -> Input id val -> List (Html.Attribute msg)
-inputAttrs attrs path (tree as input) =
-    let
-        unwrappedInput =
-            Tree.value tree
-
-        idForInput =
-            inputId input path
-    in
-    [ Attributes.id idForInput
-    , unwrappedInput.label
-        |> Maybe.map
-            (\_ ->
-                attribute "aria-labelledby" (labelId input path)
-            )
-        |> Maybe.withDefault (Attributes.class "")
-    , unwrappedInput.hint
-        |> Maybe.map
-            (\_ ->
-                attribute "aria-describedby" (hintId input path)
-            )
-        |> Maybe.withDefault (Attributes.class "")
-    , unwrappedInput.name
-        |> Maybe.map Attributes.name
-        |> Maybe.withDefault (Attributes.class "")
-    , Attributes.required unwrappedInput.isRequired
-    , Attributes.autocomplete False
-    , Attributes.placeholder (Maybe.withDefault "" unwrappedInput.placeholder)
-    , onInputFocused attrs path
-    , onInputBlured attrs path
-    , valueAttribute Attributes.min unwrappedInput.min
-    , valueAttribute Attributes.max unwrappedInput.max
+textInputHtmlAttributes : (Msg id val -> msg) -> List Int -> Input id val -> List (Html.Attribute msg)
+textInputHtmlAttributes onChange path input =
+    [ Attributes.autocomplete False
+    , Attributes.placeholder (Maybe.withDefault "" (Input.placeholder input))
+    , Attributes.id (inputId input path)
+    , Attributes.required (Input.isRequired input)
+    , nameAttribute input
+    , valueAttribute Attributes.min (Input.min input)
+    , valueAttribute Attributes.max (Input.max input)
+    , onInputFocused onChange path
+    , onInputBlured onChange path
+    , ariaDescribedByAttribute input path
+    , ariaInvalidAttribute input
     ]
 
 
 onInputChanged : (Msg id val -> c) -> Input id val -> List Int -> Html.Attribute c
 onInputChanged tagger input path =
-    Events.onInput (Internal.inputChanged input path >> tagger)
+    Events.onInput (Input.inputChanged input path >> tagger)
 
 
 onInputFocused : (Msg id val -> msg) -> List Int -> Html.Attribute msg
@@ -920,7 +908,7 @@ onInputBlured tagger path =
 
 inputId : Input id val -> List Int -> String
 inputId input path =
-    identifierString (Tree.value input |> .name) path
+    String.join "-" (Input.inputIdString input :: List.map String.fromInt path)
 
 
 labelId : Input id val -> List Int -> String
@@ -933,14 +921,9 @@ hintId input path =
     inputId input path ++ "-hint"
 
 
-identifierString : Maybe String -> List Int -> String
-identifierString maybe path =
-    case maybe of
-        Just str ->
-            String.join "-" (str :: List.map String.fromInt path)
-
-        Nothing ->
-            String.join "-" (List.map String.fromInt path)
+optionId : Input id val -> List Int -> String
+optionId input path =
+    inputId input path ++ "-option"
 
 
 inputErrors : Input id val -> List { error : Error id val, inputType : InputType }
@@ -962,10 +945,10 @@ inputErrors tree =
         ( Touched, _ ) ->
             errorRecords
 
-        ( _, Internal.Repeatable _ ) ->
+        ( _, Input.Repeatable _ ) ->
             errorRecords
 
-        ( _, Internal.Group ) ->
+        ( _, Input.Group ) ->
             errorRecords
 
         _ ->
@@ -1036,7 +1019,7 @@ viewErrors : List String -> Html msg
 viewErrors errors =
     case errors of
         err :: _ ->
-            Html.p [ Attributes.class "error" ] [ Html.text err ]
+            Html.p [ Attributes.class "errors" ] [ Html.text err ]
 
         [] ->
             Html.text ""
@@ -1069,46 +1052,46 @@ type InputType
     | Checkbox
 
 
-mapInputType : Internal.InputType id val err -> InputType
+mapInputType : Input.InputType id val err -> InputType
 mapInputType inputType =
     case inputType of
-        Internal.Text ->
+        Input.Text ->
             Text
 
-        Internal.TextArea ->
+        Input.TextArea ->
             TextArea
 
-        Internal.Password ->
+        Input.Password ->
             Password
 
-        Internal.Email ->
+        Input.Email ->
             Email
 
-        Internal.Integer ->
+        Input.Integer ->
             Integer
 
-        Internal.Float ->
+        Input.Float ->
             Float
 
-        Internal.Month ->
+        Input.Month ->
             Month
 
-        Internal.Date ->
+        Input.Date ->
             Date
 
-        Internal.Select ->
+        Input.Select ->
             Select
 
-        Internal.Radio ->
+        Input.Radio ->
             Radio
 
-        Internal.Checkbox ->
+        Input.Checkbox ->
             Checkbox
 
-        Internal.Repeatable _ ->
+        Input.Repeatable _ ->
             Text
 
-        Internal.Group ->
+        Input.Group ->
             Text
 
 
@@ -1117,13 +1100,15 @@ toAttrs =
     List.foldl (\(Attribute f) attrs -> f attrs) { classList = [], styles = [] }
 
 
-{-| -}
+{-| Apply a conditional list of classes
+-}
 class : String -> Attribute msg
 class classStr =
     classList [ ( classStr, True ) ]
 
 
-{-| -}
+{-| Apply a conditional list of classes
+-}
 classList : List ( String, Bool ) -> Attribute msg
 classList classTuple =
     Attribute
@@ -1132,7 +1117,8 @@ classList classTuple =
         )
 
 
-{-| -}
+{-| Apply a style
+-}
 style : String -> String -> Attribute msg
 style key val =
     Attribute (\attrs -> { attrs | styles = ( key, val ) :: attrs.styles })
@@ -1142,6 +1128,36 @@ userProvidedAttributes : UserAttributes -> List (Html.Attribute msg)
 userProvidedAttributes element =
     Attributes.classList element.classList
         :: List.map (\( k, v ) -> Attributes.style k v) element.styles
+
+
+nameAttribute : Input id val -> Html.Attribute msg
+nameAttribute input =
+    Input.name input
+        |> Maybe.map Attributes.name
+        |> Maybe.withDefault (Attributes.class "")
+
+
+ariaDescribedByAttribute : Input id val -> List Int -> Html.Attribute msg
+ariaDescribedByAttribute input path =
+    Input.hint input
+        |> Maybe.map (\_ -> attribute "aria-describedby" (hintId input path))
+        |> Maybe.withDefault (Attributes.class "")
+
+
+ariaLabeledByAttribute : Input id val -> List Int -> Html.Attribute msg
+ariaLabeledByAttribute input path =
+    Input.label input
+        |> Maybe.map (\_ -> attribute "aria-labelledby" (labelId input path))
+        |> Maybe.withDefault (Attributes.class "")
+
+
+ariaInvalidAttribute : Input id val -> Html.Attribute msg
+ariaInvalidAttribute input =
+    if List.isEmpty (Input.errors input) then
+        Attributes.class ""
+
+    else
+        attribute "aria-invalid" "true"
 
 
 errorToString : { inputType : InputType, error : Error id val } -> String

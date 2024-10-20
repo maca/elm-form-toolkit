@@ -3,9 +3,9 @@ module DecodeTest exposing (suite)
 import Expect
 import FormToolkit.Decode as Decode exposing (Error(..))
 import FormToolkit.Input as Input
-import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode
+import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
 import Time
@@ -224,81 +224,6 @@ suite =
                         (Ok "th qck fx jmps vr th lzy dg")
             ]
         ]
-
-
-type Field
-    = StringField
-    | IntField
-    | FloatField
-    | BoolField
-    | PosixField
-    | BlankField
-
-
-stringInput : Input.Input Field val
-stringInput =
-    Input.text
-        [ Input.label "Enter your string"
-        , Input.identifier StringField
-        , Input.name "string-field"
-        , Input.value (Value.string "A string")
-        ]
-
-
-intInput : Input.Input Field val
-intInput =
-    Input.text
-        [ Input.label "Enter your int"
-        , Input.identifier IntField
-        , Input.name "int-field"
-        , Input.value (Value.int 1)
-        ]
-
-
-boolInput : Input.Input Field val
-boolInput =
-    Input.text
-        [ Input.label "Enter your bool"
-        , Input.identifier BoolField
-        , Input.value (Value.bool True)
-        ]
-
-
-floatInput : Input.Input Field val
-floatInput =
-    Input.text
-        [ Input.label "Enter your float"
-        , Input.identifier FloatField
-        , Input.value (Value.float 1.1)
-        ]
-
-
-posixInput : Input.Input Field val
-posixInput =
-    Input.text
-        [ Input.label "Enter your posix"
-        , Input.identifier PosixField
-        , Input.value (Value.time (Time.millisToPosix 0))
-        ]
-
-
-blankInput : Input.Input Field val
-blankInput =
-    Input.text
-        [ Input.label "Enter nothing"
-        , Input.required True
-        , Input.identifier BlankField
-        ]
-
-
-groupWithName : Input.Input Field val
-groupWithName =
-    Input.group [ Input.name "group" ] [ stringInput, intInput ]
-
-
-groupWithNoName : Input.Input Field val
-groupWithNoName =
-    Input.group [] [ stringInput, intInput ]
 
 
 simpleJsonDecoder : Json.Decode.Decoder ( String, Int )

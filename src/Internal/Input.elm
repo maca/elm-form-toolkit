@@ -1,23 +1,26 @@
 module Internal.Input exposing
-    ( Input, Attrs, InputType(..), Status(..)
-    , blur, focus, init, isBlank, map, root
+    ( Input, Attributes, InputType(..), Status(..)
+    , blur, focus, init, isBlank, map
     , updateValue
     , Msg(..), inputChanged
     , identifier, inputType, max, min, name, value
+    , label, hint, placeholder
     , isGroup, isRequired
-    , setErrors, setValue
-    , errors
+    , errors, setErrors
+    , inputIdString
     )
 
 {-|
 
-@docs Tree, Input, Attrs, InputType, Status
-@docs blur, focus, init, isBlank, map, root
+@docs Input, Attributes, InputType, Status
+@docs blur, focus, init, isBlank, map
 @docs updateValue
 @docs Msg, inputChanged
 @docs identifier, inputType, max, min, name, value
+@docs label, hint, placeholder
 @docs isGroup, isRequired
-@docs setErrors, setValue
+@docs errors, setErrors
+@docs inputIdString
 
 -}
 
@@ -49,7 +52,7 @@ type InputType id val err
     | Repeatable (Input id val err)
 
 
-type alias Attrs id val err =
+type alias Attributes id val err =
     { inputType : InputType id val err
     , name : Maybe String
     , value : Value val
@@ -71,15 +74,10 @@ type alias Attrs id val err =
 
 
 type alias Input id val err =
-    Tree.Tree (Attrs id val err)
+    Tree.Tree (Attributes id val err)
 
 
-root : Attrs id val err
-root =
-    init Group []
-
-
-init : InputType id val err -> List (Attrs id val err -> Attrs id val err) -> Attrs id val err
+init : InputType id val err -> List (Attributes id val err -> Attributes id val err) -> Attributes id val err
 init inputType_ =
     List.foldl (\f i -> f i)
         { inputType = inputType_
@@ -102,12 +100,12 @@ init inputType_ =
         }
 
 
-updateValue : Value val -> Attrs id val err -> Attrs id val err
+updateValue : Value val -> Attributes id val err -> Attributes id val err
 updateValue val input =
     { input | value = val, errors = [] }
 
 
-getChoice : String -> Attrs id val err -> Value val
+getChoice : String -> Attributes id val err -> Value val
 getChoice str { options } =
     case String.toInt str of
         Just idx ->
@@ -120,12 +118,12 @@ getChoice str { options } =
             Internal.Value.blank
 
 
-focus : Attrs id val err -> Attrs id val err
+focus : Attributes id val err -> Attributes id val err
 focus input =
     { input | status = Focused }
 
 
-blur : Attrs id val err -> Attrs id val err
+blur : Attributes id val err -> Attributes id val err
 blur input =
     { input | status = Touched }
 
@@ -156,6 +154,21 @@ value input =
 name : Input id val err -> Maybe String
 name input =
     Tree.value input |> .name
+
+
+placeholder : Input id val err -> Maybe String
+placeholder input =
+    Tree.value input |> .placeholder
+
+
+label : Input id val err -> Maybe String
+label input =
+    Tree.value input |> .label
+
+
+hint : Input id val err -> Maybe String
+hint input =
+    Tree.value input |> .hint
 
 
 inputType : Input id val err -> InputType id val err
@@ -213,12 +226,7 @@ setErrors error =
         )
 
 
-setValue : Value val -> Input id val err -> Input id val err
-setValue val =
-    Tree.updateValue (\input -> { input | value = val })
-
-
-map : (a -> b) -> (Value val1 -> Value val2) -> (err1 -> err2) -> Attrs a val1 err1 -> Attrs b val2 err2
+map : (a -> b) -> (Value val1 -> Value val2) -> (err1 -> err2) -> Attributes a val1 err1 -> Attributes b val2 err2
 map func valToVal errToErr input =
     { inputType = mapInputType func errToErr valToVal input.inputType
     , name = input.name
@@ -281,6 +289,56 @@ mapInputType func errToErr valToVal inputType_ =
 
         Group ->
             Group
+
+
+inputIdString : Input id val err -> String
+inputIdString input =
+    name input
+        |> Maybe.withDefault
+            (inputType input |> inputTypeToString)
+
+
+inputTypeToString : InputType id val err -> String
+inputTypeToString type_ =
+    case type_ of
+        Text ->
+            "text"
+
+        TextArea ->
+            "textarea"
+
+        Password ->
+            "password"
+
+        Email ->
+            "email"
+
+        Integer ->
+            "integer"
+
+        Float ->
+            "float"
+
+        Month ->
+            "month"
+
+        Date ->
+            "date"
+
+        Select ->
+            "select"
+
+        Radio ->
+            "radio"
+
+        Checkbox ->
+            "checkbox"
+
+        Repeatable _ ->
+            "repeatable"
+
+        Group ->
+            "group"
 
 
 type Msg id val

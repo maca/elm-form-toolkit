@@ -60,7 +60,7 @@ import FormToolkit.Decode exposing (Decoder, Error(..))
 import FormToolkit.Value as Value
 import FormToolkit.View as View
 import Html exposing (Html)
-import Internal.Input as Internal exposing (Input, Msg(..))
+import Internal.Input as Internal exposing (Attributes, Input, Msg(..))
 import RoseTree.Tree as Tree
 
 
@@ -378,7 +378,7 @@ init inputType attributes =
 
 unwrapAttrs :
     List (Attribute id val)
-    -> List (Internal.Attrs id val (Error id val) -> Internal.Attrs id val (Error id val))
+    -> List (Attributes id val (Error id val) -> Attributes id val (Error id val))
 unwrapAttrs =
     List.map (\(Attribute f) -> f)
 
@@ -386,7 +386,7 @@ unwrapAttrs =
 {-| Represents an attribute that can be applied to an input.
 -}
 type Attribute id val
-    = Attribute (Internal.Attrs id val (Error id val) -> Internal.Attrs id val (Error id val))
+    = Attribute (Attributes id val (Error id val) -> Attributes id val (Error id val))
 
 
 {-| Sets the name of an input.
