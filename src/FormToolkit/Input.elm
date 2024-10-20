@@ -578,15 +578,8 @@ repeatableMax integer =
 {-| Collects all errors from an input and its children.
 -}
 errors : Input id val -> List (Error id val)
-errors tree =
-    case Tree.children tree of
-        [] ->
-            Tree.value tree |> .errors
-
-        children ->
-            (Tree.value tree |> .errors)
-                :: List.map errors children
-                |> List.concat
+errors =
+    Internal.errors
 
 
 {-| Transforms identifiers or errors in an input, useful to combine inputs with

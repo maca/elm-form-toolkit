@@ -127,18 +127,18 @@ suite =
             ]
         , describe "validates"
             [ let
-                result =
+                ( updatedInput, result ) =
                     Decode.validateAndDecode (Decode.succeed ()) blankInput
               in
               describe "presence when decoding succeeds"
                 [ test "produces error" <|
                     \_ ->
-                        Tuple.second result
+                        result
                             |> Expect.equal
                                 (Err [ IsBlank (Just BlankField) ])
                 , test "validates input" <|
                     \_ ->
-                        Tuple.first result
+                        updatedInput
                             |> Input.errors
                             |> Expect.equal [ IsBlank (Just BlankField) ]
                 ]

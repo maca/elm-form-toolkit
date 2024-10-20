@@ -471,12 +471,7 @@ parseHelp func =
 
 failure : Input id val -> Error id val -> Partial id val a
 failure input err =
-    Failure (Input.setError err input) [ err ]
-
-
-inputFromInternal : Input.Attrs id val (Error id val) -> Input id val
-inputFromInternal node =
-    Tree.leaf node
+    Failure (Input.setErrors [ err ] input) [ err ]
 
 
 {-| Chains together decoders that depend on previous decoding results.
@@ -752,9 +747,10 @@ map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
-{-| Decodes an input using the given decoder.
+{-| Decodes an input using the given decoder without applying field validations
+(required, min, max...).
 
-    Input.text [ Input.value (Value.string "A string") ]
+    Input.text [ Input.value (Value.string "A string"), Input.required True ]
         |> decode string
         == Ok "A string"
 
@@ -767,8 +763,13 @@ map8 func a b c d e f g h =
 
 -}
 decode : Decoder id val a -> Input id val -> Result (List (Error id val)) a
-decode decoder =
-    validateAndDecode decoder >> Tuple.second
+decode decoder input =
+    case apply decoder input of
+        Success _ a ->
+            Ok a
+
+        Failure _ errors ->
+            Err errors
 
 
 {-| Validates and decodes an input using the given decoder.
@@ -777,74 +778,42 @@ validateAndDecode :
     Decoder id val a
     -> Input id val
     -> ( Input id val, Result (List (Error id val)) a )
-validateAndDecode decoder tree =
-    case
-        apply
-            (decoder
-                |> validateInput checkRequired
-                |> validateInput checkInRange
-            )
-            tree
-    of
-        Success tree2 a ->
-            ( tree2, Ok a )
+validateAndDecode decoder input =
+    case apply (validateTree |> andThen (\() -> decoder)) input of
+        Success input2 a ->
+            ( input2, Ok a )
 
-        Failure tree2 errors ->
-            ( tree2, Err errors )
+        Failure input2 errors ->
+            ( input2, Err errors )
 
 
-validateInput :
-    (Input id val -> Result (Error id val) (Value.Value val))
-    -> Decoder id val a
-    -> Decoder id val a
-validateInput func decoder =
+validateTree : Decoder id val ()
+validateTree =
     Decoder
-        (\tree ->
-            case validateHelp (func << inputFromInternal) tree of
-                ( tree2, [] ) ->
-                    Success tree2 ()
+        (\input ->
+            let
+                validators =
+                    [ checkRequired, checkInRange ]
 
-                ( tree2, errors ) ->
-                    Failure tree2 errors
+                updated =
+                    Tree.map
+                        (\node ->
+                            case List.filterMap ((|>) node) validators of
+                                [] ->
+                                    node
+
+                                errors ->
+                                    Input.setErrors errors node
+                        )
+                        input
+            in
+            case Input.errors updated of
+                [] ->
+                    Success updated ()
+
+                errors ->
+                    Failure updated errors
         )
-        |> andThen (\() -> decoder)
-
-
-validateHelp :
-    (Input.Attrs id val (Error id val) -> Result (Error id val) (Value.Value val))
-    -> Input id val
-    -> ( Input id val, List (Error id val) )
-validateHelp func tree =
-    let
-        treeOfTuples =
-            Tree.mapValues
-                (\input ->
-                    case func input of
-                        Ok (Value.Value val) ->
-                            ( { input | value = val }
-                            , Nothing
-                            )
-
-                        Err error ->
-                            ( { input | errors = List.Extra.unique (error :: input.errors) }
-                            , Just error
-                            )
-                )
-                tree
-    in
-    ( Tree.mapValues Tuple.first treeOfTuples
-    , Tree.foldr
-        (\node acc ->
-            case Tree.value node |> Tuple.second of
-                Just e ->
-                    e :: acc
-
-                Nothing ->
-                    acc
-        )
-        []
-        treeOfTuples
-    )
 
 
 apply : Decoder id val a -> Input id val -> Partial id val a
@@ -852,58 +821,54 @@ apply (Decoder decoder) =
     decoder
 
 
-checkRequired : Input id val -> Result (Error id val) (Value.Value val)
+checkRequired : Input id val -> Maybe (Error id val)
 checkRequired input =
     if Input.isRequired input && Input.isBlank input then
-        Err (IsBlank (Input.identifier input))
+        Just (IsBlank (Input.identifier input))
 
     else
-        Ok (Value.Value (Input.value input))
+        Nothing
 
 
-checkInRange : Input id val -> Result (Error id val) (Value.Value val)
+checkInRange : Input id val -> Maybe (Error id val)
 checkInRange tree =
+    let
+        val =
+            Value.Value (Input.value tree)
+
+        min =
+            Value.Value (Input.min tree)
+
+        max =
+            Value.Value (Input.max tree)
+    in
     case
         ( Internal.Value.compare (Input.value tree) (Input.min tree)
         , Internal.Value.compare (Input.value tree) (Input.max tree)
         )
     of
         ( Just LT, Just _ ) ->
-            Err
+            Just
                 (ValueNotInRange (Input.identifier tree)
-                    { value = Value.Value (Input.value tree)
-                    , min = Value.Value (Input.min tree)
-                    , max = Value.Value (Input.max tree)
-                    }
+                    { value = val, min = min, max = max }
                 )
 
         ( Just _, Just GT ) ->
-            Err
+            Just
                 (ValueNotInRange (Input.identifier tree)
-                    { value = Value.Value (Input.value tree)
-                    , min = Value.Value (Input.min tree)
-                    , max = Value.Value (Input.max tree)
-                    }
+                    { value = val, min = min, max = max }
                 )
 
         ( Just LT, Nothing ) ->
-            Err
-                (ValueTooSmall (Input.identifier tree)
-                    { value = Value.Value (Input.value tree)
-                    , min = Value.Value (Input.min tree)
-                    }
-                )
+            Just
+                (ValueTooSmall (Input.identifier tree) { value = val, min = min })
 
         ( Nothing, Just GT ) ->
-            Err
-                (ValueTooLarge (Input.identifier tree)
-                    { value = Value.Value (Input.value tree)
-                    , max = Value.Value (Input.max tree)
-                    }
-                )
+            Just
+                (ValueTooLarge (Input.identifier tree) { value = val, max = max })
 
         _ ->
-            Ok (Value.Value (Input.value tree))
+            Nothing
 
 
 {-| Represents an error that occurred during decoding or validation.

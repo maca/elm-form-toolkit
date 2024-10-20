@@ -5,7 +5,8 @@ module Internal.Input exposing
     , Msg(..), inputChanged
     , identifier, inputType, max, min, name, value
     , isGroup, isRequired
-    , setError, setValue
+    , setErrors, setValue
+    , errors
     )
 
 {-|
@@ -16,7 +17,7 @@ module Internal.Input exposing
 @docs Msg, inputChanged
 @docs identifier, inputType, max, min, name, value
 @docs isGroup, isRequired
-@docs setError, setValue
+@docs setErrors, setValue
 
 -}
 
@@ -190,12 +191,24 @@ isGroup input =
             False
 
 
-setError : err -> Input id val err -> Input id val err
-setError error =
+errors : Input id val err -> List err
+errors tree =
+    case Tree.children tree of
+        [] ->
+            Tree.value tree |> .errors
+
+        children ->
+            (Tree.value tree |> .errors)
+                :: List.map errors children
+                |> List.concat
+
+
+setErrors : List err -> Input id val err -> Input id val err
+setErrors error =
     Tree.updateValue
         (\input ->
             { input
-                | errors = List.Extra.unique (error :: input.errors)
+                | errors = List.Extra.unique (error ++ input.errors)
             }
         )
 
