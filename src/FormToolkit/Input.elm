@@ -10,6 +10,7 @@ module FormToolkit.Input exposing
     , options, min, max
     , noattr
     , copies, repeatableMin, repeatableMax
+    , updateAttributes
     , errors
     , map, mapValues
     )
@@ -43,6 +44,11 @@ various input types, attributes, and updating and rendering.
 ### Group
 
 @docs copies, repeatableMin, repeatableMax
+
+
+# Update attributes
+
+@docs updateAttributes
 
 
 # Errors
@@ -573,6 +579,46 @@ repeatableMin integer =
 repeatableMax : Int -> Attribute id val
 repeatableMax integer =
     Attribute (\input -> { input | repeatableMax = Just integer })
+
+
+{-| Update the attributes of an input passing an identifier and a list of
+Attribute, it will fail if the input is not found.
+
+    Input.group []
+        [ Input.text
+            [ Input.identifier "Input"
+            , Input.value (Value.string "Value")
+            ]
+        ]
+        |> Input.updateAttributes "Input"
+            [ Input.value (Value.string "Updated") ]
+        |> Result.mapError List.singleton
+        |> Result.andThen
+            (Decode.decode (Decode.field "Input" Decode.string))
+        == Ok "Updated"
+
+-}
+updateAttributes : id -> List (Attribute id val) -> Input id val -> Result (Error id val) (Input id val)
+updateAttributes id attrList input =
+    if Tree.any (Internal.identifier >> (==) (Just id)) input then
+        let
+            attrs =
+                unwrapAttrs attrList
+        in
+        Ok
+            (Tree.map
+                (\node ->
+                    if Internal.identifier node == Just id then
+                        Internal.updateAttributes attrs node
+
+                    else
+                        node
+                )
+                input
+            )
+
+    else
+        Err (InputNotFound id)
 
 
 {-| Collects all errors from an input and its children.

@@ -1,7 +1,7 @@
 module Internal.Input exposing
     ( Input, Attributes, InputType(..), Status(..)
     , blur, focus, init, isBlank, map
-    , updateValue
+    , updateAttributes, updateValue
     , Msg(..), inputChanged
     , identifier, inputType, max, min, name, value
     , label, hint, placeholder
@@ -14,7 +14,7 @@ module Internal.Input exposing
 
 @docs Input, Attributes, InputType, Status
 @docs blur, focus, init, isBlank, map
-@docs updateValue
+@docs updateAttributes, updateValue
 @docs Msg, inputChanged
 @docs identifier, inputType, max, min, name, value
 @docs label, hint, placeholder
@@ -98,6 +98,17 @@ init inputType_ =
         , removeInputsButtonCopy = "Remove"
         , errors = []
         }
+
+
+updateAttributes :
+    List (Attributes id val err -> Attributes id val err)
+    -> Input id val err
+    -> Input id val err
+updateAttributes attrList =
+    Tree.updateValue
+        (\attrs ->
+            List.foldl (\f i -> f i) attrs attrList
+        )
 
 
 updateValue : Value val -> Attributes id val err -> Attributes id val err
