@@ -68,7 +68,7 @@ type alias Input id val =
         = FirstName
         | LastName
 
-    form : Input Fields
+    form : Input Fields val
     form =
         Input.group []
             [ Input.text
@@ -377,7 +377,7 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
     type SpecialValue
         = SpecialValue
 
-    specialDecoder : Decoder Special
+    specialDecoder : Decoder id val Special
     specialDecoder =
         string
             |> andThen
@@ -386,14 +386,14 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
                         succeed SpecialValue
 
                     else
-                        fail (Input.CustomError Nothing "Not special")
+                        fail "Nothing special"
                 )
 
     result =
         Input.text [ Input.value (Value.string "special") ]
             |> decode specialDecoder
 
-    -- Ok SpecialValue
+    --> Ok SpecialValue
 
 -}
 succeed : a -> Decoder id val a
@@ -479,9 +479,9 @@ failure input err =
     -- justinmimbs/date
 
 
-    import Date
+    import Date exposing (Date)
 
-    dateDecoder : Decoder Date
+    dateDecoder : Decoder id val Date
     dateDecoder =
         string
             |> andThen
@@ -491,14 +491,14 @@ failure input err =
                             succeed date
 
                         Err err ->
-                            fail (Input.CustomError Nothing err)
+                            fail err
                 )
 
     result =
         Input.text [ Input.value (Value.string "07.03.1981") ]
             |> decode dateDecoder
 
-    -- Ok (Date.fromCalendarDate 1981 Date.March 7)
+    --> Ok (Date.fromCalendarDate 1981 Date.March 7)
 
 -}
 andThen : (a -> Decoder id val b) -> Decoder id val a -> Decoder id val b
@@ -528,7 +528,7 @@ andThen func (Decoder decoder) =
         | LastName
         | Age
 
-    form : Input Fields
+    form : Input Fields val
     form =
         Input.group []
             [ Input.text
@@ -545,7 +545,7 @@ andThen func (Decoder decoder) =
                 ]
             ]
 
-    personDecoder : Decoder Person
+    personDecoder : Decoder Fields val Person
     personDecoder =
         Decode.succeed Person
             |> Decode.andMap (Decode.field FirstName Decode.string)
@@ -555,7 +555,7 @@ andThen func (Decoder decoder) =
     result =
         form |> decode personDecoder
 
-    -- Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
+    --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
 andMap : Decoder id val a -> Decoder id val (a -> b) -> Decoder id val b
@@ -637,14 +637,14 @@ map2 func a b =
         , age : Int
         }
 
-    person : Decoder Person
+    person : Decoder String val Person
     person =
         map3 Person
             (field "FirstName" string)
             (field "LastName" string)
             (field "Age" int)
 
-    form : Input String
+    form : Input String val
     form =
         Input.group []
             [ Input.text
@@ -664,7 +664,7 @@ map2 func a b =
     result =
         form |> decode personDecoder
 
-    -- Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
+    --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
 map3 :
