@@ -3,6 +3,7 @@ module DecodeTest exposing (suite)
 import Expect
 import FormToolkit.Decode as Decode exposing (Error(..))
 import FormToolkit.Input as Input
+import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode
 import Support.ExampleInputs exposing (..)
@@ -35,6 +36,23 @@ suite =
                 \_ ->
                     Decode.decode Decode.posix posixInput
                         |> Expect.equal (Ok (Time.millisToPosix 0))
+            , test "decoding custom value" <|
+                \_ ->
+                    Input.select [ Input.value (Value.custom ES) ]
+                        |> Decode.decode Decode.customValue
+                        |> Expect.equal (Ok ES)
+            , test "decoding custom value with field with options" <|
+                \_ ->
+                    Input.select
+                        [ Input.value (Value.string "Español")
+                        , Input.options
+                            [ ( "Español", Value.custom ES )
+                            , ( "English", Value.custom EN )
+                            , ( "Deutsch", Value.custom DE )
+                            ]
+                        ]
+                        |> Decode.decode Decode.customValue
+                        |> Expect.equal (Ok ES)
             , test "decoding field by id" <|
                 \_ ->
                     Input.group [] [ stringInput ]

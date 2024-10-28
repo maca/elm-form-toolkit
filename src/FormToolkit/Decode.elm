@@ -1,7 +1,8 @@
 module FormToolkit.Decode exposing
     ( Decoder
     , field
-    , string, int, float, bool, posix, maybe, list, value, json
+    , string, int, float, bool, posix, maybe, list
+    , value, customValue, json
     , succeed, fail, custom, format
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
@@ -18,7 +19,8 @@ know `Json.Decode` you know how to use this module ;)
 # Decoding functions
 
 @docs field
-@docs string, int, float, bool, posix, maybe, list, value, json
+@docs string, int, float, bool, posix, maybe, list
+@docs value, customValue, json
 @docs succeed, fail, custom, format
 
 
@@ -35,6 +37,7 @@ know `Json.Decode` you know how to use this module ;)
 
 -}
 
+import Dict
 import FormToolkit.Value as Value
 import Internal.Input as Input
 import Internal.Value
@@ -272,6 +275,52 @@ value =
     parseValue Just
 
 
+{-| Decodes the custom value of an input.
+
+Tipically used for `select` or `radio` inputs with options of custom value, but
+also for autocompleatable text inputs where the inputted text corresponds to an
+option text.
+
+    type Lang
+        = ES
+        | EN
+        | DE
+
+    langSelect : Input id Lang
+    langSelect =
+        Input.select
+            [ Input.label "Language"
+            , Input.value (Value.custom ES)
+            , Input.options
+                [ ( "Español", Value.custom ES )
+                , ( "English", Value.custom EN )
+                , ( "Deutsch", Value.custom DE )
+                ]
+            ]
+
+    autocomplete : Input id Lang
+    autocomplete =
+        Input.text
+            [ Input.value (Value.string "English")
+            , Input.options
+                [ ( "Español", Value.custom ES )
+                , ( "English", Value.custom EN )
+                , ( "Deutsch", Value.custom DE )
+                ]
+            ]
+
+    es =
+        langSelect |> decode customValue == Ok ES
+
+    en =
+        autocomplete |> decode customValue == Ok EN
+
+-}
+customValue : Decoder id val val
+customValue =
+    parseValue Value.toCustom
+
+
 {-| Converts the entire input tree into a JSON
 [Value](https://package.elm-lang.org/packages/elm/json/latest/Json-Encode#Value).
 Input [name](FormToolkit.Input#name) property will be used as the key,
@@ -449,7 +498,15 @@ parseValue func =
                 Err (IsGroupNotInput (Input.identifier input))
 
             else
-                func (Value.Value (Input.value input))
+                Internal.Value.toString (Input.value input)
+                    |> Maybe.andThen
+                        (\key ->
+                            Input.options input
+                                |> Dict.fromList
+                                |> Dict.get key
+                        )
+                    |> Maybe.withDefault (Input.value input)
+                    |> (func << Value.Value)
                     |> Maybe.map Ok
                     |> Maybe.withDefault
                         (Err (ParseError (Input.identifier input)))

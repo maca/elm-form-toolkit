@@ -3,13 +3,22 @@ module ViewTest exposing (suite)
 import Expect
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input
+import FormToolkit.Value as Value
 import Html.Attributes as Attrs exposing (for, name, required)
 import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
 import Test.Html.Event as Event
 import Test.Html.Query as Query
-import Test.Html.Selector exposing (attribute, class, containing, id, tag, text)
+import Test.Html.Selector
+    exposing
+        ( attribute
+        , class
+        , containing
+        , id
+        , tag
+        , text
+        )
 
 
 suite : Test
@@ -26,6 +35,7 @@ suite =
                                 >> Query.has
                                     [ attribute
                                         (Attrs.attribute "aria-describedby" "string-field-hint")
+                                    , attribute (Attrs.placeholder "String value")
                                     ]
                             , Query.find [ tag "label" ]
                                 >> Query.has
@@ -33,9 +43,6 @@ suite =
                                     , id "string-field-label"
                                     , attribute (for "string-field")
                                     ]
-                            , Query.find [ tag "input" ]
-                                >> Query.has
-                                    [ attribute (Attrs.placeholder "String value") ]
                             , Query.find [ id "string-field-hint" ]
                                 >> Query.has [ text "Must be a string" ]
                             ]
@@ -51,11 +58,52 @@ suite =
                         |> Query.fromHtml
                         |> Expect.all
                             [ Query.has [ class "required" ]
-                            , Query.find [ tag "input" ]
-                                >> Query.has
-                                    [ attribute (Attrs.attribute "aria-invalid" "true") ]
+                            , Query.has
+                                [ containing
+                                    [ tag "input"
+                                    , attribute (Attrs.attribute "aria-invalid" "true")
+                                    ]
+                                ]
                             , Query.find [ class "errors" ]
                                 >> Query.has [ containing [ text "Should be provided" ] ]
+                            ]
+            ]
+        , describe "input input with autocomplete options" <|
+            [ test "has datalist options" <|
+                \_ ->
+                    stringInputWithOptions
+                        |> Input.toHtml (always never)
+                        |> Query.fromHtml
+                        |> Expect.all
+                            [ Query.has
+                                [ attribute (Attrs.attribute "list" "string-field-datalist")
+                                , attribute (Attrs.attribute "autocomplete" "on")
+                                ]
+                            , Query.find [ tag "datalist" ]
+                                >> Expect.all
+                                    [ Query.has
+                                        [ id "string-field-datalist"
+                                        , attribute (Attrs.attribute "role" "listbox")
+                                        ]
+                                    , Query.has
+                                        [ containing
+                                            [ tag "option"
+                                            , attribute (Attrs.attribute "value" "red")
+                                            ]
+                                        ]
+                                    , Query.has
+                                        [ containing
+                                            [ tag "option"
+                                            , attribute (Attrs.attribute "value" "green")
+                                            ]
+                                        ]
+                                    , Query.has
+                                        [ containing
+                                            [ tag "option"
+                                            , attribute (Attrs.attribute "value" "blue")
+                                            ]
+                                        ]
+                                    ]
                             ]
             ]
         , describe "checkbox" <|

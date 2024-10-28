@@ -7,7 +7,7 @@ module FormToolkit.Input exposing
     , group, repeatable
     , Attribute
     , name, identifier, value, required, label, placeholder, hint
-    , options, min, max
+    , options, stringOptions, min, max
     , noattr
     , copies, repeatableMin, repeatableMax
     , updateAttributes
@@ -37,7 +37,7 @@ various input types, attributes, and updating and rendering.
 
 @docs Attribute
 @docs name, identifier, value, required, label, placeholder, hint
-@docs options, min, max
+@docs options, stringOptions, min, max
 @docs noattr
 
 
@@ -110,7 +110,7 @@ update decoder msg input =
     FormToolkit.Decode.validateAndDecode decoder <|
         case msg of
             InputChanged path val ->
-                updateAt path (Tree.updateValue (Internal.updateValue val)) input
+                updateAt path (Internal.updateValue val) input
 
             InputFocused path ->
                 updateAt path (Tree.updateValue Internal.focus) input
@@ -503,7 +503,8 @@ hint str =
     Attribute (\input -> { input | hint = Just str })
 
 
-{-| Sets the options for a select, radio, or checkbox input.
+{-| Sets the options for a select, radio, or checkbox input, or datalist for a
+string input autocomplete.
 
     yesSelect : Input id ( Bool, Bool )
     yesSelect =
@@ -529,6 +530,29 @@ options values =
                         values
             }
         )
+
+
+{-| Sets string options for a select, radio, or checkbox input, or datalist for a
+string input autocomplete.
+
+    yesSelect : Input id ( Bool, Bool )
+    yesSelect =
+        select
+            [ label "Language"
+            , value (Value.custom ( True, True ))
+            , options
+                [ ( "Yes-yes", Value.custom ( True, True ) )
+                , ( "Yes-no", Value.custom ( True, False ) )
+                , ( "No-yes", Value.custom ( False, True ) )
+                , ( "No-no", Value.custom ( False, False ) )
+                ]
+            ]
+
+-}
+stringOptions : List String -> Attribute id val
+stringOptions values =
+    options
+        (List.map (\strVal -> ( strVal, Value.string strVal )) values)
 
 
 {-| Sets the minimum value for an input when the value is scalar (int, float,

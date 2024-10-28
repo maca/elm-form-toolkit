@@ -3,6 +3,7 @@ module Main exposing (main)
 import Browser
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Events exposing (onClick, onSubmit)
 import Json.Encode
@@ -14,7 +15,7 @@ main =
 
 
 type alias Model =
-    { formFields : Input TeamFields Never
+    { formFields : Input TeamFields Color
     , submitted : Bool
     , team : Maybe Team
     , json : Maybe Json.Encode.Value
@@ -24,16 +25,17 @@ type alias Model =
 type TeamFields
     = TeamMembers
     | TeamName
+    | TeamColor
     | MemberName
     | MemberAge
 
 
 type Msg
-    = FormChanged (Input.Msg TeamFields Never)
+    = FormChanged (Input.Msg TeamFields Color)
     | FormSubmitted
 
 
-teamFields : Input.Input TeamFields val
+teamFields : Input.Input TeamFields Color
 teamFields =
     Input.group []
         [ Input.text
@@ -41,6 +43,17 @@ teamFields =
             , Input.required True
             , Input.identifier TeamName
             , Input.name "team-name"
+            ]
+        , Input.text
+            [ Input.label "Color"
+            , Input.required True
+            , Input.identifier TeamColor
+            , Input.name "team-color"
+            , Input.options
+                [ ( "red", Value.custom Red )
+                , ( "green", Value.custom Green )
+                , ( "blue", Value.custom Blue )
+                ]
             ]
         , Input.group
             [ Input.label "Members (max 5)" ]
@@ -89,7 +102,10 @@ update msg model =
                     -- Validates and produces result with decoder and updates with Msg
                     Input.update teamDecoder inputMsg model.formFields
             in
-            { model | formFields = formFields, team = Result.toMaybe result }
+            { model
+                | formFields = formFields
+                , team = Result.toMaybe (result |> Debug.log "result")
+            }
 
         FormSubmitted ->
             { model
@@ -98,6 +114,7 @@ update msg model =
                 -- Uses Input.name values as keys to build a json object
                 , json =
                     Decode.decode Decode.json model.formFields
+                        |> Debug.log "json result"
                         |> Result.toMaybe
             }
 
@@ -116,9 +133,16 @@ view model =
         ]
 
 
+type Color
+    = Red
+    | Green
+    | Blue
+
+
 type alias Team =
     { name : String
     , members : List Person
+    , color : Color
     }
 
 
@@ -128,14 +152,15 @@ type alias Person =
     }
 
 
-teamDecoder : Decode.Decoder TeamFields val Team
+teamDecoder : Decode.Decoder TeamFields Color Team
 teamDecoder =
-    Decode.map2 Team
+    Decode.map3 Team
         (Decode.field TeamName Decode.string)
         (Decode.field TeamMembers (Decode.list personDecoder))
+        (Decode.field TeamColor Decode.customValue)
 
 
-personDecoder : Decode.Decoder TeamFields val Person
+personDecoder : Decode.Decoder TeamFields Color Person
 personDecoder =
     Decode.map2 Person
         (Decode.field MemberName Decode.string)

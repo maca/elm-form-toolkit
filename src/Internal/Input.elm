@@ -8,6 +8,7 @@ module Internal.Input exposing
     , isGroup, isRequired
     , errors, setErrors
     , inputIdString
+    , isAutocompleteable, options
     )
 
 {-|
@@ -25,6 +26,7 @@ module Internal.Input exposing
 -}
 
 import Array
+import Dict
 import Internal.Value exposing (Value)
 import List.Extra
 import RoseTree.Tree as Tree
@@ -79,7 +81,7 @@ type alias Input id val err =
 
 init : InputType id val err -> List (Attributes id val err -> Attributes id val err) -> Attributes id val err
 init inputType_ =
-    List.foldl (\f i -> f i)
+    List.foldl (<|)
         { inputType = inputType_
         , name = Nothing
         , label = Nothing
@@ -107,20 +109,24 @@ updateAttributes :
 updateAttributes attrList =
     Tree.updateValue
         (\attrs ->
-            List.foldl (\f i -> f i) attrs attrList
+            let
+                updatedAttrs =
+                    List.foldl (<|) attrs attrList
+            in
+            { updatedAttrs | identifier = attrs.identifier }
         )
 
 
-updateValue : Value val -> Attributes id val err -> Attributes id val err
-updateValue val input =
-    { input | value = val, errors = [] }
+updateValue : Value val -> Input id val err -> Input id val err
+updateValue val =
+    Tree.updateValue (\attrs -> { attrs | value = val, errors = [] })
 
 
 getChoice : String -> Attributes id val err -> Value val
-getChoice str { options } =
+getChoice str attributes =
     case String.toInt str of
         Just idx ->
-            Array.fromList options
+            Array.fromList attributes.options
                 |> Array.get idx
                 |> Maybe.map Tuple.second
                 |> Maybe.withDefault Internal.Value.blank
@@ -197,9 +203,24 @@ max input =
     Tree.value input |> .max
 
 
+options : Input id val err -> List ( String, Value val )
+options input =
+    Tree.value input |> .options
+
+
 isRequired : Input id val err -> Bool
 isRequired input =
     Tree.value input |> .isRequired
+
+
+isAutocompleteable : Input id val err -> Bool
+isAutocompleteable input =
+    case inputType input of
+        Text ->
+            not (List.isEmpty (options input))
+
+        _ ->
+            False
 
 
 isGroup : Input id val err -> Bool

@@ -713,22 +713,40 @@ inputToHtml :
     -> Input id val
     -> List (Html.Attribute msg)
     -> (UserAttributes -> Html msg)
-inputToHtml { onChange } inputType path tree htmlAttrs element =
+inputToHtml { onChange } inputType path input htmlAttrs element =
     let
         unwrappedInput =
-            Tree.value tree
+            Tree.value input
+
+        inputHtml =
+            Html.input
+                (List.concat
+                    [ htmlAttrs
+                    , Attributes.type_ inputType
+                        :: valueAttribute Attributes.value unwrappedInput.value
+                        :: onInputChanged onChange input path
+                        :: textInputHtmlAttributes onChange path input
+                    , userProvidedAttributes element
+                    ]
+                )
+                []
     in
-    Html.input
-        (List.concat
-            [ htmlAttrs
-            , Attributes.type_ inputType
-                :: valueAttribute Attributes.value unwrappedInput.value
-                :: onInputChanged onChange tree path
-                :: textInputHtmlAttributes onChange path tree
-            , userProvidedAttributes element
+    if Input.isAutocompleteable input then
+        Html.div
+            []
+            [ inputHtml
+            , Html.datalist
+                [ Attributes.id (datalistId input path)
+                , Attributes.attribute "role" "listbox"
+                ]
+                (List.map
+                    (\( opt, _ ) -> Html.option [ Attributes.value opt ] [])
+                    unwrappedInput.options
+                )
             ]
-        )
-        []
+
+    else
+        inputHtml
 
 
 textAreaToHtml :
@@ -816,7 +834,7 @@ radioToHtml { onChange } path input element =
                 Html.div
                     []
                     [ Html.input
-                        (Attributes.id (optionId input (path ++ [ index ]))
+                        (Attributes.id (radioOptionId input (path ++ [ index ]))
                             :: Attributes.checked (optionValue == unwrappedInput.value)
                             :: Attributes.required unwrappedInput.isRequired
                             :: Attributes.value (String.fromInt index)
@@ -830,7 +848,7 @@ radioToHtml { onChange } path input element =
                         )
                         []
                     , Html.label
-                        [ Attributes.for (optionId input (path ++ [ index ])) ]
+                        [ Attributes.for (radioOptionId input (path ++ [ index ])) ]
                         [ Html.text optionText ]
                     ]
             )
@@ -877,18 +895,26 @@ valueAttribute f inputValue =
 
 textInputHtmlAttributes : (Msg id val -> msg) -> List Int -> Input id val -> List (Html.Attribute msg)
 textInputHtmlAttributes onChange path input =
-    [ Attributes.autocomplete False
-    , Attributes.placeholder (Maybe.withDefault "" (Input.placeholder input))
-    , Attributes.id (inputId input path)
-    , Attributes.required (Input.isRequired input)
-    , nameAttribute input
-    , valueAttribute Attributes.min (Input.min input)
-    , valueAttribute Attributes.max (Input.max input)
-    , onInputFocused onChange path
-    , onInputBlured onChange path
-    , ariaDescribedByAttribute input path
-    , ariaInvalidAttribute input
-    ]
+    List.concat
+        [ if Input.isAutocompleteable input then
+            [ Attributes.autocomplete True
+            , Attributes.list (datalistId input path)
+            ]
+
+          else
+            [ Attributes.autocomplete False ]
+        , [ Attributes.placeholder (Maybe.withDefault "" (Input.placeholder input))
+          , Attributes.id (inputId input path)
+          , Attributes.required (Input.isRequired input)
+          , nameAttribute input
+          , valueAttribute Attributes.min (Input.min input)
+          , valueAttribute Attributes.max (Input.max input)
+          , onInputFocused onChange path
+          , onInputBlured onChange path
+          , ariaDescribedByAttribute input path
+          , ariaInvalidAttribute input
+          ]
+        ]
 
 
 onInputChanged : (Msg id val -> c) -> Input id val -> List Int -> Html.Attribute c
@@ -921,9 +947,14 @@ hintId input path =
     inputId input path ++ "-hint"
 
 
-optionId : Input id val -> List Int -> String
-optionId input path =
+radioOptionId : Input id val -> List Int -> String
+radioOptionId input path =
     inputId input path ++ "-option"
+
+
+datalistId : Input id val -> List Int -> String
+datalistId input path =
+    inputId input path ++ "-datalist"
 
 
 inputErrors : Input id val -> List { error : Error id val, inputType : InputType }

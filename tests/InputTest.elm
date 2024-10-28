@@ -42,6 +42,21 @@ suite =
                             )
                         |> Expect.equal
                             (Ok ( "Updated value", "Value2" ))
+            , test "it preserves identifier" <|
+                \_ ->
+                    input
+                        |> Input.updateAttributes "NestedInput"
+                            [ Input.identifier "OtherInput" ]
+                        |> Result.mapError List.singleton
+                        |> Result.andThen
+                            (Decode.decode
+                                (Decode.map2 Tuple.pair
+                                    (Decode.field "NestedInput" Decode.string)
+                                    (Decode.field "NestedInput2" Decode.string)
+                                )
+                            )
+                        |> Expect.equal
+                            (Ok ( "Value", "Value2" ))
             , test "fails when no matching id" <|
                 \_ ->
                     input

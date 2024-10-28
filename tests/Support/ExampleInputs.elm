@@ -1,4 +1,24 @@
-module Support.ExampleInputs exposing (Band, BandFields(..), Field(..), Lang(..), Person, bandDecoder, bandFields, blankInput, boolInput, checkboxInput, floatInput, groupWithName, groupWithNoName, intInput, posixInput, radioInput, selectInput, stringInput)
+module Support.ExampleInputs exposing
+    ( Band
+    , BandFields(..)
+    , Field(..)
+    , Lang(..)
+    , Person
+    , bandDecoder
+    , bandFields
+    , blankInput
+    , boolInput
+    , checkboxInput
+    , floatInput
+    , groupWithName
+    , groupWithNoName
+    , intInput
+    , posixInput
+    , radioInput
+    , selectInput
+    , stringInput
+    , stringInputWithOptions
+    )
 
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input exposing (Input)
@@ -31,6 +51,19 @@ stringInput =
         , Input.value (Value.string "A string")
         , Input.placeholder "String value"
         , Input.hint "Must be a string"
+        ]
+
+
+stringInputWithOptions : Input Field val
+stringInputWithOptions =
+    Input.text
+        [ Input.label "Enter your string"
+        , Input.identifier StringField
+        , Input.name "string-field"
+        , Input.value (Value.string "A string")
+        , Input.placeholder "String value"
+        , Input.hint "Must be a string"
+        , Input.stringOptions [ "red", "green", "blue" ]
         ]
 
 
