@@ -11,11 +11,11 @@ Intends to
   for customization.
 - Permit custom validations and provide standard ones, such as presence and
   minimum and maximum scalar values.
-- Validation and mapping of form inputs using an interface similar to Elm's
-  `Json.Decode`, with the expected functions for decoding `string`, `int`,
-  `float`, `bool`, and more, such as `posix`. For mapping to and constructing
-  types, provide `map`, `mapN`, and `andThen`, with `andMap` additionally
-  available to build decoding pipelines.
+- Enable validation and mapping of form inputs to custom types using an
+  interface similar to Elm's `Json.Decode`, with the expected functions for
+  decoding `string`, `int`, `float`, `bool`, and more, such as `posix`. For
+  mapping to and constructing types, provide `map`, `mapN`, and `andThen`, with
+  `andMap` additionally available to build decoding pipelines.
 - Allow the building of dynamic forms from a JSON specification and conversion
   of form inputs to a JSON value to be forwarded as-is to a backend.
 
