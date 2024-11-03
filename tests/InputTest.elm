@@ -4,7 +4,6 @@ import Expect
 import FormToolkit.Decode as Decode exposing (Error(..))
 import FormToolkit.Input as Input
 import FormToolkit.Value as Value
-import Support.ExampleInputs exposing (..)
 import Test exposing (..)
 
 

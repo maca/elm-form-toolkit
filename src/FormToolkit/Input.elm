@@ -1,5 +1,5 @@
 module FormToolkit.Input exposing
-    ( Input, Msg, update, toHtml, toView
+    ( Input, Msg, update, toHtml
     , text, textarea, email, password
     , int, float
     , date, month
@@ -21,7 +21,7 @@ various input types, attributes, and updating and rendering.
 
 # Input
 
-@docs Input, Msg, update, toHtml, toView
+@docs Input, Msg, update, toHtml
 
 
 # Input types
@@ -64,9 +64,9 @@ various input types, attributes, and updating and rendering.
 
 import FormToolkit.Decode exposing (Decoder, Error(..))
 import FormToolkit.Value as Value
-import FormToolkit.View as View
 import Html exposing (Html)
 import Internal.Input as Internal exposing (Attributes, Input, Msg(..))
+import Internal.View as View
 import RoseTree.Tree as Tree
 
 
@@ -110,13 +110,13 @@ update decoder msg input =
     FormToolkit.Decode.validateAndDecode decoder <|
         case msg of
             InputChanged path val ->
-                updateAt path (Internal.updateValue val) input
+                Internal.updateAt path (Internal.updateValue val) input
 
             InputFocused path ->
-                updateAt path (Tree.updateValue Internal.focus) input
+                Internal.updateAt path (Tree.updateValue Internal.focus) input
 
             InputBlured path ->
-                updateAt path (Tree.updateValue Internal.blur) input
+                Internal.updateAt path (Tree.updateValue Internal.blur) input
 
             InputsAdded path ->
                 case
@@ -124,7 +124,7 @@ update decoder msg input =
                         |> Maybe.map .inputType
                 of
                     Just (Internal.Repeatable template) ->
-                        updateAt path (Tree.push template) input
+                        Internal.updateAt path (Tree.push template) input
 
                     _ ->
                         input
@@ -145,36 +145,19 @@ update decoder msg input =
 
 -}
 toHtml : (Msg id val -> msg) -> Input id val -> Html msg
-toHtml tagger input =
-    View.fromInput tagger input |> View.toHtml
-
-
-{-| Convert the input to [View](FormToolkit.View#View) as a step before
-rendering it to HTML in order to have it customized.
-
-    view : View id (Input.Msg id)
-    view =
-        Input.group []
-            [ Input.text [ Input.label "First Name" ]
-            , Input.text [ Input.label "Last Name" ]
-            ]
-            |> Input.toView (always never)
-
--}
-toView : (Msg id val -> msg) -> Input id val -> View.View id val msg
-toView =
-    View.fromInput
-
-
-updateAt : List Int -> (Input id val -> Input id val) -> Input id val -> Input id val
-updateAt path func input =
-    -- WTF?
-    case path of
-        [] ->
-            func input
-
-        _ ->
-            Tree.updateAt path func input
+toHtml onChange input =
+    View.init
+        { events =
+            { onChange = \path val -> onChange (InputChanged path val)
+            , onFocus = onChange << InputFocused
+            , onBlur = onChange << InputBlured
+            , onAdd = onChange << InputsAdded
+            , onRemove = onChange << InputsRemoved
+            }
+        , path = []
+        , input = input
+        }
+        |> View.toHtml
 
 
 {-| Creates a text input field.
@@ -340,10 +323,8 @@ Groups multiple inputs together.
 
 -}
 group : List (Attribute id val) -> List (Input id val) -> Input id val
-group attributes inputs =
-    inputs
-        |> Tree.branch
-            (Internal.init Internal.Group (unwrapAttrs attributes))
+group attributes =
+    Tree.branch (Internal.init Internal.Group (unwrapAttrs attributes))
 
 
 {-| Creates a repeatable group of inputs.
@@ -694,8 +675,8 @@ identifier of different type.
 
 -}
 map : (a -> b) -> Input a val -> Input b val
-map func tree =
-    Tree.mapValues (Internal.map func identity (mapError func identity)) tree
+map func =
+    Tree.mapValues (Internal.map func identity (mapError func identity))
 
 
 mapError : (a -> b) -> (Value.Value val1 -> Value.Value val2) -> Error a val1 -> Error b val2
@@ -773,7 +754,7 @@ inputs of different value type.
 
 -}
 mapValues : (Value.Value val1 -> Value.Value val2) -> Input id val1 -> Input id val2
-mapValues func tree =
+mapValues func =
     Tree.mapValues
         (Internal.map identity
             (\val ->
@@ -783,4 +764,3 @@ mapValues func tree =
             )
             (mapError identity func)
         )
-        tree

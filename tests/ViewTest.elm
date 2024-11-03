@@ -3,7 +3,6 @@ module ViewTest exposing (suite)
 import Expect
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input
-import FormToolkit.Value as Value
 import Html.Attributes as Attrs exposing (for, name, required)
 import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
