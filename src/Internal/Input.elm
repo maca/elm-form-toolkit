@@ -64,6 +64,7 @@ type alias Attributes id val err =
     , hint : Maybe String
     , min : Value val
     , max : Value val
+    , autogrow : Bool
     , options : List ( String, Value val )
     , identifier : Maybe id
     , status : Status
@@ -90,6 +91,7 @@ init inputType_ =
         , value = Internal.Value.blank
         , min = Internal.Value.blank
         , max = Internal.Value.blank
+        , autogrow = False
         , isRequired = False
         , options = []
         , identifier = Nothing
@@ -332,6 +334,7 @@ map func valToVal errToErr input =
     , hint = input.hint
     , min = valToVal input.min
     , max = valToVal input.max
+    , autogrow = input.autogrow
     , options = List.map (Tuple.mapSecond valToVal) input.options
     , identifier = Maybe.map func input.identifier
     , status = input.status

@@ -4,7 +4,7 @@ module FormToolkit.View exposing
     , Attribute, class, classList, style
     , InputType(..)
     , customizeError, customizeInput
-    , customizeGroup, customizeRepeatableInputsGroup, customizeRepeatableInput
+    , customizeGroup, customizeRepeatableInputsGroup, customizeRepeatingInput
     )
 
 {-|
@@ -28,7 +28,7 @@ module FormToolkit.View exposing
 
 @docs InputType
 @docs customizeError, customizeInput
-@docs customizeGroup, customizeRepeatableInputsGroup, customizeRepeatableInput
+@docs customizeGroup, customizeRepeatableInputsGroup, customizeRepeatingInput
 
 -}
 
@@ -366,6 +366,7 @@ To customize the template used to add a new input see
                   ]
                 ]
             )
+            []
             |> View.fromInput (always ())
             |> customizeRepeatableInputsGroup
                 (\{ legendText, inputs, addInputButton } ->
@@ -438,6 +439,7 @@ To customize the group of inputs see
                   ]
                 ]
             )
+            []
             |> View.fromInput (always ())
             |> customizeRepeatableInput
                 (\{ input, removeInputButton } ->
@@ -447,7 +449,7 @@ To customize the group of inputs see
                 )
 
 -}
-customizeRepeatableInput :
+customizeRepeatingInput :
     ({ input : Html msg
      , removeInputButton : List (Attribute msg) -> Html msg
      , advanced :
@@ -461,7 +463,7 @@ customizeRepeatableInput :
     )
     -> View id val msg
     -> View id val msg
-customizeRepeatableInput viewFunc (View ({ attributes, input } as view)) =
+customizeRepeatingInput viewFunc (View ({ attributes, input } as view)) =
     View
         { view
             | attributes =

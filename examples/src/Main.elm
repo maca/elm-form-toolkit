@@ -39,9 +39,10 @@ type Msg
 teamFields : Input.Input TeamFields Color
 teamFields =
     Input.group []
-        [ Input.text
+        [ Input.textarea
             [ Input.label "Team Name"
             , Input.required True
+            , Input.autogrow True
             , Input.identifier TeamName
             , Input.name "team-name"
             ]

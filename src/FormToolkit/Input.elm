@@ -13,6 +13,7 @@ module FormToolkit.Input exposing
     , updateAttributes
     , errors
     , map, mapValues
+    , autogrow
     )
 
 {-| Provides types and functions to create and manage form inputs, including
@@ -561,6 +562,13 @@ date, ...).
 max : Value.Value val -> Attribute id val
 max (Value.Value val) =
     Attribute (\input -> { input | max = val })
+
+
+{-| Make a `textarea` autogrow.
+-}
+autogrow : Bool -> Attribute id val
+autogrow shouldAutogrow =
+    Attribute (\input -> { input | autogrow = shouldAutogrow })
 
 
 {-| An attribute that does nothing.

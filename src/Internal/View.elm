@@ -15,7 +15,7 @@ module Internal.View exposing
 import FormToolkit.Decode as Decode exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
-import Html.Attributes as Attributes exposing (attribute)
+import Html.Attributes as Attributes
 import Html.Events as Events
 import Internal.Input as Input exposing (Input, Status(..))
 import Internal.Value
@@ -350,7 +350,8 @@ inputToHtml attributes inputType path input htmlAttrs element =
                     [ htmlAttrs
                     , Attributes.type_ inputType
                         :: valueAttribute Attributes.value unwrappedInput.value
-                        :: Events.onInput (attributes.onChange path << Input.strToValue input)
+                        :: Events.onInput
+                            (attributes.onChange path << Input.strToValue input)
                         :: textInputHtmlAttributes attributes path input
                     , userProvidedAttributes element
                     ]
@@ -382,26 +383,59 @@ textAreaToHtml :
     -> (UserAttributes -> Html msg)
 textAreaToHtml attributes path input element =
     let
-        valueStr =
+        { value, autogrow } =
             Tree.value input
-                |> .value
+
+        valueStr =
+            value
                 |> Internal.Value.toString
                 |> Maybe.withDefault ""
+
+        autogrowAttrs =
+            if autogrow then
+                [ Attributes.style "resize" "none"
+                , Attributes.style "overflow" "hidden"
+                , Attributes.style "grid-area" "1/1/2/2"
+                , Attributes.style "font" "inherit"
+                ]
+
+            else
+                []
     in
     Html.div
-        [ Attributes.class "grow-wrap"
-        , Attributes.attribute "data-replicated-value" valueStr
+        [ if autogrow then
+            Attributes.style "display" "grid"
+
+          else
+            Attributes.class ""
         ]
-        [ Html.textarea
+        (Html.textarea
             (List.concat
                 [ Events.onInput (attributes.onChange path << Input.strToValue input)
                     :: Attributes.value valueStr
                     :: textInputHtmlAttributes attributes path input
                 , userProvidedAttributes element
+                , autogrowAttrs
                 ]
             )
             []
-        ]
+            :: (if autogrow then
+                    [ Html.div
+                        (List.concat
+                            [ Attributes.attribute "aria-hidden" "true"
+                                :: Attributes.style "white-space" "pre-wrap"
+                                :: Attributes.style "visibility" "hidden"
+                                :: userProvidedAttributes element
+                            , autogrowAttrs
+                            ]
+                        )
+                        [ Html.text (valueStr ++ "\n") ]
+                    ]
+
+                else
+                    []
+               )
+        )
 
 
 selectToHtml :
@@ -697,14 +731,16 @@ nameAttribute input =
 ariaDescribedByAttribute : Input id val -> List Int -> Html.Attribute msg
 ariaDescribedByAttribute input path =
     Input.hint input
-        |> Maybe.map (\_ -> attribute "aria-describedby" (hintId input path))
+        |> Maybe.map
+            (\_ -> Attributes.attribute "aria-describedby" (hintId input path))
         |> Maybe.withDefault (Attributes.class "")
 
 
 ariaLabeledByAttribute : Input id val -> List Int -> Html.Attribute msg
 ariaLabeledByAttribute input path =
     Input.label input
-        |> Maybe.map (\_ -> attribute "aria-labelledby" (labelId input path))
+        |> Maybe.map
+            (\_ -> Attributes.attribute "aria-labelledby" (labelId input path))
         |> Maybe.withDefault (Attributes.class "")
 
 
@@ -714,7 +750,7 @@ ariaInvalidAttribute input =
         Attributes.class ""
 
     else
-        attribute "aria-invalid" "true"
+        Attributes.attribute "aria-invalid" "true"
 
 
 errorToString : Error id val -> String
