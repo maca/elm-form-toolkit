@@ -260,6 +260,8 @@ customizeInput :
         , inputMax : Value val
         , inputOptions : List ( String, Value val )
         , inputOnChange : Value val -> msg
+        , inputOnBlur : msg
+        , inputOnFocus : msg
         , labelText : Maybe String
         , hintText : Maybe String
         , idString : String
@@ -298,6 +300,8 @@ customizeInput viewFunc (View ({ attributes, input } as view)) =
                                         List.map (Tuple.mapSecond Value) unwrappedInput.options
                                     , inputOnChange =
                                         \(Value val) -> attributes.onChange params.path val
+                                    , inputOnBlur = attributes.onBlur params.path
+                                    , inputOnFocus = attributes.onFocus params.path
                                     , labelText = unwrappedInput.label
                                     , hintText = unwrappedInput.hint
                                     , idString = Internal.View.inputId input params.path
