@@ -850,7 +850,7 @@ validateTree =
         (\input ->
             let
                 validators =
-                    [ checkRequired, checkInRange ]
+                    [ checkRequired, checkInRange, checkOptionsProvided ]
 
                 updated =
                     Tree.map
@@ -917,12 +917,26 @@ checkInRange tree =
                 )
 
         ( Just LT, Nothing ) ->
-            Just
-                (ValueTooSmall (Input.identifier tree) { value = val, min = min })
+            Just (ValueTooSmall (Input.identifier tree) { value = val, min = min })
 
         ( Nothing, Just GT ) ->
-            Just
-                (ValueTooLarge (Input.identifier tree) { value = val, max = max })
+            Just (ValueTooLarge (Input.identifier tree) { value = val, max = max })
+
+        _ ->
+            Nothing
+
+
+checkOptionsProvided : Input id val -> Maybe (Error id val)
+checkOptionsProvided input =
+    case ( Input.inputType input, Input.options input ) of
+        ( Input.Select, [] ) ->
+            Just (NoOptionsProvided (Input.identifier input))
+
+        ( Input.Radio, [] ) ->
+            Just (NoOptionsProvided (Input.identifier input))
+
+        ( Input.StrictAutocomplete, [] ) ->
+            Just (NoOptionsProvided (Input.identifier input))
 
         _ ->
             Nothing
@@ -933,19 +947,15 @@ checkInRange tree =
 type Error id val
     = ValueTooLarge (Maybe id) { value : Value.Value val, max : Value.Value val }
     | ValueTooSmall (Maybe id) { value : Value.Value val, min : Value.Value val }
-    | ValueNotInRange
-        (Maybe id)
-        { value : Value.Value val
-        , min : Value.Value val
-        , max : Value.Value val
-        }
+    | ValueNotInRange (Maybe id) { value : Value.Value val, min : Value.Value val, max : Value.Value val }
     | IsBlank (Maybe id)
-    | IsGroupNotInput (Maybe id)
-    | ParseError (Maybe id)
-    | ListError (Maybe id) { index : Int, error : Error id val }
-    | RepeatableHasNoName (Maybe id)
-    | InputNotFound id
     | CustomError (Maybe id) String
+    | ListError (Maybe id) { index : Int, error : Error id val }
+    | InputNotFound id
+    | RepeatableHasNoName (Maybe id)
+    | IsGroupNotInput (Maybe id)
+    | NoOptionsProvided (Maybe id)
+    | ParseError (Maybe id)
 
 
 {-| Obtain the indentifier for the field corresponding to the error, if the
@@ -966,20 +976,23 @@ errorToFieldIdentifier error =
         IsGroupNotInput maybeId ->
             maybeId
 
-        ParseError maybeId ->
+        IsBlank maybeId ->
             maybeId
 
-        IsBlank maybeId ->
+        CustomError maybeId _ ->
             maybeId
 
         ListError maybeId _ ->
             maybeId
 
-        RepeatableHasNoName maybeId ->
-            maybeId
-
         InputNotFound id ->
             Just id
 
-        CustomError maybeId _ ->
+        RepeatableHasNoName maybeId ->
+            maybeId
+
+        NoOptionsProvided maybeId ->
+            maybeId
+
+        ParseError maybeId ->
             maybeId

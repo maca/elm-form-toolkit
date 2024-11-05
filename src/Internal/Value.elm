@@ -11,6 +11,7 @@ module Internal.Value exposing
     , fromString
     , intFromString
     , isBlank
+    , isInvalid
     , mapCustom
     , monthFromString
     , toBool
@@ -36,6 +37,7 @@ type Value val
     | Time Posix
     | Boolean Bool
     | Custom val
+    | Invalid
     | Blank
 
 
@@ -67,6 +69,9 @@ toString value =
             Nothing
 
         Custom _ ->
+            Nothing
+
+        Invalid ->
             Nothing
 
         Blank ->
@@ -242,6 +247,16 @@ isBlank value =
             False
 
 
+isInvalid : Value val -> Bool
+isInvalid value =
+    case value of
+        Invalid ->
+            True
+
+        _ ->
+            False
+
+
 mapCustom : (val1 -> val2) -> Value val1 -> Value val2
 mapCustom func value =
     case value of
@@ -268,6 +283,9 @@ mapCustom func value =
 
         Custom val ->
             Custom (func val)
+
+        Invalid ->
+            Invalid
 
         Blank ->
             Blank

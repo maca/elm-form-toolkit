@@ -514,8 +514,9 @@ style key val =
 type InputType
     = Text
     | TextArea
-    | Password
     | Email
+    | Password
+    | StrictAutocomplete
     | Integer
     | Float
     | Month
@@ -536,6 +537,9 @@ mapInputType inputType =
 
         Internal.Input.Password ->
             Password
+
+        Internal.Input.StrictAutocomplete ->
+            StrictAutocomplete
 
         Internal.Input.Email ->
             Email

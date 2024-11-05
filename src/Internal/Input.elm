@@ -1,29 +1,31 @@
 module Internal.Input exposing
     ( Input, Attributes, InputType(..), Status(..)
-    , blur, focus, init, isBlank, map
-    , updateAttributes, updateValue, updateAt
+    , Msg(..), update, strToValue
+    , init, isBlank, map
+    , updateAttributes
     , identifier, inputType, max, min, name, value
-    , label, hint, placeholder
-    , isGroup, isRequired
+    , label, hint, placeholder, options
+    , isGroup, isRequired, isAutocompleteable
     , errors, setErrors
     , inputIdString
-    , Msg(..), isAutocompleteable, options
     )
 
 {-|
 
 @docs Input, Attributes, InputType, Status
-@docs blur, focus, init, isBlank, map
-@docs updateAttributes, updateValue, updateAt
-@docs inputChanged
+@docs Msg, update, strToValue
+@docs init, isBlank, map
+@docs updateAttributes
 @docs identifier, inputType, max, min, name, value
-@docs label, hint, placeholder
-@docs isGroup, isRequired
+@docs label, hint, placeholder, options
+@docs isGroup, isRequired, isAutocompleteable
 @docs errors, setErrors
 @docs inputIdString
 
 -}
 
+import Array
+import Dict
 import Internal.Value exposing (Value)
 import List.Extra
 import RoseTree.Tree as Tree
@@ -38,8 +40,9 @@ type Status
 type InputType id val err
     = Text
     | TextArea
-    | Password
     | Email
+    | Password
+    | StrictAutocomplete
     | Integer
     | Float
     | Month
@@ -144,14 +147,62 @@ updateAt path func input =
             Tree.updateAt path func input
 
 
+update : Msg id val -> Input a val err -> Input a val err
+update msg input =
+    case msg of
+        InputChanged path val ->
+            updateAt path (updateValue val) input
+
+        InputFocused path ->
+            updateAt path (Tree.updateValue focus) input
+
+        InputBlured path ->
+            updateAt path (Tree.updateValue blur) input
+
+        InputsAdded path ->
+            case
+                Tree.getValueAt path input
+                    |> Maybe.map .inputType
+            of
+                Just (Repeatable template) ->
+                    updateAt path (Tree.push template) input
+
+                _ ->
+                    input
+
+        InputsRemoved path ->
+            Tree.removeAt path input
+
+
 focus : Attributes id val err -> Attributes id val err
 focus input =
-    { input | status = Focused }
+    { input
+        | status = Focused
+        , value =
+            if Internal.Value.isInvalid input.value then
+                Internal.Value.Blank
+
+            else
+                input.value
+    }
 
 
 blur : Attributes id val err -> Attributes id val err
 blur input =
-    { input | status = Touched }
+    { input
+        | status = Touched
+        , value =
+            case input.inputType of
+                StrictAutocomplete ->
+                    if Internal.Value.isBlank input.value then
+                        Internal.Value.Invalid
+
+                    else
+                        input.value
+
+                _ ->
+                    input.value
+    }
 
 
 isBlank : Input id val err -> Bool
@@ -228,6 +279,9 @@ isAutocompleteable input =
         Text ->
             not (List.isEmpty (options input))
 
+        StrictAutocomplete ->
+            True
+
         _ ->
             False
 
@@ -301,11 +355,14 @@ mapInputType func errToErr valToVal inputType_ =
         TextArea ->
             TextArea
 
+        Email ->
+            Email
+
         Password ->
             Password
 
-        Email ->
-            Email
+        StrictAutocomplete ->
+            StrictAutocomplete
 
         Integer ->
             Integer
@@ -345,14 +402,17 @@ inputTypeToString type_ =
         Text ->
             "text"
 
+        StrictAutocomplete ->
+            "text"
+
         TextArea ->
             "textarea"
 
-        Password ->
-            "password"
-
         Email ->
             "email"
+
+        Password ->
+            "password"
 
         Integer ->
             "integer"
@@ -380,3 +440,66 @@ inputTypeToString type_ =
 
         Group ->
             "group"
+
+
+strToValue : Input id val err -> String -> Value val
+strToValue input str =
+    let
+        unwrappedInput =
+            Tree.value input
+
+        getChoice () =
+            case String.toInt str of
+                Just idx ->
+                    Array.fromList unwrappedInput.options
+                        |> Array.get idx
+                        |> Maybe.map Tuple.second
+                        |> Maybe.withDefault Internal.Value.blank
+
+                Nothing ->
+                    Internal.Value.blank
+    in
+    case unwrappedInput.inputType of
+        Text ->
+            Internal.Value.fromString str
+
+        TextArea ->
+            Internal.Value.fromString str
+
+        Password ->
+            Internal.Value.fromString str
+
+        StrictAutocomplete ->
+            Dict.fromList unwrappedInput.options
+                |> Dict.get str
+                |> Maybe.withDefault Internal.Value.blank
+
+        Email ->
+            Internal.Value.fromString str
+
+        Integer ->
+            Internal.Value.intFromString str
+
+        Float ->
+            Internal.Value.floatFromString str
+
+        Month ->
+            Internal.Value.monthFromString str
+
+        Date ->
+            Internal.Value.dateFromString str
+
+        Select ->
+            getChoice ()
+
+        Radio ->
+            getChoice ()
+
+        Checkbox ->
+            Internal.Value.blank
+
+        Group ->
+            Internal.Value.blank
+
+        Repeatable _ ->
+            Internal.Value.blank

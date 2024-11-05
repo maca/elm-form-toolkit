@@ -1,6 +1,6 @@
 module FormToolkit.Input exposing
     ( Input, Msg, update, toHtml
-    , text, textarea, email, password
+    , text, textarea, email, password, strictAutocomplete
     , int, float
     , date, month
     , select, radio, checkbox
@@ -26,7 +26,7 @@ various input types, attributes, and updating and rendering.
 
 # Input types
 
-@docs text, textarea, email, password
+@docs text, textarea, email, password, strictAutocomplete
 @docs int, float
 @docs date, month
 @docs select, radio, checkbox
@@ -107,30 +107,8 @@ update :
     -> Input id val
     -> ( Input id val, Result (List (Error id val)) a )
 update decoder msg input =
-    FormToolkit.Decode.validateAndDecode decoder <|
-        case msg of
-            InputChanged path val ->
-                Internal.updateAt path (Internal.updateValue val) input
-
-            InputFocused path ->
-                Internal.updateAt path (Tree.updateValue Internal.focus) input
-
-            InputBlured path ->
-                Internal.updateAt path (Tree.updateValue Internal.blur) input
-
-            InputsAdded path ->
-                case
-                    Tree.getValueAt path input
-                        |> Maybe.map .inputType
-                of
-                    Just (Internal.Repeatable template) ->
-                        Internal.updateAt path (Tree.push template) input
-
-                    _ ->
-                        input
-
-            InputsRemoved path ->
-                Tree.removeAt path input
+    Internal.update msg input
+        |> FormToolkit.Decode.validateAndDecode decoder
 
 
 {-|
@@ -160,7 +138,7 @@ toHtml onChange input =
         |> View.toHtml
 
 
-{-| Creates a text input field.
+{-| Text input field.
 
     usernameInput : Input id val
     usernameInput =
@@ -172,7 +150,7 @@ text =
     init Internal.Text
 
 
-{-| Creates a textarea input field.
+{-| Textarea input field.
 
     commentsInput : Input id val
     commentsInput =
@@ -184,7 +162,7 @@ textarea =
     init Internal.TextArea
 
 
-{-| Creates an email input field.
+{-| Email input field.
 
     emailInput : Input id val
     emailInput =
@@ -196,7 +174,7 @@ email =
     init Internal.Email
 
 
-{-| Creates a password input field.
+{-| Password input field.
 
     passwordInput : Input id val
     passwordInput =
@@ -208,7 +186,36 @@ password =
     init Internal.Password
 
 
-{-| Creates an integer input field.
+{-| Text input with strict autocomplete, if input doesn't match a
+provided option the input value will be blank, value can be of any kind.
+
+For non strict autocomplete use [text](#text) providing [options](#options)
+attribute.
+For string value options see [stringOptions](#stringOptions).
+
+    type Lang
+        = ES
+        | EN
+        | DE
+
+    languageInput : Input id Lang
+    languageInput =
+        strictAutocomplete
+            [ label "Language"
+            , options
+                [ ( "Español", Value.custom ES )
+                , ( "English", Value.custom EN )
+                , ( "Deutsch", Value.custom DE )
+                ]
+            ]
+
+-}
+strictAutocomplete : List (Attribute id val) -> Input id val
+strictAutocomplete =
+    init Internal.StrictAutocomplete
+
+
+{-| Integer input field.
 
     ageInput : Input id val
     ageInput =
@@ -220,7 +227,7 @@ int =
     init Internal.Integer
 
 
-{-| Creates a floating-point number input field.
+{-| Floating-point number input field.
 
     priceInput : Input id val
     priceInput =
@@ -232,7 +239,7 @@ float =
     init Internal.Float
 
 
-{-| Creates a date input field.
+{-| Date input field.
 
     birthdateInput : Input id val
     birthdateInput =
@@ -244,7 +251,7 @@ date =
     init Internal.Date
 
 
-{-| Creates a month input field.
+{-| Month input field.
 
     monthInput : Input id val
     monthInput =
@@ -256,7 +263,7 @@ month =
     init Internal.Month
 
 
-{-| Creates a select input field (dropdown).
+{-| Select input field (dropdown).
 
     type Lang
         = ES
@@ -280,7 +287,7 @@ select =
     init Internal.Select
 
 
-{-| Creates a radio button input field.
+{-| Radio button input field.
 
     lightOnInput : Input id val
     lightOnInput =
@@ -298,7 +305,7 @@ radio =
     init Internal.Radio
 
 
-{-| Creates a checkbox input field.
+{-| Checkbox input field.
 
     consentInput : Input id val
     consentInput =
@@ -310,7 +317,7 @@ checkbox =
     init Internal.Checkbox
 
 
-{-| Creates a group of inputs.
+{-| Makes a group of inputs from a list of inputs.
 
 Groups multiple inputs together.
 
@@ -327,7 +334,12 @@ group attributes =
     Tree.branch (Internal.init Internal.Group (unwrapAttrs attributes))
 
 
-{-| Creates a repeatable group of inputs.
+{-| Makes a repeatable group of inputs, from a template input or group and a
+list of populated inputs.
+The markup for the repeatable group will include buttons for adding,
+and removing the repeatable input or group, by using `repeatableMin` and
+`repeatableMax` it's possible to specify a lower and upper limit of the number
+of instances that can be added or removed.
 
 Allows inputs to be repeated multiple times.
 
@@ -337,9 +349,14 @@ Allows inputs to be repeated multiple times.
             [ name "emails"
             , repeatableMin 1
             , repeatableMax 5
+            , copies { addInputButton = "Add email address", removeInputButton = "Remove" }
             ]
             (text [ placeholder "Enter email address" ])
-            []
+            [ text
+                [ placeholder "Enter email address"
+                , value (Value.string "mail@example.com")
+                ]
+            ]
 
 -}
 repeatable : List (Attribute id val) -> Input id val -> List (Input id val) -> Input id val
@@ -484,7 +501,7 @@ hint str =
     Attribute (\input -> { input | hint = Just str })
 
 
-{-| Sets the options for a select, radio, or checkbox input, or datalist for a
+{-| Sets the options for a select or radio, or datalist for a
 string input autocomplete.
 
     yesSelect : Input id ( Bool, Bool )
@@ -513,20 +530,14 @@ options values =
         )
 
 
-{-| Sets string options for a select, radio, or checkbox input, or datalist for a
+{-| Sets string options for a select or radio, or datalist for a
 string input autocomplete.
 
-    yesSelect : Input id ( Bool, Bool )
-    yesSelect =
-        select
-            [ label "Language"
-            , value (Value.custom ( True, True ))
-            , options
-                [ ( "Yes-yes", Value.custom ( True, True ) )
-                , ( "Yes-no", Value.custom ( True, False ) )
-                , ( "No-yes", Value.custom ( False, True ) )
-                , ( "No-no", Value.custom ( False, False ) )
-                ]
+    flavourInput : Input id ( Bool, Bool )
+    flavourInput =
+        text
+            [ label "Favorite favour"
+            , stringOptions [ "Chocolate", "Pistaccio", "Caramel salt" ]
             ]
 
 -}
@@ -707,8 +718,8 @@ mapError transformId transformVal error =
         IsBlank id ->
             IsBlank (Maybe.map transformId id)
 
-        ParseError id ->
-            ParseError (Maybe.map transformId id)
+        CustomError id err ->
+            CustomError (Maybe.map transformId id) err
 
         ListError id params ->
             ListError (Maybe.map transformId id)
@@ -722,8 +733,11 @@ mapError transformId transformVal error =
         InputNotFound id ->
             InputNotFound (transformId id)
 
-        CustomError id err ->
-            CustomError (Maybe.map transformId id) err
+        NoOptionsProvided id ->
+            NoOptionsProvided (Maybe.map transformId id)
+
+        ParseError id ->
+            ParseError (Maybe.map transformId id)
 
 
 {-| Map all of the values of an input, similary to [map](#map) that allows

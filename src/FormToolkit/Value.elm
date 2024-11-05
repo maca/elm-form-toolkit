@@ -71,7 +71,7 @@ bool =
 {-| -}
 blank : Value val
 blank =
-    Value Internal.Blank
+    Value Internal.blank
 
 
 {-| -}

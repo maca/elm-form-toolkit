@@ -3,6 +3,7 @@ module ViewTest exposing (suite)
 import Expect
 import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input
+import FormToolkit.Value as Value
 import Html.Attributes as Attrs exposing (for, name, required)
 import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
@@ -67,7 +68,7 @@ suite =
                                 >> Query.has [ containing [ text "Should be provided" ] ]
                             ]
             ]
-        , describe "input input with autocomplete options" <|
+        , describe "text input with autocomplete options" <|
             [ test "has datalist options" <|
                 \_ ->
                     stringInputWithOptions
@@ -104,6 +105,47 @@ suite =
                                         ]
                                     ]
                             ]
+            ]
+        , describe "autocomplete input with options" <|
+            [ test "sets corresponding value" <|
+                \_ ->
+                    let
+                        { result } =
+                            Input.strictAutocomplete
+                                [ Input.name "language"
+                                , Input.options
+                                    [ ( "Español", Value.custom ES )
+                                    , ( "English", Value.custom EN )
+                                    , ( "Deutsch", Value.custom DE )
+                                    ]
+                                ]
+                                |> Interaction.init Decode.value
+                                |> fillInput "language" "Español"
+                    in
+                    Expect.equal result (Ok (Value.custom ES))
+            , test "requires strict value" <|
+                \_ ->
+                    let
+                        { result } =
+                            Input.strictAutocomplete
+                                [ Input.name "language"
+                                , Input.options
+                                    [ ( "Español", Value.custom ES )
+                                    , ( "English", Value.custom EN )
+                                    , ( "Deutsch", Value.custom DE )
+                                    ]
+                                ]
+                                |> Interaction.init Decode.value
+                                |> fillInput "language" "Else"
+                    in
+                    Expect.equal result (Ok Value.blank)
+            , test "has errors if no options are provided" <|
+                \_ ->
+                    Input.strictAutocomplete []
+                        |> Input.toHtml (always never)
+                        |> Query.fromHtml
+                        |> Query.find [ class "errors" ]
+                        |> Query.has [ containing [ text "No options have been provided" ] ]
             ]
         , describe "checkbox" <|
             [ test "label references input" <|
@@ -180,6 +222,13 @@ suite =
                             , Query.find [ tag "option", containing [ text "Deutsch" ] ]
                                 >> Query.has [ tag "option" ]
                             ]
+            , test "has errors if no options are provided" <|
+                \_ ->
+                    Input.select []
+                        |> Input.toHtml (always never)
+                        |> Query.fromHtml
+                        |> Query.find [ class "errors" ]
+                        |> Query.has [ containing [ text "No options have been provided" ] ]
             , test "shows validation feedback" <|
                 \_ ->
                     let
@@ -251,6 +300,13 @@ suite =
                                 ]
                                 >> Query.has [ text "Off" ]
                             ]
+            , test "has errors if no options are provided" <|
+                \_ ->
+                    Input.radio []
+                        |> Input.toHtml (always never)
+                        |> Query.fromHtml
+                        |> Query.find [ class "errors" ]
+                        |> Query.has [ containing [ text "No options have been provided" ] ]
             , test "has invalid options and errors after failed validation" <|
                 \_ ->
                     let

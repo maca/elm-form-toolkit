@@ -5,6 +5,7 @@ import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input exposing (Input)
 import FormToolkit.Value as Value
 import Html exposing (Html)
+import Html.Attributes exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
 import Json.Encode
 import Result
@@ -44,7 +45,7 @@ teamFields =
             , Input.identifier TeamName
             , Input.name "team-name"
             ]
-        , Input.text
+        , Input.strictAutocomplete
             [ Input.label "Color"
             , Input.required True
             , Input.identifier TeamColor
@@ -126,7 +127,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     Html.form
-        [ onSubmit FormSubmitted ]
+        [ onSubmit FormSubmitted, novalidate True ]
         [ -- Render the form
           Input.toHtml FormChanged model.formFields
         , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]

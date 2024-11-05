@@ -1,9 +1,18 @@
-module Internal.View exposing (UserAttributes, View, defaultAttributes, init, inputId, partial, toHtml)
+module Internal.View exposing
+    ( View, init, partial, toHtml
+    , UserAttributes, defaultAttributes
+    , inputId
+    )
 
-{-| -}
+{-|
 
-import Array
-import FormToolkit.Decode exposing (Error(..))
+@docs View, init, partial, toHtml
+@docs UserAttributes, defaultAttributes
+@docs inputId
+
+-}
+
+import FormToolkit.Decode as Decode exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attributes exposing (attribute)
@@ -18,9 +27,6 @@ type alias Input id val =
     Input.Input id val (Error id val)
 
 
-{-| Represents a view for an [Input](FormToolkit.Input#Input) for the purposes
-of customized rendering.
--}
 type alias View id val msg =
     { attributes : ViewAttributes id val msg
     , path : List Int
@@ -105,33 +111,12 @@ init { events, path, input } =
         , repeatableInputView = repeatableInputView
         }
     , path = path
-    , input = input
+    , input =
+        Decode.validateAndDecode (Decode.succeed ()) input
+            |> Tuple.first
     }
 
 
-{-| A partial view referenced by [identifier](FormToolkit.Input#identifier).
-Maybe you want to render segments of the same form in different UI sections.
-
-    Input.group []
-        [ Input.text
-            [ Input.identifier "FirstName"
-            , Input.label "First Name"
-            ]
-        , Input.text
-            [ Input.identifier "LastName"
-            , Input.label "Last Name"
-            ]
-        ]
-        |> View.fromInput (always never)
-        |> View.partial "FirstName"
-        == Just
-            (Input.text
-                [ Input.identifier "FirstName"
-                , Input.label "First Name"
-                ]
-            )
-
--}
 partial : id -> View id val msg -> Maybe (View id val msg)
 partial id { input, attributes } =
     findNode id input
@@ -151,8 +136,6 @@ findNode id =
         Nothing
 
 
-{-| Render a view
--}
 toHtml : View id val msg -> Html msg
 toHtml { input, path, attributes } =
     let
@@ -165,7 +148,7 @@ toHtml { input, path, attributes } =
                 { isRequired = unwrappedInput.isRequired
                 , label = labelToHtml unwrappedInput.label path input
                 , input = inputHtml
-                , errors = inputErrors input |> List.map attributes.errorToString
+                , errors = visibleErrors input |> List.map attributes.errorToString
                 , hint =
                     \attrList ->
                         case unwrappedInput.hint of
@@ -190,6 +173,9 @@ toHtml { input, path, attributes } =
             repeatableToHtml attributes path input
 
         Input.Text ->
+            wrapInput (inputToHtml attributes "text" path input [])
+
+        Input.StrictAutocomplete ->
             wrapInput (inputToHtml attributes "text" path input [])
 
         Input.Email ->
@@ -253,7 +239,7 @@ groupToHtml attributes path input =
                 |> List.indexedMap
                     (\idx -> View attributes (path ++ [ idx ]) >> toHtml)
         , identifier = identifier
-        , errors = inputErrors input |> List.map attributes.errorToString
+        , errors = visibleErrors input |> List.map attributes.errorToString
         }
 
 
@@ -341,7 +327,7 @@ repeatableToHtml attributes path input =
 
             else
                 Nothing
-        , errors = inputErrors input |> List.map attributes.errorToString
+        , errors = visibleErrors input |> List.map attributes.errorToString
         , path = path
         }
 
@@ -364,7 +350,7 @@ inputToHtml attributes inputType path input htmlAttrs element =
                     [ htmlAttrs
                     , Attributes.type_ inputType
                         :: valueAttribute Attributes.value unwrappedInput.value
-                        :: Events.onInput (attributes.onChange path << strToValue input)
+                        :: Events.onInput (attributes.onChange path << Input.strToValue input)
                         :: textInputHtmlAttributes attributes path input
                     , userProvidedAttributes element
                     ]
@@ -408,7 +394,7 @@ textAreaToHtml attributes path input element =
         ]
         [ Html.textarea
             (List.concat
-                [ Events.onInput (attributes.onChange path << strToValue input)
+                [ Events.onInput (attributes.onChange path << Input.strToValue input)
                     :: Attributes.value valueStr
                     :: textInputHtmlAttributes attributes path input
                 , userProvidedAttributes element
@@ -431,7 +417,7 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
     Html.select
         (Attributes.id (inputId input path)
             :: Attributes.required unwappedInput.isRequired
-            :: Events.onInput (onChange path << strToValue input)
+            :: Events.onInput (onChange path << Input.strToValue input)
             :: Events.onFocus (onFocus path)
             :: Events.onBlur (onBlur path)
             :: nameAttribute input
@@ -479,7 +465,7 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                             :: Attributes.required unwrappedInput.isRequired
                             :: Attributes.value (String.fromInt index)
                             :: Attributes.type_ "radio"
-                            :: Events.onInput (onChange path << strToValue input)
+                            :: Events.onInput (onChange path << Input.strToValue input)
                             :: Events.onFocus (onFocus path)
                             :: Events.onBlur (onBlur path)
                             :: nameAttribute input
@@ -524,9 +510,14 @@ valueAttribute :
     -> Internal.Value.Value val
     -> Html.Attribute msg
 valueAttribute f inputValue =
-    Internal.Value.toString inputValue
-        |> Maybe.map f
-        |> Maybe.withDefault (Attributes.class "")
+    case inputValue of
+        Internal.Value.Invalid ->
+            f ""
+
+        _ ->
+            Internal.Value.toString inputValue
+                |> Maybe.map f
+                |> Maybe.withDefault (Attributes.class "")
 
 
 textInputHtmlAttributes : ViewAttributes id val msg -> List Int -> Input id val -> List (Html.Attribute msg)
@@ -551,64 +542,6 @@ textInputHtmlAttributes attributes path input =
           , ariaInvalidAttribute input
           ]
         ]
-
-
-strToValue : Input id val -> String -> Internal.Value.Value val
-strToValue input str =
-    let
-        unwrappedInput =
-            Tree.value input
-
-        getChoice () =
-            case String.toInt str of
-                Just idx ->
-                    Array.fromList unwrappedInput.options
-                        |> Array.get idx
-                        |> Maybe.map Tuple.second
-                        |> Maybe.withDefault Internal.Value.blank
-
-                Nothing ->
-                    Internal.Value.blank
-    in
-    case unwrappedInput.inputType of
-        Input.Text ->
-            Internal.Value.fromString str
-
-        Input.TextArea ->
-            Internal.Value.fromString str
-
-        Input.Password ->
-            Internal.Value.fromString str
-
-        Input.Email ->
-            Internal.Value.fromString str
-
-        Input.Integer ->
-            Internal.Value.intFromString str
-
-        Input.Float ->
-            Internal.Value.floatFromString str
-
-        Input.Month ->
-            Internal.Value.monthFromString str
-
-        Input.Date ->
-            Internal.Value.dateFromString str
-
-        Input.Select ->
-            getChoice ()
-
-        Input.Radio ->
-            getChoice ()
-
-        Input.Checkbox ->
-            Internal.Value.blank
-
-        Input.Group ->
-            Internal.Value.blank
-
-        Input.Repeatable _ ->
-            Internal.Value.blank
 
 
 inputId : Input id val -> List Int -> String
@@ -636,8 +569,8 @@ datalistId input path =
     inputId input path ++ "-datalist"
 
 
-inputErrors : Input id val -> List (Error id val)
-inputErrors input =
+visibleErrors : Input id val -> List (Error id val)
+visibleErrors input =
     let
         { errors, status, inputType } =
             Tree.value input
@@ -653,7 +586,16 @@ inputErrors input =
             errors
 
         _ ->
-            []
+            errors
+                |> List.filter
+                    (\err ->
+                        case err of
+                            NoOptionsProvided _ ->
+                                True
+
+                            _ ->
+                                False
+                    )
 
 
 groupView : GroupView id msg -> Html msg
@@ -768,7 +710,7 @@ ariaLabeledByAttribute input path =
 
 ariaInvalidAttribute : Input id val -> Html.Attribute msg
 ariaInvalidAttribute input =
-    if List.isEmpty (Input.errors input) then
+    if List.isEmpty (visibleErrors input) then
         Attributes.class ""
 
     else
@@ -796,6 +738,9 @@ errorToString error =
 
         IsGroupNotInput _ ->
             "A group cannot have a value but the decoder is attempting to read the value"
+
+        NoOptionsProvided _ ->
+            "No options have been provided"
 
         CustomError _ message ->
             message
