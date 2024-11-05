@@ -464,13 +464,13 @@ strToValue input str =
     in
     case unwrappedInput.inputType of
         Text ->
-            Internal.Value.fromString str
+            Internal.Value.fromNonBlankString str
 
         TextArea ->
-            Internal.Value.fromString str
+            Internal.Value.fromNonEmptyString str
 
         Password ->
-            Internal.Value.fromString str
+            Internal.Value.fromNonBlankString str
 
         StrictAutocomplete ->
             Dict.fromList unwrappedInput.options
@@ -478,7 +478,7 @@ strToValue input str =
                 |> Maybe.withDefault Internal.Value.blank
 
         Email ->
-            Internal.Value.fromString str
+            Internal.Value.fromNonBlankString str
 
         Integer ->
             Internal.Value.intFromString str

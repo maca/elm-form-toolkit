@@ -8,7 +8,8 @@ module Internal.Value exposing
     , fromBool
     , fromFloat
     , fromInt
-    , fromString
+    , fromNonBlankString
+    , fromNonEmptyString
     , intFromString
     , isBlank
     , isInvalid
@@ -24,7 +25,7 @@ module Internal.Value exposing
 
 import Iso8601
 import Json.Encode as Encode
-import String.Extra as String
+import String.Extra
 import Time exposing (Posix)
 
 
@@ -155,9 +156,16 @@ encode value =
                 |> Maybe.withDefault Encode.null
 
 
-fromString : String -> Value val
-fromString str =
-    String.nonBlank str
+fromNonBlankString : String -> Value val
+fromNonBlankString str =
+    String.Extra.nonBlank str
+        |> Maybe.map Text
+        |> Maybe.withDefault Blank
+
+
+fromNonEmptyString : String -> Value val
+fromNonEmptyString str =
+    String.Extra.nonEmpty str
         |> Maybe.map Text
         |> Maybe.withDefault Blank
 

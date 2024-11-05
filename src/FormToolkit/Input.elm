@@ -7,13 +7,12 @@ module FormToolkit.Input exposing
     , group, repeatable
     , Attribute
     , name, identifier, value, required, label, placeholder, hint
-    , options, stringOptions, min, max
+    , options, stringOptions, min, max, autogrow
     , noattr
     , copies, repeatableMin, repeatableMax
     , updateAttributes
     , errors
     , map, mapValues
-    , autogrow
     )
 
 {-| Provides types and functions to create and manage form inputs, including
@@ -38,7 +37,7 @@ various input types, attributes, and updating and rendering.
 
 @docs Attribute
 @docs name, identifier, value, required, label, placeholder, hint
-@docs options, stringOptions, min, max
+@docs options, stringOptions, min, max, autogrow
 @docs noattr
 
 
@@ -155,7 +154,11 @@ text =
 
     commentsInput : Input id val
     commentsInput =
-        textarea [ label "Comments", placeholder "Enter your comments here" ]
+        textarea
+            [ label "Comments"
+            , autogrow True
+            , placeholder "Enter your comments here"
+            ]
 
 -}
 textarea : List (Attribute id val) -> Input id val
