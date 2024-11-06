@@ -41,7 +41,7 @@ various input types, attributes, and updating and rendering.
 @docs noattr
 
 
-### Group
+# Groups
 
 @docs copies, repeatableMin, repeatableMax
 
@@ -51,7 +51,7 @@ various input types, attributes, and updating and rendering.
 @docs updateAttributes
 
 
-# Errors
+# Error
 
 @docs errors
 
@@ -75,17 +75,11 @@ import RoseTree.Tree as Tree
 Can be individual input fields (like text, email, password) or composite inputs
 like groups and repeatable groups.
 
-The first type parameter `id` corresponds to an optional identifier, used for
-referencing a specific [field](FormToolkit.Decode#field) while decoding or
-updating attributes, the type parameter `val` refers to a [value of an
-arbitrary type](FormToolkit.Value#custom) which can be assigned to a certain
-value of a [select](#select).
+The type parameter `id` corresponds to an optional identifier, used for
+referencing a specific `field` while decoding or updating attributes, the type
+parameter `val` refers to a value of an arbitrary type.
 
-Not always do you care about decoding the form or having selects with custom type
-values in which case you can annotate the type of your `Input` as
-`Input id val`, or however you prefer.
-It is possible to use a string or any other type to identify inputs, but this
-would forego type safety.
+Inputs can be identified preferrable by a custom type but also by a `String`.
 
 -}
 type alias Input id val =
@@ -399,16 +393,17 @@ type Attribute id val
 
 {-| Sets the name of an input.
 
-        -- import FormToolkit.Decode exposing (decode, json)
+        import FormToolkit.Decode as Decode
+        import Json.Encode
 
         text
             [ label "First name"
             , name "first-name"
             , value (Value.string "Chavela")
             ]
-            |> decode json
+            |> Decode.decode Decode.json
             |> Result.map (Json.Encode.encode 0)
-            -- Ok "{\"first-name\":\"Chavela\"}"
+            --> Ok "{\"first-name\":\"Chavela\"}"
 
 -}
 name : String -> Attribute id val
@@ -416,11 +411,13 @@ name str =
     Attribute (\input -> { input | name = Just str })
 
 
-{-| Sets the identifier to be reference when decoding a specific field. Used
-also to extract a [partial view](FormToolkit.View#partial) or reference a field
-in an [Error](FormToolkit.Decode#Error).
+{-| Sets the identifier to be reference when decoding a specific field.
 
-    import FormToolkit.Decode exposing (decode, field, string)
+Used also to extract a partial view of the inputs tree or reference a field from
+an Error.
+
+    import FormToolkit.Decode as Decode
+    import FormToolkit.Value as Value
 
     type Fields
         = FirstName
@@ -441,10 +438,8 @@ in an [Error](FormToolkit.Decode#Error).
                 ]
             ]
 
-    decoded =
-        form |> decode (field FirstName string)
-
-    -- Ok "Juan"
+    form |> Decode.decode (Decode.field FirstName Decode.string)
+    --> Ok "Juan"
 
 -}
 identifier : id -> Attribute id val
@@ -452,12 +447,14 @@ identifier id =
     Attribute (\input -> { input | identifier = Just id })
 
 
-{-| Sets the value of an input. See [Value](FormToolkit.Value#Value)
+{-| Sets the value of an input.
 
-    -- import FormToolkit.Decode exposing (decode, string)
+    import FormToolkit.Decode as Decode
+    import FormToolkit.Value as Value
+
     text [ label "Name", value (Value.string "Chavela") ]
-        |> decode string
-        == Ok "Chavela"
+        |> Decode.decode Decode.string
+        --> Ok "Chavela"
 
 -}
 value : Value.Value val -> Attribute id val
@@ -468,14 +465,12 @@ value (Value.Value inputValue) =
 {-| Marks an input as required, parsing and validation will fail and the missing
 field error will be displayed.
 
-    -- import FormToolkit.Decode exposing (decode, maybe, string)
-    text [ label "First name" ]
-        |> decode (maybe string)
-        == Ok Nothing
+    import FormToolkit.Decode as Decode
+    import FormToolkit.Value as Value
 
-    text [ label "First name", identifier "name", required True ]
-        |> decode (maybe string)
-        == Err (IsBlank "name")
+    text [ label "First name" ]
+        |> Decode.decode (Decode.maybe Decode.string)
+        --> Ok Nothing
 
 -}
 required : Bool -> Attribute id val
@@ -611,6 +606,10 @@ repeatableMax integer =
 {-| Update the attributes of an input passing an identifier and a list of
 Attribute, it will fail if the input is not found.
 
+    import FormToolkit.Decode as Decode
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.group []
         [ Input.text
             [ Input.identifier "Input"
@@ -622,7 +621,7 @@ Attribute, it will fail if the input is not found.
         |> Result.mapError List.singleton
         |> Result.andThen
             (Decode.decode (Decode.field "Input" Decode.string))
-        == Ok "Updated"
+    --> Ok "Updated"
 
 -}
 updateAttributes : id -> List (Attribute id val) -> Input id val -> Result (Error id val) (Input id val)
@@ -755,27 +754,31 @@ mapError transformId transformVal error =
 combining inputs of different identifier type `mapValues` allows composing
 inputs of different value type.
 
-    select
+    import FormToolkit.Value as Value
+
+    (select
         [ label "Language"
-        , value (Value.custom ( True, False ))
+        , value (Value.custom ( 1, False ))
         , options
-            [ ( "Yes-yes", Value.custom ( True, True ) )
-            , ( "Yes-no", Value.custom ( True, False ) )
-            , ( "No-yes", Value.custom ( False, True ) )
-            , ( "No-no", Value.custom ( False, False ) )
+            [ ( "Yes-yes", Value.custom ( 1, True ) )
+            , ( "Yes-no", Value.custom ( 1, False ) )
+            , ( "No-yes", Value.custom ( 0, True ) )
+            , ( "No-no", Value.custom ( 0, False ) )
             ]
         ]
-        |> mapValues (Value.mapCustom (Tuple.mapFirst not))
+        |> mapValues (Value.mapCustom (Tuple.mapFirst String.fromInt))
+        )
         == select
             [ label "Language"
-            , value (Value.custom ( False, False ))
+            , value (Value.custom ( "1", False ))
             , options
-                [ ( "Yes-yes", Value.custom ( False, True ) )
-                , ( "Yes-no", Value.custom ( False, False ) )
-                , ( "No-yes", Value.custom ( True, True ) )
-                , ( "No-no", Value.custom ( True, False ) )
+                [ ( "Yes-yes", Value.custom ( "1", True ) )
+                , ( "Yes-no", Value.custom ( "1", False ) )
+                , ( "No-yes", Value.custom ( "0", True ) )
+                , ( "No-no", Value.custom ( "0", False ) )
                 ]
             ]
+            --> True
 
 -}
 mapValues : (Value.Value val1 -> Value.Value val2) -> Input id val1 -> Input id val2

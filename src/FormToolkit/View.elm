@@ -41,14 +41,14 @@ import Internal.View
 import RoseTree.Tree as Tree
 
 
-{-| Represents a view for an [Input](FormToolkit.Input#Input) for the purposes
-of customized rendering.
+{-| A view is a way to configure the generated markdown for an `Input` or group
+of inputs.
 -}
 type View id val msg
     = View (Internal.View.View id val msg)
 
 
-{-| Construct a view from an [Input](FormToolkit.Input#Input).
+{-| Construct a view from an `Input`.
 
     view : Html (Never -> a)
     view =
@@ -84,7 +84,7 @@ toHtml (View view) =
     Internal.View.toHtml view
 
 
-{-| A partial view referenced by [identifier](FormToolkit.Input#identifier).
+{-| A partial view referenced by `identifier`.
 Maybe you want to render segments of the same form in different UI sections.
 
     Input.group []
@@ -211,9 +211,7 @@ customizeError viewFunc (View ({ attributes, input } as view)) =
 
 Use `advanced` parameters for a greater level of customization of the input
 and label.
-It is possible to target specific [input types](#InputType) or
-[specific inputs](FormToolkit.Input#identifier) by using `inputType` or
-`identifier` parameters.
+It is possible to target specific inputs by `InputType`, or `identifier`.
 
 The example bellow would render the input exactly as it normaly renders :P
 
@@ -351,11 +349,10 @@ customizeGroup viewFunc (View ({ attributes } as view)) =
 
 
 {-| Customize the positioning, and appearance of each of the inputs of a repeatable
-group of inputs and the and the button to add new inputs, see
-[Input.repeatable](FormToolkit.Input#repeatable).
+group of inputs and the and the button to add new inputs.
 
 To customize the template used to add a new input see
-[customizeRepeatableInput](#customizeRepeatableInput).
+[customizeRepeatingInput](#customizeRepeatingInput).
 
     view : View String val ()
     view =
@@ -425,7 +422,7 @@ customizeRepeatableInputsGroup viewFunc (View ({ attributes, input } as view)) =
 
 
 {-| Customize the rendering of each of the elements of a repeatable group of
-inputs, see [Input.repeatable](FormToolkit.Input#repeatable).
+inputs.
 
 To customize the group of inputs see
 [customizeRepeatableInputsGroup](#customizeRepeatableInputsGroup).

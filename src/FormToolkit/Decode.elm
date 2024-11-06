@@ -66,6 +66,8 @@ type alias Input id val =
 
 {-| Decoder for a field with the given identifier using a provided decoder.
 
+    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Value as Value
 
     type Fields
         = FirstName
@@ -86,10 +88,8 @@ type alias Input id val =
                 ]
             ]
 
-    decoded =
-        form |> decode (field FirstName string)
-
-    -- Ok "Brian"
+    form |> decode (field FirstName string)
+    --> Ok "Brian"
 
 -}
 field : id -> Decoder id val a -> Decoder id val a
@@ -123,9 +123,12 @@ fieldHelp id decoder =
 
 {-| Decodes the input value as a `String`.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.string "A string") ]
         |> decode string
-        == Ok "A string"
+        --> Ok "A string"
 
 -}
 string : Decoder id val String
@@ -135,9 +138,12 @@ string =
 
 {-| Decodes the input value as an `Int`.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.int 10) ]
         |> decode int
-        == Ok 10
+        --> Ok 10
 
 -}
 int : Decoder id val Int
@@ -147,9 +153,12 @@ int =
 
 {-| Decodes the input value as a `Float`.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.float 10.5) ]
         |> decode float
-        == Ok 10.5
+        --> Ok 10.5
 
 -}
 float : Decoder id val Float
@@ -159,9 +168,12 @@ float =
 
 {-| Decodes the input value as a `Bool`.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.bool True) ]
         |> decode bool
-        == Ok True
+        --> Ok True
 
 -}
 bool : Decoder id val Bool
@@ -171,11 +183,6 @@ bool =
 
 {-| Decodes the input value as a
 [Time.Posix](https://package.elm-lang.org/packages/elm/time/latest/Time#Posix).
-
-    Input.date [ Input.value (Value.time (Time.millisToPosix 0)) ]
-        |> (posix |> map (Time.toYear Time.utc))
-        == Ok 1970
-
 -}
 posix : Decoder id val Time.Posix
 posix =
@@ -184,13 +191,16 @@ posix =
 
 {-| Allows dealing with blank values without producing an error.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.string "A string") ]
         |> decode (maybe string)
-        == Ok (Just "A string")
+        --> Ok (Just "A string")
 
     Input.text []
         |> decode (maybe string)
-        == Ok Nothing
+        --> Ok Nothing
 
 -}
 maybe : Decoder id val a -> Decoder id val (Maybe a)
@@ -207,13 +217,16 @@ maybe decoder =
 
 {-| Decodes a list of inputs using the given decoder.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.repeatable []
         (Input.text [])
         [ Input.text [ Input.value (Value.string "mango") ]
         , Input.text [ Input.value (Value.string "banana") ]
         ]
         |> decode (list string)
-        == Ok [ "mango", "banana" ]
+        --> Ok [ "mango", "banana" ]
 
 -}
 list : Decoder id val a -> Decoder id val (List a)
@@ -265,9 +278,12 @@ listHelp decoder =
 
 {-| Returns the raw value of the input without any decoding.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.string "A string") ]
         |> decode value
-        == Value.string "A string"
+        --> Ok (Value.string "A string")
 
 -}
 value : Decoder id val (Value.Value val)
@@ -280,6 +296,9 @@ value =
 Tipically used for `select` or `radio` inputs with options of custom value, but
 also for autocompleatable text inputs where the inputted text corresponds to an
 option text.
+
+    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Value as Value
 
     type Lang
         = ES
@@ -309,11 +328,11 @@ option text.
                 ]
             ]
 
-    es =
-        langSelect |> decode customValue == Ok ES
+    langSelect |> decode customValue
+    --> Ok ES
 
-    en =
-        autocomplete |> decode customValue == Ok EN
+    autocomplete |> decode customValue
+    --> Ok EN
 
 -}
 customValue : Decoder id val val
@@ -323,10 +342,14 @@ customValue =
 
 {-| Converts the entire input tree into a JSON
 [Value](https://package.elm-lang.org/packages/elm/json/latest/Json-Encode#Value).
-Input [name](FormToolkit.Input#name) property will be used as the key,
-if an input [name](FormToolkit.Input#name) is not present the decoder will fail.
+Input `name` property will be used as the key, if an input name is not present
+the decoder will fail.
 
 Usefull if you just one to forward the form values to a backend.
+
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+    import Json.Encode
 
     Input.group []
         [ Input.text
@@ -353,7 +376,7 @@ Usefull if you just one to forward the form values to a backend.
         ]
         |> decode json
         |> Result.map (Json.Encode.encode 0)
-        == Ok "{\"first-name\":\"Brian\",\"last-name\":\"Eno\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
+        --> Ok "{\"first-name\":\"Brian\",\"last-name\":\"Eno\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
 -}
 json : Decoder id val Json.Decode.Value
@@ -422,8 +445,10 @@ jsonEncodeHelp input acc =
 decoding pipelines with [andMap](#andMap), or to chain decoders with
 [andThen](#andThen).
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
 
-    type SpecialValue
+    type Special
         = SpecialValue
 
     specialDecoder : Decoder id val Special
@@ -438,10 +463,8 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
                         fail "Nothing special"
                 )
 
-    result =
-        Input.text [ Input.value (Value.string "special") ]
-            |> decode specialDecoder
 
+    Input.text [ Input.value (Value.string "special") ] |> decode specialDecoder
     --> Ok SpecialValue
 
 -}
@@ -534,8 +557,6 @@ failure input err =
 {-| Chains together decoders that depend on previous decoding results.
 
     -- justinmimbs/date
-
-
     import Date exposing (Date)
 
     dateDecoder : Decoder id val Date
@@ -551,10 +572,9 @@ failure input err =
                             fail err
                 )
 
-    result =
-        Input.text [ Input.value (Value.string "07.03.1981") ]
-            |> decode dateDecoder
 
+    Input.text [ Input.value (Value.string "07.03.1981") ]
+        |> decode dateDecoder
     --> Ok (Date.fromCalendarDate 1981 Date.March 7)
 
 -}
@@ -573,6 +593,8 @@ andThen func (Decoder decoder) =
 
 {-| Incrementally apply decoders in a pipeline fashion.
 
+    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Value as Value
 
     type alias Person =
         { firstName : String
@@ -598,20 +620,19 @@ andThen func (Decoder decoder) =
                 ]
             , Input.int
                 [ Input.identifier Age
-                , Input.value (Value.string 81)
+                , Input.value (Value.int 81)
                 ]
             ]
 
     personDecoder : Decoder Fields val Person
     personDecoder =
-        Decode.succeed Person
-            |> Decode.andMap (Decode.field FirstName Decode.string)
-            |> Decode.andMap (Decode.field LastName Decode.string)
-            |> Decode.andMap (Decode.int Age Decode.int)
+        succeed Person
+            |> andMap (field FirstName string)
+            |> andMap (field LastName string)
+            |> andMap (field Age int)
 
-    result =
-        form |> decode personDecoder
 
+    form |> decode personDecoder
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -622,9 +643,12 @@ andMap a b =
 
 {-| Transforms the result of a decoder using a function.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.string "a string") ]
         |> decode (map String.toUpper string)
-        == Ok "A STRING"
+        --> Ok "A STRING"
 
 -}
 map : (a -> b) -> Decoder id val a -> Decoder id val b
@@ -644,6 +668,9 @@ mapHelp func (Decoder decoder) input =
 
 {-| Combines two decoders using a function.
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.group []
         [ Input.text
             [ Input.identifier "FirstName"
@@ -659,7 +686,7 @@ mapHelp func (Decoder decoder) input =
                 (field "FirstName" string)
                 (field "LastName" string)
             )
-        == Ok ( "Iris", "Hefets" )
+        --> Ok ( "Iris", "Hefets" )
 
 -}
 map2 : (a -> b -> c) -> Decoder id val a -> Decoder id val b -> Decoder id val c
@@ -687,6 +714,8 @@ map2 func a b =
 
 {-| Combines three decoders using a function.
 
+    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Value as Value
 
     type alias Person =
         { firstName : String
@@ -694,8 +723,8 @@ map2 func a b =
         , age : Int
         }
 
-    person : Decoder String val Person
-    person =
+    personDecoder : Decoder String val Person
+    personDecoder =
         map3 Person
             (field "FirstName" string)
             (field "LastName" string)
@@ -718,9 +747,7 @@ map2 func a b =
                 ]
             ]
 
-    result =
-        form |> decode personDecoder
-
+    form |> decode personDecoder
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -807,16 +834,19 @@ map8 func a b c d e f g h =
 {-| Decodes an input using the given decoder without applying field validations
 (required, min, max...).
 
+    import FormToolkit.Input as Input
+    import FormToolkit.Value as Value
+
     Input.text [ Input.value (Value.string "A string"), Input.required True ]
         |> decode string
-        == Ok "A string"
+        --> Ok "A string"
 
     Input.text
         [ Input.value (Value.bool True)
         , Input.identifier "MyInput"
         ]
         |> decode string
-        == Err [ ParseError (Just "MyInput") ]
+        --> Err [ ParseError (Just "MyInput") ]
 
 -}
 decode : Decoder id val a -> Input id val -> Result (List (Error id val)) a
