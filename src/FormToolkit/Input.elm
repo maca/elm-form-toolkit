@@ -10,7 +10,7 @@ module FormToolkit.Input exposing
     , options, stringOptions, min, max, autogrow
     , noattr
     , copies, repeatableMin, repeatableMax
-    , updateAttributes
+    , updateBy, updateAttribute, updateAttributes
     , errors
     , map, mapValues
     )
@@ -48,7 +48,7 @@ various input types, attributes, and updating and rendering.
 
 # Update attributes
 
-@docs updateAttributes
+@docs updateBy, updateAttribute, updateAttributes
 
 
 # Error
@@ -136,7 +136,10 @@ toHtml onChange input =
 
     usernameInput : Input id val
     usernameInput =
-        text [ label "Username", placeholder "Enter your username" ]
+        text
+            [ label "Username"
+            , placeholder "Enter your username"
+            ]
 
 -}
 text : List (Attribute id val) -> Input id val
@@ -217,7 +220,11 @@ strictAutocomplete =
 
     ageInput : Input id val
     ageInput =
-        int [ label "Age", min (Value.int 0), max (Value.int 120) ]
+        int
+            [ label "Age"
+            , min (Value.int 0)
+            , max (Value.int 120)
+            ]
 
 -}
 int : List (Attribute id val) -> Input id val
@@ -347,7 +354,10 @@ Allows inputs to be repeated multiple times.
             [ name "emails"
             , repeatableMin 1
             , repeatableMax 5
-            , copies { addInputButton = "Add email address", removeInputButton = "Remove" }
+            , copies
+                { addInputButton = "Add email address"
+                , removeInputButton = "Remove"
+                }
             ]
             (text [ placeholder "Enter email address" ])
             [ text
@@ -361,14 +371,10 @@ repeatable : List (Attribute id val) -> Input id val -> List (Input id val) -> I
 repeatable attributes template inputs =
     let
         params =
-            Internal.init (Internal.Repeatable template)
-                (unwrapAttrs attributes)
+            Internal.init (Internal.Repeatable template) (unwrapAttrs attributes)
 
         children =
-            inputs
-                ++ List.repeat
-                    (params.repeatableMin - List.length inputs)
-                    template
+            inputs ++ List.repeat (params.repeatableMin - List.length inputs) template
     in
     Tree.branch params children
 
@@ -438,7 +444,9 @@ an Error.
                 ]
             ]
 
-    form |> Decode.decode (Decode.field FirstName Decode.string)
+    form
+        |> Decode.decode
+            (Decode.field FirstName Decode.string)
     --> Ok "Juan"
 
 -}
@@ -529,14 +537,18 @@ options values =
         )
 
 
-{-| Sets string options for a select or radio, or datalist for a
+{-| Sets string options for a `select`or `radio`, or datalist for a
 string input autocomplete.
 
     flavourInput : Input id ( Bool, Bool )
     flavourInput =
         text
             [ label "Favorite favour"
-            , stringOptions [ "Chocolate", "Pistaccio", "Caramel salt" ]
+            , stringOptions
+                [ "Chocolate"
+                , "Pistaccio"
+                , "Caramel salt"
+                ]
             ]
 
 -}
@@ -546,16 +558,16 @@ stringOptions values =
         (List.map (\strVal -> ( strVal, Value.string strVal )) values)
 
 
-{-| Sets the minimum value for an input when the value is scalar (int, float,
-date, ...).
+{-| Sets the minimum value for an input where the value is scalar:
+`int`, `float`, `date`, `month` and `time`
 -}
 min : Value.Value val -> Attribute id val
 min (Value.Value val) =
     Attribute (\input -> { input | min = val })
 
 
-{-| Sets the maximum value for an input when the value is scalar (int, float,
-date, ...).
+{-| Sets the maximum value for an input where the value is scalar:
+`int`, `float`, `date`, `month` and `time`
 -}
 max : Value.Value val -> Attribute id val
 max (Value.Value val) =
@@ -603,48 +615,87 @@ repeatableMax integer =
     Attribute (\input -> { input | repeatableMax = Just integer })
 
 
-{-| Update the attributes of an input passing an identifier and a list of
-Attribute, it will fail if the input is not found.
+{-| Find a nested input by [identifier](#identifier) and returns the topmost
+input with the nested updated with a function if the nested input is found.
 
     import FormToolkit.Decode as Decode
-    import FormToolkit.Input as Input
     import FormToolkit.Value as Value
 
-    Input.group []
-        [ Input.text
-            [ Input.identifier "Input"
-            , Input.value (Value.string "Value")
+    group []
+        [ text
+            [ identifier "Input"
+            , value (Value.string "Value")
             ]
         ]
-        |> Input.updateAttributes "Input"
-            [ Input.value (Value.string "Updated") ]
-        |> Result.mapError List.singleton
-        |> Result.andThen
-            (Decode.decode (Decode.field "Input" Decode.string))
-    --> Ok "Updated"
+        |> updateBy "Input"
+            (updateAttribute
+                (value (Value.string "Updated"))
+            )
+        |> Maybe.map
+            (Decode.decode
+                (Decode.field "Input" Decode.string)
+            )
+        --> Just (Ok "Updated")
 
 -}
-updateAttributes : id -> List (Attribute id val) -> Input id val -> Result (Error id val) (Input id val)
-updateAttributes id attrList input =
-    if Tree.any (Internal.identifier >> (==) (Just id)) input then
-        let
-            attrs =
-                unwrapAttrs attrList
-        in
-        Ok
-            (Tree.map
-                (\node ->
-                    if Internal.identifier node == Just id then
-                        Internal.updateAttributes attrs node
+updateBy : id -> (Input id val -> Input id val) -> Input id val -> Maybe (Input id val)
+updateBy id fn input =
+    input
+        |> Tree.foldWithPath
+            (\path node acc ->
+                if Internal.identifier node == Just id then
+                    Just path
 
-                    else
-                        node
-                )
-                input
+                else
+                    acc
             )
+            Nothing
+        |> Maybe.map (\path -> Tree.updateAt path fn input)
 
-    else
-        Err (InputNotFound id)
+
+{-| Update an input attribute
+
+    import FormToolkit.Decode as Decode
+    import FormToolkit.Value as Value
+
+    text
+        [ identifier "Input"
+        , value (Value.string "Value")
+        ]
+        |> updateAttribute (value (Value.string "Updated"))
+        |> Decode.decode Decode.string
+        --> Ok "Updated"
+
+-}
+updateAttribute : Attribute id val -> Input id val -> Input id val
+updateAttribute attr =
+    Internal.updateAttributes (unwrapAttrs [ attr ])
+
+
+{-| Update an input attribute
+
+    import FormToolkit.Decode as Decode
+    import FormToolkit.Value as Value
+
+    text
+        [ identifier "Input"
+        , stringOptions [ "Vanilla", "Lemon", "Yogurt" ]
+        ]
+        |> updateAttributes
+            [ value (Value.string "Chocolate")
+            , stringOptions
+                [ "Chocolate"
+                , "Pistaccio"
+                , "Caramel salt"
+                ]
+            ]
+        |> Decode.decode Decode.string
+        --> Ok "Chocolate"
+
+-}
+updateAttributes : List (Attribute id val) -> Input id val -> Input id val
+updateAttributes attrList =
+    Internal.updateAttributes (unwrapAttrs attrList)
 
 
 {-| Collects all errors from an input and its children.
@@ -688,9 +739,9 @@ identifier of different type.
                 ]
             , repeatable
                 [ identifier TeamMembers ]
-                -- ↓
+                -- ↓↓↓↓
                 (map MemberFields personFields)
-                -- ↑
+                -- ↑↑↑↑
                 []
             ]
 

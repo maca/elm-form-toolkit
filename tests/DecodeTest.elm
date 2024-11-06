@@ -142,6 +142,22 @@ suite =
                             )
                         |> Expect.equal
                             (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
+
+            -- , test "decode a list using field" <|
+            --     \_ ->
+            --         Decode.decode Decode.json
+            --             (Input.repeatable
+            --                 [ Input.name "repeatable" ]
+            --                 groupWithNoName
+            --                 [ groupWithNoName, groupWithNoName ]
+            --             )
+            --             |> Result.withDefault Json.Encode.null
+            --             |> Json.Decode.decodeValue
+            --                 (Json.Decode.field "repeatable"
+            --                     (Json.Decode.list simpleJsonDecoder)
+            --                 )
+            --             |> Expect.equal
+            --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
             ]
         , describe "validates"
             [ let

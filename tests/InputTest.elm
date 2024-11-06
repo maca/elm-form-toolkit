@@ -1,7 +1,7 @@
 module InputTest exposing (suite)
 
 import Expect
-import FormToolkit.Decode as Decode exposing (Error(..))
+import FormToolkit.Decode as Decode
 import FormToolkit.Input as Input
 import FormToolkit.Value as Value
 import Test exposing (..)
@@ -29,39 +29,38 @@ suite =
             [ test "is success" <|
                 \_ ->
                     input
-                        |> Input.updateAttributes "NestedInput"
-                            [ Input.value (Value.string "Updated value") ]
-                        |> Result.mapError List.singleton
-                        |> Result.andThen
+                        |> Input.updateBy "NestedInput"
+                            (Input.updateAttribute
+                                (Input.value (Value.string "Updated value"))
+                            )
+                        |> Maybe.map
                             (Decode.decode
                                 (Decode.map2 Tuple.pair
                                     (Decode.field "NestedInput" Decode.string)
                                     (Decode.field "NestedInput2" Decode.string)
                                 )
                             )
-                        |> Expect.equal
-                            (Ok ( "Updated value", "Value2" ))
+                        |> Expect.equal (Just (Ok ( "Updated value", "Value2" )))
             , test "it preserves identifier" <|
                 \_ ->
                     input
-                        |> Input.updateAttributes "NestedInput"
-                            [ Input.identifier "OtherInput" ]
-                        |> Result.mapError List.singleton
-                        |> Result.andThen
+                        |> Input.updateBy "NestedInput"
+                            (Input.updateAttribute (Input.identifier "OtherInput"))
+                        |> Maybe.map
                             (Decode.decode
                                 (Decode.map2 Tuple.pair
                                     (Decode.field "NestedInput" Decode.string)
                                     (Decode.field "NestedInput2" Decode.string)
                                 )
                             )
-                        |> Expect.equal
-                            (Ok ( "Value", "Value2" ))
+                        |> Expect.equal (Just (Ok ( "Value", "Value2" )))
             , test "fails when no matching id" <|
                 \_ ->
                     input
-                        |> Input.updateAttributes "NonExisting"
-                            [ Input.value (Value.string "Value2") ]
-                        |> Expect.equal
-                            (Err (InputNotFound "NonExisting"))
+                        |> Input.updateBy "NotExisting"
+                            (Input.updateAttribute
+                                (Input.value (Value.string "Updated value"))
+                            )
+                        |> Expect.equal Nothing
             ]
         ]
