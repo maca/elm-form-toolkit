@@ -220,10 +220,12 @@ maybe decoder =
     import FormToolkit.Input as Input
     import FormToolkit.Value as Value
 
-    Input.repeatable []
-        (Input.text [])
-        [ Input.text [ Input.value (Value.string "mango") ]
-        , Input.text [ Input.value (Value.string "banana") ]
+    Input.repeatable [ ]
+        (Input.text [ ])
+        [ Input.updateAttribute
+            (Input.value (Value.string "mango") )
+        , Input.updateAttribute
+            (Input.value (Value.string "banana") )
         ]
         |> decode (list string)
         --> Ok [ "mango", "banana" ]
@@ -351,7 +353,7 @@ Usefull if you just one to forward the form values to a backend.
     import FormToolkit.Value as Value
     import Json.Encode
 
-    Input.group []
+    Input.group [ ]
         [ Input.text
             [ Input.label "First name"
             , Input.name "first-name"
@@ -363,15 +365,11 @@ Usefull if you just one to forward the form values to a backend.
             , Input.value (Value.string "Eno")
             ]
         , Input.repeatable [ Input.name "fruits" ]
-            (Input.text [])
-            [ Input.text
-                [ Input.name "fruit"
-                , Input.value (Value.string "mango")
-                ]
-            , Input.text
-                [ Input.name "fruit"
-                , Input.value (Value.string "banana")
-                ]
+            (Input.text [ Input.name "fruit" ])
+            [ Input.updateAttribute
+                (Input.value (Value.string "mango") )
+            , Input.updateAttribute
+                (Input.value (Value.string "banana") )
             ]
         ]
         |> decode json
@@ -575,7 +573,7 @@ failure input err =
 
     Input.text [ Input.value (Value.string "07.03.1981") ]
         |> decode dateDecoder
-    --> Ok (Date.fromCalendarDate 1981 Date.March 7)
+        --> Ok (Date.fromCalendarDate 1981 Date.March 7)
 
 -}
 andThen : (a -> Decoder id val b) -> Decoder id val a -> Decoder id val b
@@ -947,10 +945,16 @@ checkInRange tree =
                 )
 
         ( Just LT, Nothing ) ->
-            Just (ValueTooSmall (Input.identifier tree) { value = val, min = min })
+            Just
+                (ValueTooSmall (Input.identifier tree)
+                    { value = val, min = min }
+                )
 
         ( Nothing, Just GT ) ->
-            Just (ValueTooLarge (Input.identifier tree) { value = val, max = max })
+            Just
+                (ValueTooLarge (Input.identifier tree)
+                    { value = val, max = max }
+                )
 
         _ ->
             Nothing
@@ -977,7 +981,12 @@ checkOptionsProvided input =
 type Error id val
     = ValueTooLarge (Maybe id) { value : Value.Value val, max : Value.Value val }
     | ValueTooSmall (Maybe id) { value : Value.Value val, min : Value.Value val }
-    | ValueNotInRange (Maybe id) { value : Value.Value val, min : Value.Value val, max : Value.Value val }
+    | ValueNotInRange
+        (Maybe id)
+        { value : Value.Value val
+        , min : Value.Value val
+        , max : Value.Value val
+        }
     | IsBlank (Maybe id)
     | CustomError (Maybe id) String
     | ListError (Maybe id) { index : Int, error : Error id val }

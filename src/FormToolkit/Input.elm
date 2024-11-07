@@ -105,15 +105,18 @@ update decoder msg input =
         |> FormToolkit.Decode.validateAndDecode decoder
 
 
-{-|
+{-| Render the form.
 
-    view : Html (Never -> a)
+    type UpdateMsg
+        = FieldsUpdated Msg
+
+    view : Html UpdateMsg
     view =
         Input.group []
             [ Input.text [ Input.label "First Name" ]
             , Input.text [ Input.label "Last Name" ]
             ]
-            |> Input.toHtml (always never)
+            |> Input.toHtml FieldsUpdated
 
 -}
 toHtml : (Msg id val -> msg) -> Input id val -> Html msg
@@ -132,7 +135,10 @@ toHtml onChange input =
         |> View.toHtml
 
 
-{-| Text input field.
+{-| Build a text input field.
+
+It's possible to provide [options](#options) to include a `datalist` for
+autocomplete suggestions.
 
     usernameInput : Input id val
     usernameInput =
@@ -147,7 +153,7 @@ text =
     init Internal.Text
 
 
-{-| Textarea input field.
+{-| Build a Textarea input field.
 
     commentsInput : Input id val
     commentsInput =
@@ -163,7 +169,7 @@ textarea =
     init Internal.TextArea
 
 
-{-| Email input field.
+{-| Build an email input field.
 
     emailInput : Input id val
     emailInput =
@@ -175,7 +181,7 @@ email =
     init Internal.Email
 
 
-{-| Password input field.
+{-| Build a password input field.
 
     passwordInput : Input id val
     passwordInput =
@@ -187,7 +193,7 @@ password =
     init Internal.Password
 
 
-{-| Text input with strict autocomplete, if input doesn't match a
+{-| Build a text input with strict autocomplete, if input doesn't match a
 provided option the input value will be blank, value can be of any kind.
 
 For non strict autocomplete use [text](#text) providing [options](#options)
@@ -216,7 +222,7 @@ strictAutocomplete =
     init Internal.StrictAutocomplete
 
 
-{-| Integer input field.
+{-| Build an integer input field.
 
     ageInput : Input id val
     ageInput =
@@ -232,7 +238,7 @@ int =
     init Internal.Integer
 
 
-{-| Floating-point number input field.
+{-| Build a floating-point number input field.
 
     priceInput : Input id val
     priceInput =
@@ -244,7 +250,7 @@ float =
     init Internal.Float
 
 
-{-| Date input field.
+{-| Build a date input field.
 
     birthdateInput : Input id val
     birthdateInput =
@@ -256,7 +262,7 @@ date =
     init Internal.Date
 
 
-{-| Month input field.
+{-| Build a month input field.
 
     monthInput : Input id val
     monthInput =
@@ -268,7 +274,7 @@ month =
     init Internal.Month
 
 
-{-| Select input field (dropdown).
+{-| Build a select input field (dropdown).
 
     type Lang
         = ES
@@ -292,7 +298,7 @@ select =
     init Internal.Select
 
 
-{-| Radio button input field.
+{-| Build a radio button input field.
 
     lightOnInput : Input id val
     lightOnInput =
@@ -310,7 +316,7 @@ radio =
     init Internal.Radio
 
 
-{-| Checkbox input field.
+{-| Build a checkbox input field.
 
     consentInput : Input id val
     consentInput =
@@ -322,13 +328,14 @@ checkbox =
     init Internal.Checkbox
 
 
-{-| Makes a group of inputs from a list of inputs.
+{-| Groups a list of inputs.
 
 Groups multiple inputs together.
 
     nameInputs : Input id val
     nameInputs =
-        group []
+        group
+            [ name "person-name" ]
             [ text [ name "firstName", label "First Name" ]
             , text [ name "lastName", label "Last Name" ]
             ]
@@ -339,14 +346,18 @@ group attributes =
     Tree.branch (Internal.init Internal.Group (unwrapAttrs attributes))
 
 
-{-| Makes a repeatable group of inputs, from a template input or group and a
-list of populated inputs.
-The markup for the repeatable group will include buttons for adding,
-and removing the repeatable input or group, by using `repeatableMin` and
-`repeatableMax` it's possible to specify a lower and upper limit of the number
-of instances that can be added or removed.
+{-| Build a repeatable group of inputs from a template input.
 
-Allows inputs to be repeated multiple times.
+A list of input update functions can be passed as the second argument
+to be applied to the template and populate with an input per function.
+
+The markup will include buttons for adding and removing inputs.
+
+Relevant attributes are [repeatableMin](#repeatableMin),
+[repeatableMax](#repeatableMax), and [copies](#copies).
+
+    import FormToolkit.Decode as Decode
+    import FormToolkit.Value as Value
 
     emailsInputs : Input id val
     emailsInputs =
@@ -360,21 +371,35 @@ Allows inputs to be repeated multiple times.
                 }
             ]
             (text [ placeholder "Enter email address" ])
-            [ text
-                [ placeholder "Enter email address"
-                , value (Value.string "mail@example.com")
-                ]
+            [ updateAttribute
+                (value
+                    (Value.string "email@example.com")
+                )
+            , updateAttribute
+                (value
+                    (Value.string "other-email@example.com")
+                )
             ]
 
+    emailsInputs |> Decode.decode (Decode.list Decode.string)
+    --> Ok [ "email@example.com", "other-email@example.com" ]
+
 -}
-repeatable : List (Attribute id val) -> Input id val -> List (Input id val) -> Input id val
-repeatable attributes template inputs =
+repeatable :
+    List (Attribute id val)
+    -> Input id val
+    -> List (Input id val -> Input id val)
+    -> Input id val
+repeatable attributes template updates =
     let
         params =
             Internal.init (Internal.Repeatable template) (unwrapAttrs attributes)
 
         children =
-            inputs ++ List.repeat (params.repeatableMin - List.length inputs) template
+            List.concat
+                [ List.map (\fn -> fn template) updates
+                , List.repeat (params.repeatableMin - List.length updates) template
+                ]
     in
     Tree.branch params children
 
@@ -417,10 +442,12 @@ name str =
     Attribute (\input -> { input | name = Just str })
 
 
-{-| Sets the identifier to be reference when decoding a specific field.
+{-| Sets the identifier to be reference when decoding a specific field ,
+extractig a segment of the form, updating the attributes for the input, or
+customizing the rendering of a specific input or input error.
 
-Used also to extract a partial view of the inputs tree or reference a field from
-an Error.
+Any type can be used as an identifier but the use of a custom type is encouraged
+to gain some typo safety.
 
     import FormToolkit.Decode as Decode
     import FormToolkit.Value as Value
@@ -554,8 +581,7 @@ string input autocomplete.
 -}
 stringOptions : List String -> Attribute id val
 stringOptions values =
-    options
-        (List.map (\strVal -> ( strVal, Value.string strVal )) values)
+    options (List.map (\strVal -> ( strVal, Value.string strVal )) values)
 
 
 {-| Sets the minimum value for an input where the value is scalar:
