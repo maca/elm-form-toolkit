@@ -2,7 +2,7 @@ module InputTest exposing (suite)
 
 import Expect
 import FormToolkit.Decode as Decode
-import FormToolkit.Input as Input
+import FormToolkit.Field as Input
 import FormToolkit.Value as Value
 import Test exposing (..)
 

@@ -2,7 +2,7 @@ module DecodeTest exposing (suite)
 
 import Expect
 import FormToolkit.Decode as Decode exposing (Error(..))
-import FormToolkit.Input as Input
+import FormToolkit.Field as Input
 import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode

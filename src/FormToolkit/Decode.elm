@@ -39,7 +39,7 @@ know `Json.Decode` you know how to use this module ;)
 
 import Dict
 import FormToolkit.Value as Value
-import Internal.Input as Input
+import Internal.Field as Field
 import Internal.Value
 import Json.Decode
 import Json.Encode
@@ -49,42 +49,42 @@ import Time
 
 
 type Partial id val a
-    = Failure (Input id val) (List (Error id val))
-    | Success (Input id val) a
+    = Failure (Field id val) (List (Error id val))
+    | Success (Field id val) a
 
 
 {-| A decoder that takes a tree of input data and returns a decoded result or an
 error if the decoding fails.
 -}
 type Decoder id val a
-    = Decoder (Input id val -> Partial id val a)
+    = Decoder (Field id val -> Partial id val a)
 
 
-type alias Input id val =
-    Input.Input id val (Error id val)
+type alias Field id val =
+    Field.Field id val (Error id val)
 
 
 {-| Decoder for a field with the given identifier using a provided decoder.
 
-    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
 
     type Fields
         = FirstName
         | LastName
 
-    form : Input Fields val
+    form : Field Fields val
     form =
-        Input.group []
-            [ Input.text
-                [ Input.label "First name"
-                , Input.identifier FirstName
-                , Input.value (Value.string "Brian")
+        Field.group []
+            [ Field.text
+                [ Field.label "First name"
+                , Field.identifier FirstName
+                , Field.value (Value.string "Brian")
                 ]
-            , Input.text
-                [ Input.label "Last name"
-                , Input.identifier LastName
-                , Input.value (Value.string "Eno")
+            , Field.text
+                [ Field.label "Last name"
+                , Field.identifier LastName
+                , Field.value (Value.string "Eno")
                 ]
             ]
 
@@ -108,11 +108,11 @@ field id decoder =
         )
 
 
-fieldHelp : id -> Decoder id val a -> Input id val -> ( Maybe (Partial id val a), List Int )
+fieldHelp : id -> Decoder id val a -> Field id val -> ( Maybe (Partial id val a), List Int )
 fieldHelp id decoder =
     Tree.foldWithPath
         (\path tree acc ->
-            if Input.identifier tree == Just id then
+            if Field.identifier tree == Just id then
                 ( Just (apply decoder tree), path )
 
             else
@@ -123,10 +123,10 @@ fieldHelp id decoder =
 
 {-| Decodes the input value as a `String`.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.string "A string") ]
+    Field.text [ Field.value (Value.string "A string") ]
         |> decode string
         --> Ok "A string"
 
@@ -138,10 +138,10 @@ string =
 
 {-| Decodes the input value as an `Int`.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.int 10) ]
+    Field.text [ Field.value (Value.int 10) ]
         |> decode int
         --> Ok 10
 
@@ -153,10 +153,10 @@ int =
 
 {-| Decodes the input value as a `Float`.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.float 10.5) ]
+    Field.text [ Field.value (Value.float 10.5) ]
         |> decode float
         --> Ok 10.5
 
@@ -168,10 +168,10 @@ float =
 
 {-| Decodes the input value as a `Bool`.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.bool True) ]
+    Field.text [ Field.value (Value.bool True) ]
         |> decode bool
         --> Ok True
 
@@ -191,14 +191,14 @@ posix =
 
 {-| Allows dealing with blank values without producing an error.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.string "A string") ]
+    Field.text [ Field.value (Value.string "A string") ]
         |> decode (maybe string)
         --> Ok (Just "A string")
 
-    Input.text []
+    Field.text []
         |> decode (maybe string)
         --> Ok Nothing
 
@@ -207,7 +207,7 @@ maybe : Decoder id val a -> Decoder id val (Maybe a)
 maybe decoder =
     Decoder
         (\input ->
-            if Input.isBlank input then
+            if Field.isBlank input then
                 Success input Nothing
 
             else
@@ -217,15 +217,15 @@ maybe decoder =
 
 {-| Decodes a list of inputs using the given decoder.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.repeatable [ ]
-        (Input.text [ ])
-        [ Input.updateAttribute
-            (Input.value (Value.string "mango") )
-        , Input.updateAttribute
-            (Input.value (Value.string "banana") )
+    Field.repeatable [ ]
+        (Field.text [ ])
+        [ Field.updateAttribute
+            (Field.value (Value.string "mango") )
+        , Field.updateAttribute
+            (Field.value (Value.string "banana") )
         ]
         |> decode (list string)
         --> Ok [ "mango", "banana" ]
@@ -253,8 +253,8 @@ list decoder =
 
 listHelp :
     Decoder id val a
-    -> Input id val
-    -> ( List (Input id val), Result (List (Error id val)) (List a) )
+    -> Field id val
+    -> ( List (Field id val), Result (List (Error id val)) (List a) )
 listHelp decoder =
     Tree.children
         >> List.foldr
@@ -280,10 +280,10 @@ listHelp decoder =
 
 {-| Returns the raw value of the input without any decoding.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.string "A string") ]
+    Field.text [ Field.value (Value.string "A string") ]
         |> decode value
         --> Ok (Value.string "A string")
 
@@ -299,7 +299,7 @@ Tipically used for `select` or `radio` inputs with options of custom value, but
 also for autocompleatable text inputs where the inputted text corresponds to an
 option text.
 
-    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
 
     type Lang
@@ -307,23 +307,23 @@ option text.
         | EN
         | DE
 
-    langSelect : Input id Lang
+    langSelect : Field id Lang
     langSelect =
-        Input.select
-            [ Input.label "Language"
-            , Input.value (Value.custom ES)
-            , Input.options
+        Field.select
+            [ Field.label "Language"
+            , Field.value (Value.custom ES)
+            , Field.options
                 [ ( "Español", Value.custom ES )
                 , ( "English", Value.custom EN )
                 , ( "Deutsch", Value.custom DE )
                 ]
             ]
 
-    autocomplete : Input id Lang
+    autocomplete : Field id Lang
     autocomplete =
-        Input.text
-            [ Input.value (Value.string "English")
-            , Input.options
+        Field.text
+            [ Field.value (Value.string "English")
+            , Field.options
                 [ ( "Español", Value.custom ES )
                 , ( "English", Value.custom EN )
                 , ( "Deutsch", Value.custom DE )
@@ -344,32 +344,32 @@ customValue =
 
 {-| Converts the entire input tree into a JSON
 [Value](https://package.elm-lang.org/packages/elm/json/latest/Json-Encode#Value).
-Input `name` property will be used as the key, if an input name is not present
+Field `name` property will be used as the key, if an input name is not present
 the decoder will fail.
 
 Usefull if you just one to forward the form values to a backend.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
     import Json.Encode
 
-    Input.group [ ]
-        [ Input.text
-            [ Input.label "First name"
-            , Input.name "first-name"
-            , Input.value (Value.string "Brian")
+    Field.group [ ]
+        [ Field.text
+            [ Field.label "First name"
+            , Field.name "first-name"
+            , Field.value (Value.string "Brian")
             ]
-        , Input.text
-            [ Input.label "Last name"
-            , Input.name "last-name"
-            , Input.value (Value.string "Eno")
+        , Field.text
+            [ Field.label "Last name"
+            , Field.name "last-name"
+            , Field.value (Value.string "Eno")
             ]
-        , Input.repeatable [ Input.name "fruits" ]
-            (Input.text [ Input.name "fruit" ])
-            [ Input.updateAttribute
-                (Input.value (Value.string "mango") )
-            , Input.updateAttribute
-                (Input.value (Value.string "banana") )
+        , Field.repeatable [ Field.name "fruits" ]
+            (Field.text [ Field.name "fruit" ])
+            [ Field.updateAttribute
+                (Field.value (Value.string "mango") )
+            , Field.updateAttribute
+                (Field.value (Value.string "banana") )
             ]
         ]
         |> decode json
@@ -390,28 +390,28 @@ json =
         )
 
 
-jsonEncodeObject : Input id val -> Result (Error id val) Json.Encode.Value
+jsonEncodeObject : Field id val -> Result (Error id val) Json.Encode.Value
 jsonEncodeObject input =
     jsonEncodeHelp input [] |> Result.map Json.Encode.object
 
 
 jsonEncodeHelp :
-    Input id val
+    Field id val
     -> List ( String, Json.Decode.Value )
     -> Result (Error id val) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp input acc =
     let
         accumulate jsonValue =
-            case Input.name input of
+            case Field.name input of
                 Just name ->
                     Ok (( name, jsonValue ) :: acc)
 
                 Nothing ->
-                    Err (RepeatableHasNoName (Input.identifier input))
+                    Err (RepeatableHasNoName (Field.identifier input))
     in
-    case Input.inputType input of
-        Input.Group ->
-            case Input.name input of
+    case Field.inputType input of
+        Field.Group ->
+            case Field.name input of
                 Nothing ->
                     Tree.children input
                         |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
@@ -424,16 +424,16 @@ jsonEncodeHelp input acc =
                         |> Result.map Json.Encode.object
                         |> Result.andThen accumulate
 
-        Input.Repeatable _ ->
+        Field.Repeatable _ ->
             Tree.children input
                 |> List.foldr (\e -> Result.map2 (::) (jsonEncodeObject e)) (Ok [])
                 |> Result.map (Json.Encode.list identity)
                 |> Result.andThen accumulate
 
         _ ->
-            case Input.name input of
+            case Field.name input of
                 Just name ->
-                    Ok (( name, Internal.Value.encode (Input.value input) ) :: acc)
+                    Ok (( name, Internal.Value.encode (Field.value input) ) :: acc)
 
                 Nothing ->
                     Ok acc
@@ -443,7 +443,7 @@ jsonEncodeHelp input acc =
 decoding pipelines with [andMap](#andMap), or to chain decoders with
 [andThen](#andThen).
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
     type Special
@@ -462,7 +462,7 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
                 )
 
 
-    Input.text [ Input.value (Value.string "special") ] |> decode specialDecoder
+    Field.text [ Field.value (Value.string "special") ] |> decode specialDecoder
     --> Ok SpecialValue
 
 -}
@@ -483,9 +483,9 @@ custom : (Value.Value val -> Result String a) -> Decoder id val a
 custom func =
     parseHelp
         (\input ->
-            func (Value.Value (Input.value input))
+            func (Value.Value (Field.value input))
                 |> Result.mapError
-                    (CustomError (Input.identifier input))
+                    (CustomError (Field.identifier input))
         )
 
 
@@ -494,7 +494,7 @@ format : (String -> String) -> Decoder id val String
 format func =
     Decoder
         (\input ->
-            case Input.value input |> Internal.Value.toString of
+            case Field.value input |> Internal.Value.toString of
                 Just str ->
                     Success
                         (Tree.updateValue
@@ -515,26 +515,26 @@ parseValue : (Value.Value val -> Maybe a) -> Decoder id val a
 parseValue func =
     parseHelp
         (\input ->
-            if Input.isGroup input then
-                Err (IsGroupNotInput (Input.identifier input))
+            if Field.isGroup input then
+                Err (IsGroupNotInput (Field.identifier input))
 
             else
-                Internal.Value.toString (Input.value input)
+                Internal.Value.toString (Field.value input)
                     |> Maybe.andThen
                         (\key ->
-                            Input.options input
+                            Field.options input
                                 |> Dict.fromList
                                 |> Dict.get key
                         )
-                    |> Maybe.withDefault (Input.value input)
+                    |> Maybe.withDefault (Field.value input)
                     |> (func << Value.Value)
                     |> Maybe.map Ok
                     |> Maybe.withDefault
-                        (Err (ParseError (Input.identifier input)))
+                        (Err (ParseError (Field.identifier input)))
         )
 
 
-parseHelp : (Input id val -> Result (Error id val) a) -> Decoder id val a
+parseHelp : (Field id val -> Result (Error id val) a) -> Decoder id val a
 parseHelp func =
     Decoder
         (\input ->
@@ -547,9 +547,9 @@ parseHelp func =
         )
 
 
-failure : Input id val -> Error id val -> Partial id val a
+failure : Field id val -> Error id val -> Partial id val a
 failure input err =
-    Failure (Input.setErrors [ err ] input) [ err ]
+    Failure (Field.setErrors [ err ] input) [ err ]
 
 
 {-| Chains together decoders that depend on previous decoding results.
@@ -571,7 +571,7 @@ failure input err =
                 )
 
 
-    Input.text [ Input.value (Value.string "07.03.1981") ]
+    Field.text [ Field.value (Value.string "07.03.1981") ]
         |> decode dateDecoder
         --> Ok (Date.fromCalendarDate 1981 Date.March 7)
 
@@ -591,7 +591,7 @@ andThen func (Decoder decoder) =
 
 {-| Incrementally apply decoders in a pipeline fashion.
 
-    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
 
     type alias Person =
@@ -605,20 +605,20 @@ andThen func (Decoder decoder) =
         | LastName
         | Age
 
-    form : Input Fields val
+    form : Field Fields val
     form =
-        Input.group []
-            [ Input.text
-                [ Input.identifier FirstName
-                , Input.value (Value.string "Penny")
+        Field.group []
+            [ Field.text
+                [ Field.identifier FirstName
+                , Field.value (Value.string "Penny")
                 ]
-            , Input.text
-                [ Input.identifier LastName
-                , Input.value (Value.string "Rimbaud")
+            , Field.text
+                [ Field.identifier LastName
+                , Field.value (Value.string "Rimbaud")
                 ]
-            , Input.int
-                [ Input.identifier Age
-                , Input.value (Value.int 81)
+            , Field.int
+                [ Field.identifier Age
+                , Field.value (Value.int 81)
                 ]
             ]
 
@@ -641,10 +641,10 @@ andMap a b =
 
 {-| Transforms the result of a decoder using a function.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.string "a string") ]
+    Field.text [ Field.value (Value.string "a string") ]
         |> decode (map String.toUpper string)
         --> Ok "A STRING"
 
@@ -654,7 +654,7 @@ map func decoder =
     Decoder (mapHelp func decoder)
 
 
-mapHelp : (a -> b) -> Decoder id val a -> Input id val -> Partial id val b
+mapHelp : (a -> b) -> Decoder id val a -> Field id val -> Partial id val b
 mapHelp func (Decoder decoder) input =
     case decoder input of
         Success input2 a ->
@@ -666,17 +666,17 @@ mapHelp func (Decoder decoder) input =
 
 {-| Combines two decoders using a function.
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.group []
-        [ Input.text
-            [ Input.identifier "FirstName"
-            , Input.value (Value.string "Iris")
+    Field.group []
+        [ Field.text
+            [ Field.identifier "FirstName"
+            , Field.value (Value.string "Iris")
             ]
-        , Input.text
-            [ Input.identifier "LastName"
-            , Input.value (Value.string "Hefets")
+        , Field.text
+            [ Field.identifier "LastName"
+            , Field.value (Value.string "Hefets")
             ]
         ]
         |> decode
@@ -712,7 +712,7 @@ map2 func a b =
 
 {-| Combines three decoders using a function.
 
-    import FormToolkit.Input as Input exposing (Input)
+    import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
 
     type alias Person =
@@ -728,20 +728,20 @@ map2 func a b =
             (field "LastName" string)
             (field "Age" int)
 
-    form : Input String val
+    form : Field String val
     form =
-        Input.group []
-            [ Input.text
-                [ Input.identifier "FirstName"
-                , Input.value (Value.string "Penny")
+        Field.group []
+            [ Field.text
+                [ Field.identifier "FirstName"
+                , Field.value (Value.string "Penny")
                 ]
-            , Input.text
-                [ Input.identifier "LastName"
-                , Input.value (Value.string "Rimbaud")
+            , Field.text
+                [ Field.identifier "LastName"
+                , Field.value (Value.string "Rimbaud")
                 ]
-            , Input.int
-                [ Input.identifier "Age"
-                , Input.value (Value.int 81)
+            , Field.int
+                [ Field.identifier "Age"
+                , Field.value (Value.int 81)
                 ]
             ]
 
@@ -832,22 +832,22 @@ map8 func a b c d e f g h =
 {-| Decodes an input using the given decoder without applying field validations
 (required, min, max...).
 
-    import FormToolkit.Input as Input
+    import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
-    Input.text [ Input.value (Value.string "A string"), Input.required True ]
+    Field.text [ Field.value (Value.string "A string"), Field.required True ]
         |> decode string
         --> Ok "A string"
 
-    Input.text
-        [ Input.value (Value.bool True)
-        , Input.identifier "MyInput"
+    Field.text
+        [ Field.value (Value.bool True)
+        , Field.identifier "MyField"
         ]
         |> decode string
-        --> Err [ ParseError (Just "MyInput") ]
+        --> Err [ ParseError (Just "MyField") ]
 
 -}
-decode : Decoder id val a -> Input id val -> Result (List (Error id val)) a
+decode : Decoder id val a -> Field id val -> Result (List (Error id val)) a
 decode decoder input =
     case apply decoder input of
         Success _ a ->
@@ -861,8 +861,8 @@ decode decoder input =
 -}
 validateAndDecode :
     Decoder id val a
-    -> Input id val
-    -> ( Input id val, Result (List (Error id val)) a )
+    -> Field id val
+    -> ( Field id val, Result (List (Error id val)) a )
 validateAndDecode decoder input =
     case apply (validateTree |> andThen (\() -> decoder)) input of
         Success input2 a ->
@@ -888,11 +888,11 @@ validateTree =
                                     node
 
                                 errors ->
-                                    Input.setErrors errors node
+                                    Field.setErrors errors node
                         )
                         input
             in
-            case Input.errors updated of
+            case Field.errors updated of
                 [] ->
                     Success updated ()
 
@@ -901,58 +901,58 @@ validateTree =
         )
 
 
-apply : Decoder id val a -> Input id val -> Partial id val a
+apply : Decoder id val a -> Field id val -> Partial id val a
 apply (Decoder decoder) =
     decoder
 
 
-checkRequired : Input id val -> Maybe (Error id val)
+checkRequired : Field id val -> Maybe (Error id val)
 checkRequired input =
-    if Input.isRequired input && Input.isBlank input then
-        Just (IsBlank (Input.identifier input))
+    if Field.isRequired input && Field.isBlank input then
+        Just (IsBlank (Field.identifier input))
 
     else
         Nothing
 
 
-checkInRange : Input id val -> Maybe (Error id val)
+checkInRange : Field id val -> Maybe (Error id val)
 checkInRange tree =
     let
         val =
-            Value.Value (Input.value tree)
+            Value.Value (Field.value tree)
 
         min =
-            Value.Value (Input.min tree)
+            Value.Value (Field.min tree)
 
         max =
-            Value.Value (Input.max tree)
+            Value.Value (Field.max tree)
     in
     case
-        ( Internal.Value.compare (Input.value tree) (Input.min tree)
-        , Internal.Value.compare (Input.value tree) (Input.max tree)
+        ( Internal.Value.compare (Field.value tree) (Field.min tree)
+        , Internal.Value.compare (Field.value tree) (Field.max tree)
         )
     of
         ( Just LT, Just _ ) ->
             Just
-                (ValueNotInRange (Input.identifier tree)
+                (ValueNotInRange (Field.identifier tree)
                     { value = val, min = min, max = max }
                 )
 
         ( Just _, Just GT ) ->
             Just
-                (ValueNotInRange (Input.identifier tree)
+                (ValueNotInRange (Field.identifier tree)
                     { value = val, min = min, max = max }
                 )
 
         ( Just LT, Nothing ) ->
             Just
-                (ValueTooSmall (Input.identifier tree)
+                (ValueTooSmall (Field.identifier tree)
                     { value = val, min = min }
                 )
 
         ( Nothing, Just GT ) ->
             Just
-                (ValueTooLarge (Input.identifier tree)
+                (ValueTooLarge (Field.identifier tree)
                     { value = val, max = max }
                 )
 
@@ -960,17 +960,17 @@ checkInRange tree =
             Nothing
 
 
-checkOptionsProvided : Input id val -> Maybe (Error id val)
+checkOptionsProvided : Field id val -> Maybe (Error id val)
 checkOptionsProvided input =
-    case ( Input.inputType input, Input.options input ) of
-        ( Input.Select, [] ) ->
-            Just (NoOptionsProvided (Input.identifier input))
+    case ( Field.inputType input, Field.options input ) of
+        ( Field.Select, [] ) ->
+            Just (NoOptionsProvided (Field.identifier input))
 
-        ( Input.Radio, [] ) ->
-            Just (NoOptionsProvided (Input.identifier input))
+        ( Field.Radio, [] ) ->
+            Just (NoOptionsProvided (Field.identifier input))
 
-        ( Input.StrictAutocomplete, [] ) ->
-            Just (NoOptionsProvided (Input.identifier input))
+        ( Field.StrictAutocomplete, [] ) ->
+            Just (NoOptionsProvided (Field.identifier input))
 
         _ ->
             Nothing

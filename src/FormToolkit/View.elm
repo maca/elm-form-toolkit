@@ -1,10 +1,10 @@
 module FormToolkit.View exposing
-    ( View, fromInput, toHtml
+    ( View, fromField, toHtml
     , partial
     , Attribute, class, classList, style
     , InputType(..)
-    , customizeError, customizeInput
-    , customizeGroup, customizeRepeatableInputsGroup, customizeRepeatingInput
+    , customizeError, customizeField
+    , customizeGroup, customizeRepeatableFields, customizeRepeatingFieldTemplate
     )
 
 {-|
@@ -12,7 +12,7 @@ module FormToolkit.View exposing
 
 # View
 
-@docs View, fromInput, toHtml
+@docs View, fromField, toHtml
 @docs partial
 
 
@@ -27,41 +27,41 @@ module FormToolkit.View exposing
 ## Markup customization
 
 @docs InputType
-@docs customizeError, customizeInput
-@docs customizeGroup, customizeRepeatableInputsGroup, customizeRepeatingInput
+@docs customizeError, customizeField
+@docs customizeGroup, customizeRepeatableFields, customizeRepeatingFieldTemplate
 
 -}
 
 import FormToolkit.Decode exposing (Error)
-import FormToolkit.Input exposing (Input)
+import FormToolkit.Field exposing (Field)
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
-import Internal.Input exposing (Msg(..))
+import Internal.Field exposing (Msg(..))
 import Internal.View
 import RoseTree.Tree as Tree
 
 
-{-| A view is a way to configure the generated markdown for an `Input` or group
-of inputs.
+{-| A view is a way to configure the generated markdown for an `Field` or group
+of fields.
 -}
 type View id val msg
     = View (Internal.View.View id val msg)
 
 
-{-| Construct a view from an `Input`.
+{-| Construct a view from an `Field`.
 
     view : Html (Never -> a)
     view =
-        Input.group []
-            [ Input.text [ Input.label "First Name" ]
-            , Input.text [ Input.label "Last Name" ]
+        Field.group []
+            [ Field.text [ Field.label "First Name" ]
+            , Field.text [ Field.label "Last Name" ]
             ]
-            |> View.fromInput (always never)
+            |> View.fromField (always never)
             |> View.toHtml
 
 -}
-fromInput : (Msg id val -> msg) -> Input id val -> View id val msg
-fromInput onChange input =
+fromField : (Msg id val -> msg) -> Field id val -> View id val msg
+fromField onChange field =
     View
         (Internal.View.init
             { events =
@@ -72,7 +72,7 @@ fromInput onChange input =
                 , onRemove = onChange << InputsRemoved
                 }
             , path = []
-            , input = input
+            , field = field
             }
         )
 
@@ -87,22 +87,22 @@ toHtml (View view) =
 {-| A partial view referenced by `identifier`.
 Maybe you want to render segments of the same form in different UI sections.
 
-    Input.group []
-        [ Input.text
-            [ Input.identifier "FirstName"
-            , Input.label "First Name"
+    Field.group []
+        [ Field.text
+            [ Field.identifier "FirstName"
+            , Field.label "First Name"
             ]
-        , Input.text
-            [ Input.identifier "LastName"
-            , Input.label "Last Name"
+        , Field.text
+            [ Field.identifier "LastName"
+            , Field.label "Last Name"
             ]
         ]
-        |> View.fromInput (always never)
+        |> View.fromField (always never)
         |> View.partial "FirstName"
         == Just
-            (Input.text
-                [ Input.identifier "FirstName"
-                , Input.label "First Name"
+            (Field.text
+                [ Field.identifier "FirstName"
+                , Field.label "First Name"
                 ]
             )
 
@@ -123,31 +123,31 @@ field, or for fields of a certain type.
 
     view : View Fields val ()
     view =
-        Input.group []
-            [ Input.text
-                [ Input.label "Name"
-                , Input.identifier Name
-                , Input.required
+        Field.group []
+            [ Field.text
+                [ Field.label "Name"
+                , Field.identifier Name
+                , Field.required
                 ]
-            , Input.text
-                [ Input.label "Temperature"
-                , Input.identifier Temperature
-                , Input.min 20
-                , Input.max 35
-                , Input.required
+            , Field.text
+                [ Field.label "Temperature"
+                , Field.identifier Temperature
+                , Field.min 20
+                , Field.max 35
+                , Field.required
                 ]
-            , Input.select
-                [ Input.label "Flavour"
-                , Input.identifier Flavour
-                , Input.required
-                , Input.options
+            , Field.select
+                [ Field.label "Flavour"
+                , Field.identifier Flavour
+                , Field.required
+                , Field.options
                     [ ( "Banana", Value.string "banana" )
                     , ( "Strawbery", Value.string "strawberry" )
                     , ( "Chocolate", Value.string "chocolate" )
                     ]
                 ]
             ]
-            |> View.fromInput (always ())
+            |> View.fromField (always ())
             |> View.customizeError
                 (\{ inputType, error } ->
                     let
@@ -185,7 +185,7 @@ customizeError :
     ({ inputType : InputType, error : Error id val } -> String)
     -> View id val msg
     -> View id val msg
-customizeError viewFunc (View ({ attributes, input } as view)) =
+customizeError viewFunc (View ({ attributes, field } as view)) =
     View
         { view
             | attributes =
@@ -193,33 +193,32 @@ customizeError viewFunc (View ({ attributes, input } as view)) =
                     | errorToString =
                         \error ->
                             let
-                                unwrappedInput =
-                                    Tree.value input
+                                unwrappedField =
+                                    Tree.value field
                             in
                             viewFunc
-                                { inputType = mapInputType unwrappedInput.inputType
+                                { inputType = fieldTypeToInputType unwrappedField.inputType
                                 , error = error
                                 }
                 }
         }
 
 
-{-| Provide a function to override the rendering of an input.
+{-| Provide a function to override the rendering of a field.
 
 `label` and `input` are functions that take a list of
 [Attribute](#Attribute)s.
 
-Use `advanced` parameters for a greater level of customization of the input
-and label.
-It is possible to target specific inputs by `InputType`, or `identifier`.
+Use `advanced` parameters for a greater level of customization of the field.
+It is possible to target specific fields by `InputType`, or `identifier`.
 
 The example bellow would render the input exactly as it normaly renders :P
 
     view : View id val ()
     view =
-        Input.text [ Input.label "Name" ]
-            |> View.fromInput (always ())
-            |> customizeInput
+        Field.text [ Field.label "Name" ]
+            |> View.fromField (always ())
+            |> customizeField
                 (\{ isRequired, label, input, errors, hint } ->
                     Html.div
                         [ Attributes.class "field"
@@ -242,7 +241,7 @@ The example bellow would render the input exactly as it normaly renders :P
                 )
 
 -}
-customizeInput :
+customizeField :
     ({ isRequired : Bool
      , label : List (Attribute msg) -> Html msg
      , input : List (Attribute msg) -> Html msg
@@ -269,16 +268,16 @@ customizeInput :
     )
     -> View id val msg
     -> View id val msg
-customizeInput viewFunc (View ({ attributes, input } as view)) =
+customizeField viewFunc (View ({ attributes, field } as view)) =
     View
         { view
             | attributes =
                 { attributes
-                    | inputView =
+                    | fieldView =
                         \params ->
                             let
-                                unwrappedInput =
-                                    Tree.value input
+                                unwrappedField =
+                                    Tree.value field
                             in
                             viewFunc
                                 { isRequired = params.isRequired
@@ -287,41 +286,41 @@ customizeInput viewFunc (View ({ attributes, input } as view)) =
                                 , hint = toAttrs >> params.input
                                 , errors = []
                                 , advanced =
-                                    { identifier = unwrappedInput.identifier
-                                    , inputType = mapInputType unwrappedInput.inputType
-                                    , inputName = unwrappedInput.name
-                                    , inputPlaceholder = unwrappedInput.placeholder
-                                    , inputValue = Value unwrappedInput.value
-                                    , inputMin = Value unwrappedInput.min
-                                    , inputMax = Value unwrappedInput.max
+                                    { identifier = unwrappedField.identifier
+                                    , inputName = unwrappedField.name
+                                    , inputType = fieldTypeToInputType unwrappedField.inputType
+                                    , inputPlaceholder = unwrappedField.placeholder
+                                    , inputValue = Value unwrappedField.value
+                                    , inputMin = Value unwrappedField.min
+                                    , inputMax = Value unwrappedField.max
                                     , inputOptions =
-                                        List.map (Tuple.mapSecond Value) unwrappedInput.options
+                                        List.map (Tuple.mapSecond Value) unwrappedField.options
                                     , inputOnChange =
                                         \(Value val) -> attributes.onChange params.path val
                                     , inputOnBlur = attributes.onBlur params.path
                                     , inputOnFocus = attributes.onFocus params.path
-                                    , labelText = unwrappedInput.label
-                                    , hintText = unwrappedInput.hint
-                                    , idString = Internal.View.inputId input params.path
+                                    , labelText = unwrappedField.label
+                                    , hintText = unwrappedField.hint
+                                    , idString = Internal.View.inputId field params.path
                                     }
                                 }
                 }
         }
 
 
-{-| Provide a function to customize the rendering of a group of inputs.
+{-| Provide a function to customize the rendering of a group of fields.
 
     view : View id val ()
     view =
-        Input.group []
-            [ Input.text [ Input.label "Name" ]
-            , Input.text [ Input.label "Last Name" ]
+        Field.group []
+            [ Field.text [ Field.label "Name" ]
+            , Field.text [ Field.label "Last Name" ]
             ]
-            |> View.fromInput (always ())
-            |> customizeInput
-                (\{ inputs, legendText } ->
+            |> View.fromField (always ())
+            |> customizeField
+                (\{ fields, legendText } ->
                     Html.fieldset
-                        [ Html.Attribute.class "input-group" ]
+                        [ Html.Attribute.class "field-group" ]
                         ((case legendText of
                             Just str ->
                                 Html.legend [] [ Html.text str ]
@@ -329,14 +328,14 @@ customizeInput viewFunc (View ({ attributes, input } as view)) =
                             Nothing ->
                                 Html.text ""
                          )
-                            :: inputs
+                            :: fields
                         )
                 )
 
 -}
 customizeGroup :
     ({ legendText : Maybe String
-     , inputs : List (Html msg)
+     , fields : List (Html msg)
      , identifier : Maybe id
      , errors : List String
      }
@@ -352,21 +351,21 @@ customizeGroup viewFunc (View ({ attributes } as view)) =
 group of inputs and the and the button to add new inputs.
 
 To customize the template used to add a new input see
-[customizeRepeatingInput](#customizeRepeatingInput).
+[customizeRepeatingField](#customizeRepeatingField).
 
     view : View String val ()
     view =
-        Input.repeatable [ Input.identifier "People" ]
-            (Input.group []
-                [ [ Input.text [ Input.label "Name" ]
-                  , Input.text [ Input.label "Last Name" ]
+        Field.repeatable [ Field.identifier "People" ]
+            (Field.group []
+                [ [ Field.text [ Field.label "Name" ]
+                  , Field.text [ Field.label "Last Name" ]
                   ]
                 ]
             )
             []
-            |> View.fromInput (always ())
-            |> customizeRepeatableInputsGroup
-                (\{ legendText, inputs, addInputButton } ->
+            |> View.fromField (always ())
+            |> customizeRepeatableFields
+                (\{ legendText, inputs, addFieldsButton } ->
                     Html.fieldset []
                         [ case legendText of
                             Just str ->
@@ -375,46 +374,46 @@ To customize the template used to add a new input see
                             Nothing ->
                                 Html.text ""
                         , Html.div [] inputs
-                        , addInputButton []
+                        , addFieldsButton []
                         ]
                 )
 
 -}
-customizeRepeatableInputsGroup :
+customizeRepeatableFields :
     ({ legendText : Maybe String
-     , inputs : List (Html msg)
-     , addInputButton : List (Attribute msg) -> Html msg
+     , fields : List (Html msg)
+     , addFieldsButton : List (Attribute msg) -> Html msg
      , errors : List String
      , advanced :
         { identifier : Maybe id
-        , addInputButtonOnClick : Maybe msg
-        , addInputButtonCopy : String
+        , addFieldsButtonOnClick : Maybe msg
+        , addFieldsButtonCopy : String
         }
      }
      -> Html msg
     )
     -> View id val msg
     -> View id val msg
-customizeRepeatableInputsGroup viewFunc (View ({ attributes, input } as view)) =
+customizeRepeatableFields viewFunc (View ({ attributes, field } as view)) =
     View
         { view
             | attributes =
                 { attributes
-                    | repeatableInputsGroupView =
+                    | repeatableFieldsGroupView =
                         \params ->
                             let
-                                unwrappedInput =
-                                    Tree.value input
+                                unwrappedField =
+                                    Tree.value field
                             in
                             viewFunc
                                 { legendText = params.legendText
-                                , inputs = params.inputs
-                                , addInputButton = params.addInputButton << toAttrs
+                                , fields = params.fields
+                                , addFieldsButton = params.addFieldsButton << toAttrs
                                 , errors = params.errors
                                 , advanced =
-                                    { identifier = unwrappedInput.identifier
-                                    , addInputButtonOnClick = params.addInputButtonOnClick
-                                    , addInputButtonCopy = unwrappedInput.addInputsButtonCopy
+                                    { identifier = unwrappedField.identifier
+                                    , addFieldsButtonOnClick = params.addFieldsButtonOnClick
+                                    , addFieldsButtonCopy = unwrappedField.addFieldsButtonCopy
                                     }
                                 }
                 }
@@ -425,56 +424,56 @@ customizeRepeatableInputsGroup viewFunc (View ({ attributes, input } as view)) =
 inputs.
 
 To customize the group of inputs see
-[customizeRepeatableInputsGroup](#customizeRepeatableInputsGroup).
+[customizeRepeatableFields](#customizeRepeatableFields).
 
     view : View String val ()
     view =
-        Input.repeatable [ Input.identifier "People" ]
-            (Input.group []
-                [ [ Input.text [ Input.label "Name" ]
-                  , Input.text [ Input.label "Last Name" ]
+        Field.repeatable [ Field.identifier "People" ]
+            (Field.group []
+                [ [ Field.text [ Field.label "Name" ]
+                  , Field.text [ Field.label "Last Name" ]
                   ]
                 ]
             )
             []
-            |> View.fromInput (always ())
-            |> customizeRepeatableInput
-                (\{ input, removeInputButton } ->
+            |> View.fromField (always ())
+            |> customizeRepeatableField
+                (\{ input, removeFieldsButton } ->
                     Html.div
                         [ Attributes.class "group-repeat" ]
-                        [ input, removeInputButton [] ]
+                        [ input, removeFieldsButton [] ]
                 )
 
 -}
-customizeRepeatingInput :
-    ({ input : Html msg
-     , removeInputButton : List (Attribute msg) -> Html msg
+customizeRepeatingFieldTemplate :
+    ({ field : Html msg
+     , removeFieldsButton : List (Attribute msg) -> Html msg
      , advanced :
         { identifier : Maybe id
         , index : Int
-        , removeInputButtonOnClick : Maybe msg
-        , removeInputButtonCopy : String
+        , removeFieldsButtonOnClick : Maybe msg
+        , removeFieldsButtonCopy : String
         }
      }
      -> Html msg
     )
     -> View id val msg
     -> View id val msg
-customizeRepeatingInput viewFunc (View ({ attributes, input } as view)) =
+customizeRepeatingFieldTemplate viewFunc (View ({ attributes, field } as view)) =
     View
         { view
             | attributes =
                 { attributes
-                    | repeatableInputView =
+                    | repeatableFieldView =
                         \params ->
                             viewFunc
-                                { input = params.input
-                                , removeInputButton = params.removeInputButton << toAttrs
+                                { field = params.field
+                                , removeFieldsButton = params.removeFieldsButton << toAttrs
                                 , advanced =
-                                    { identifier = Tree.value input |> .identifier
-                                    , removeInputButtonOnClick = params.removeInputButtonOnClick
+                                    { identifier = Tree.value field |> .identifier
+                                    , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
                                     , index = params.index
-                                    , removeInputButtonCopy = params.removeInputButtonCopy
+                                    , removeFieldsButtonCopy = params.removeFieldsButtonCopy
                                     }
                                 }
                 }
@@ -529,47 +528,47 @@ type InputType
     | Checkbox
 
 
-mapInputType : Internal.Input.InputType id val err -> InputType
-mapInputType inputType =
+fieldTypeToInputType : Internal.Field.FieldType id val err -> InputType
+fieldTypeToInputType inputType =
     case inputType of
-        Internal.Input.Text ->
+        Internal.Field.Text ->
             Text
 
-        Internal.Input.TextArea ->
+        Internal.Field.TextArea ->
             TextArea
 
-        Internal.Input.Password ->
+        Internal.Field.Password ->
             Password
 
-        Internal.Input.StrictAutocomplete ->
+        Internal.Field.StrictAutocomplete ->
             StrictAutocomplete
 
-        Internal.Input.Email ->
+        Internal.Field.Email ->
             Email
 
-        Internal.Input.Integer ->
+        Internal.Field.Integer ->
             Integer
 
-        Internal.Input.Float ->
+        Internal.Field.Float ->
             Float
 
-        Internal.Input.Month ->
+        Internal.Field.Month ->
             Month
 
-        Internal.Input.Date ->
+        Internal.Field.Date ->
             Date
 
-        Internal.Input.Select ->
+        Internal.Field.Select ->
             Select
 
-        Internal.Input.Radio ->
+        Internal.Field.Radio ->
             Radio
 
-        Internal.Input.Checkbox ->
+        Internal.Field.Checkbox ->
             Checkbox
 
-        Internal.Input.Repeatable _ ->
+        Internal.Field.Repeatable _ ->
             Text
 
-        Internal.Input.Group ->
+        Internal.Field.Group ->
             Text

@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Browser
 import FormToolkit.Decode as Decode
-import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes exposing (novalidate)
@@ -16,7 +16,7 @@ main =
 
 
 type alias Model =
-    { formFields : Input TeamFields Color
+    { formFields : Field TeamFields Color
     , submitted : Bool
     , team : Maybe Team
     , json : Maybe Json.Encode.Value
@@ -32,50 +32,50 @@ type TeamFields
 
 
 type Msg
-    = FormChanged (Input.Msg TeamFields Color)
+    = FormChanged (Field.Msg TeamFields Color)
     | FormSubmitted
 
 
-teamFields : Input.Input TeamFields Color
+teamFields : Field.Field TeamFields Color
 teamFields =
-    Input.group []
-        [ Input.textarea
-            [ Input.label "Team Name"
-            , Input.required True
-            , Input.autogrow True
-            , Input.identifier TeamName
-            , Input.name "team-name"
+    Field.group []
+        [ Field.textarea
+            [ Field.label "Team Name"
+            , Field.required True
+            , Field.autogrow True
+            , Field.identifier TeamName
+            , Field.name "team-name"
             ]
-        , Input.strictAutocomplete
-            [ Input.label "Color"
-            , Input.required True
-            , Input.identifier TeamColor
-            , Input.name "team-color"
-            , Input.options
+        , Field.strictAutocomplete
+            [ Field.label "Color"
+            , Field.required True
+            , Field.identifier TeamColor
+            , Field.name "team-color"
+            , Field.options
                 [ ( "red", Value.custom Red )
                 , ( "green", Value.custom Green )
                 , ( "blue", Value.custom Blue )
                 ]
             ]
-        , Input.group
-            [ Input.label "Members (max 5)" ]
-            [ Input.repeatable
-                [ Input.identifier TeamMembers
-                , Input.repeatableMin 1
-                , Input.repeatableMax 5
-                , Input.name "team-members"
+        , Field.group
+            [ Field.label "Members (max 5)" ]
+            [ Field.repeatable
+                [ Field.identifier TeamMembers
+                , Field.repeatableMin 1
+                , Field.repeatableMax 5
+                , Field.name "team-members"
                 ]
-                (Input.group []
-                    [ Input.text
-                        [ Input.label "Member Name"
-                        , Input.required True
-                        , Input.identifier MemberName
-                        , Input.name "member-name"
+                (Field.group []
+                    [ Field.text
+                        [ Field.label "Member Name"
+                        , Field.required True
+                        , Field.identifier MemberName
+                        , Field.name "member-name"
                         ]
-                    , Input.int
-                        [ Input.label "Member Age"
-                        , Input.identifier MemberAge
-                        , Input.name "member-age"
+                    , Field.int
+                        [ Field.label "Member Age"
+                        , Field.identifier MemberAge
+                        , Field.name "member-age"
                         ]
                     ]
                 )
@@ -102,7 +102,7 @@ update msg model =
             let
                 ( formFields, result ) =
                     -- Validates and produces result with decoder and updates with Msg
-                    Input.update teamDecoder inputMsg model.formFields
+                    Field.update teamDecoder inputMsg model.formFields
             in
             { model
                 | formFields = formFields
@@ -113,7 +113,7 @@ update msg model =
             { model
                 | submitted = True
 
-                -- Uses Input.name values as keys to build a json object
+                -- Uses Field.name values as keys to build a json object
                 , json =
                     Decode.decode Decode.json model.formFields
                         |> Debug.log "json result"
@@ -130,7 +130,7 @@ view model =
     Html.form
         [ onSubmit FormSubmitted, novalidate True ]
         [ -- Render the form
-          Input.toHtml FormChanged model.formFields
+          Field.toHtml FormChanged model.formFields
         , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
         ]
 

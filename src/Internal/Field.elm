@@ -1,5 +1,5 @@
-module Internal.Input exposing
-    ( Input, Attributes, InputType(..), Status(..)
+module Internal.Field exposing
+    ( Field, Attributes, FieldType(..), Status(..)
     , Msg(..), update, strToValue
     , init, isBlank, map
     , updateAttributes
@@ -12,7 +12,7 @@ module Internal.Input exposing
 
 {-|
 
-@docs Input, Attributes, InputType, Status
+@docs Field, Attributes, FieldType, Status
 @docs Msg, update, strToValue
 @docs init, isBlank, map
 @docs updateAttributes
@@ -37,7 +37,7 @@ type Status
     | Touched
 
 
-type InputType id val err
+type FieldType id val err
     = Text
     | TextArea
     | Email
@@ -51,11 +51,11 @@ type InputType id val err
     | Radio
     | Checkbox
     | Group
-    | Repeatable (Input id val err)
+    | Repeatable (Field id val err)
 
 
 type alias Attributes id val err =
-    { inputType : InputType id val err
+    { inputType : FieldType id val err
     , name : Maybe String
     , value : Value val
     , isRequired : Bool
@@ -70,17 +70,17 @@ type alias Attributes id val err =
     , status : Status
     , repeatableMin : Int
     , repeatableMax : Maybe Int
-    , addInputsButtonCopy : String
-    , removeInputsButtonCopy : String
+    , addFieldsButtonCopy : String
+    , removeFieldsButtonCopy : String
     , errors : List err
     }
 
 
-type alias Input id val err =
+type alias Field id val err =
     Tree.Tree (Attributes id val err)
 
 
-init : InputType id val err -> List (Attributes id val err -> Attributes id val err) -> Attributes id val err
+init : FieldType id val err -> List (Attributes id val err -> Attributes id val err) -> Attributes id val err
 init inputType_ =
     List.foldl (<|)
         { inputType = inputType_
@@ -98,16 +98,16 @@ init inputType_ =
         , status = Pristine
         , repeatableMin = 1
         , repeatableMax = Nothing
-        , addInputsButtonCopy = "Add"
-        , removeInputsButtonCopy = "Remove"
+        , addFieldsButtonCopy = "Add"
+        , removeFieldsButtonCopy = "Remove"
         , errors = []
         }
 
 
 updateAttributes :
     List (Attributes id val err -> Attributes id val err)
-    -> Input id val err
-    -> Input id val err
+    -> Field id val err
+    -> Field id val err
 updateAttributes attrList =
     Tree.updateValue
         (\attrs ->
@@ -119,7 +119,7 @@ updateAttributes attrList =
         )
 
 
-updateValue : Value val -> Input id val err -> Input id val err
+updateValue : Value val -> Field id val err -> Field id val err
 updateValue val =
     Tree.updateValue (\attrs -> { attrs | value = val, errors = [] })
 
@@ -136,9 +136,9 @@ type Msg id val
 
 updateAt :
     List Int
-    -> (Input id val err -> Input id val err)
-    -> Input id val err
-    -> Input id val err
+    -> (Field id val err -> Field id val err)
+    -> Field id val err
+    -> Field id val err
 updateAt path func input =
     -- WTF?
     case path of
@@ -149,7 +149,7 @@ updateAt path func input =
             Tree.updateAt path func input
 
 
-update : Msg id val -> Input a val err -> Input a val err
+update : Msg id val -> Field a val err -> Field a val err
 update msg input =
     case msg of
         InputChanged path val ->
@@ -207,7 +207,7 @@ blur input =
     }
 
 
-isBlank : Input id val err -> Bool
+isBlank : Field id val err -> Bool
 isBlank input =
     case Tree.value input |> .inputType of
         Group ->
@@ -220,62 +220,62 @@ isBlank input =
             Internal.Value.isBlank (value input)
 
 
-identifier : Input id val err -> Maybe id
+identifier : Field id val err -> Maybe id
 identifier input =
     Tree.value input |> .identifier
 
 
-value : Input id val err -> Value val
+value : Field id val err -> Value val
 value input =
     Tree.value input |> .value
 
 
-name : Input id val err -> Maybe String
+name : Field id val err -> Maybe String
 name input =
     Tree.value input |> .name
 
 
-placeholder : Input id val err -> Maybe String
+placeholder : Field id val err -> Maybe String
 placeholder input =
     Tree.value input |> .placeholder
 
 
-label : Input id val err -> Maybe String
+label : Field id val err -> Maybe String
 label input =
     Tree.value input |> .label
 
 
-hint : Input id val err -> Maybe String
+hint : Field id val err -> Maybe String
 hint input =
     Tree.value input |> .hint
 
 
-inputType : Input id val err -> InputType id val err
+inputType : Field id val err -> FieldType id val err
 inputType input =
     Tree.value input |> .inputType
 
 
-min : Input id val err -> Value val
+min : Field id val err -> Value val
 min input =
     Tree.value input |> .min
 
 
-max : Input id val err -> Value val
+max : Field id val err -> Value val
 max input =
     Tree.value input |> .max
 
 
-options : Input id val err -> List ( String, Value val )
+options : Field id val err -> List ( String, Value val )
 options input =
     Tree.value input |> .options
 
 
-isRequired : Input id val err -> Bool
+isRequired : Field id val err -> Bool
 isRequired input =
     Tree.value input |> .isRequired
 
 
-isAutocompleteable : Input id val err -> Bool
+isAutocompleteable : Field id val err -> Bool
 isAutocompleteable input =
     case inputType input of
         Text ->
@@ -288,7 +288,7 @@ isAutocompleteable input =
             False
 
 
-isGroup : Input id val err -> Bool
+isGroup : Field id val err -> Bool
 isGroup input =
     case Tree.value input |> .inputType of
         Group ->
@@ -301,7 +301,7 @@ isGroup input =
             False
 
 
-errors : Input id val err -> List err
+errors : Field id val err -> List err
 errors tree =
     case Tree.children tree of
         [] ->
@@ -313,7 +313,7 @@ errors tree =
                 |> List.concat
 
 
-setErrors : List err -> Input id val err -> Input id val err
+setErrors : List err -> Field id val err -> Field id val err
 setErrors error =
     Tree.updateValue
         (\input ->
@@ -325,7 +325,7 @@ setErrors error =
 
 map : (a -> b) -> (Value val1 -> Value val2) -> (err1 -> err2) -> Attributes a val1 err1 -> Attributes b val2 err2
 map func valToVal errToErr input =
-    { inputType = mapInputType func errToErr valToVal input.inputType
+    { inputType = mapFieldType func errToErr valToVal input.inputType
     , name = input.name
     , value = valToVal input.value
     , isRequired = input.isRequired
@@ -340,14 +340,14 @@ map func valToVal errToErr input =
     , status = input.status
     , repeatableMin = input.repeatableMin
     , repeatableMax = input.repeatableMax
-    , addInputsButtonCopy = input.addInputsButtonCopy
-    , removeInputsButtonCopy = input.removeInputsButtonCopy
+    , addFieldsButtonCopy = input.addFieldsButtonCopy
+    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
     , errors = List.map errToErr input.errors
     }
 
 
-mapInputType : (a -> b) -> (err1 -> err2) -> (Value val1 -> Value val2) -> InputType a val1 err1 -> InputType b val2 err2
-mapInputType func errToErr valToVal inputType_ =
+mapFieldType : (a -> b) -> (err1 -> err2) -> (Value val1 -> Value val2) -> FieldType a val1 err1 -> FieldType b val2 err2
+mapFieldType func errToErr valToVal inputType_ =
     case inputType_ of
         Repeatable tree ->
             Repeatable (Tree.mapValues (map func valToVal errToErr) tree)
@@ -392,14 +392,14 @@ mapInputType func errToErr valToVal inputType_ =
             Group
 
 
-inputIdString : Input id val err -> String
+inputIdString : Field id val err -> String
 inputIdString input =
     name input
         |> Maybe.withDefault
             (inputType input |> inputTypeToString)
 
 
-inputTypeToString : InputType id val err -> String
+inputTypeToString : FieldType id val err -> String
 inputTypeToString type_ =
     case type_ of
         Text ->
@@ -445,16 +445,16 @@ inputTypeToString type_ =
             "group"
 
 
-strToValue : Input id val err -> String -> Value val
+strToValue : Field id val err -> String -> Value val
 strToValue input str =
     let
-        unwrappedInput =
+        unwrappedField =
             Tree.value input
 
         getChoice () =
             case String.toInt str of
                 Just idx ->
-                    Array.fromList unwrappedInput.options
+                    Array.fromList unwrappedField.options
                         |> Array.get idx
                         |> Maybe.map Tuple.second
                         |> Maybe.withDefault Internal.Value.blank
@@ -462,7 +462,7 @@ strToValue input str =
                 Nothing ->
                     Internal.Value.blank
     in
-    case unwrappedInput.inputType of
+    case unwrappedField.inputType of
         Text ->
             Internal.Value.fromNonBlankString str
 
@@ -473,7 +473,7 @@ strToValue input str =
             Internal.Value.fromNonBlankString str
 
         StrictAutocomplete ->
-            Dict.fromList unwrappedInput.options
+            Dict.fromList unwrappedField.options
                 |> Dict.get str
                 |> Maybe.withDefault Internal.Value.blank
 

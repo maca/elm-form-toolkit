@@ -1,7 +1,7 @@
 module Support.ExampleInputs exposing
     ( Band
     , BandFields(..)
-    , Field(..)
+    , FieldId(..)
     , Lang(..)
     , Person
     , bandDecoder
@@ -21,12 +21,12 @@ module Support.ExampleInputs exposing
     )
 
 import FormToolkit.Decode as Decode
-import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.Field as Input exposing (Field)
 import FormToolkit.Value as Value
 import Time
 
 
-type Field
+type FieldId
     = StringField
     | IntField
     | FloatField
@@ -42,7 +42,7 @@ type Lang
     | DE
 
 
-stringInput : Input Field val
+stringInput : Field FieldId val
 stringInput =
     Input.text
         [ Input.label "Enter your string"
@@ -54,7 +54,7 @@ stringInput =
         ]
 
 
-stringInputWithOptions : Input Field val
+stringInputWithOptions : Field FieldId val
 stringInputWithOptions =
     Input.text
         [ Input.label "Enter your string"
@@ -67,7 +67,7 @@ stringInputWithOptions =
         ]
 
 
-intInput : Input Field val
+intInput : Field FieldId val
 intInput =
     Input.text
         [ Input.label "Enter your int"
@@ -77,7 +77,7 @@ intInput =
         ]
 
 
-boolInput : Input Field val
+boolInput : Field FieldId val
 boolInput =
     Input.text
         [ Input.label "Enter your bool"
@@ -86,7 +86,7 @@ boolInput =
         ]
 
 
-floatInput : Input Field val
+floatInput : Field FieldId val
 floatInput =
     Input.text
         [ Input.label "Enter your float"
@@ -95,7 +95,7 @@ floatInput =
         ]
 
 
-posixInput : Input Field val
+posixInput : Field FieldId val
 posixInput =
     Input.text
         [ Input.label "Enter your posix"
@@ -104,7 +104,7 @@ posixInput =
         ]
 
 
-blankInput : Input Field val
+blankInput : Field FieldId val
 blankInput =
     Input.text
         [ Input.label "Enter nothing"
@@ -114,7 +114,7 @@ blankInput =
         ]
 
 
-checkboxInput : Input id val
+checkboxInput : Field id val
 checkboxInput =
     Input.checkbox
         [ Input.label "Accept"
@@ -124,7 +124,7 @@ checkboxInput =
         ]
 
 
-selectInput : Input Field Lang
+selectInput : Field FieldId Lang
 selectInput =
     Input.select
         [ Input.label "Language"
@@ -140,7 +140,7 @@ selectInput =
         ]
 
 
-radioInput : Input id val
+radioInput : Field id val
 radioInput =
     Input.radio
         [ Input.label "Radio inputs"
@@ -154,12 +154,12 @@ radioInput =
         ]
 
 
-groupWithName : Input Field val
+groupWithName : Field FieldId val
 groupWithName =
     Input.group [ Input.name "group" ] [ stringInput, intInput ]
 
 
-groupWithNoName : Input Field val
+groupWithNoName : Field FieldId val
 groupWithNoName =
     Input.group [] [ stringInput, intInput ]
 
@@ -171,7 +171,7 @@ type BandFields
     | MemberAge
 
 
-bandFields : Input BandFields val
+bandFields : Field BandFields val
 bandFields =
     Input.group []
         [ Input.text

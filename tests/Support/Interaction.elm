@@ -9,7 +9,7 @@ module Support.Interaction exposing
     )
 
 import FormToolkit.Decode as Decode
-import FormToolkit.Input as Input
+import FormToolkit.Field as Input
 import FormToolkit.View as View
 import Html.Attributes exposing (name)
 import Json.Encode
@@ -19,7 +19,7 @@ import Test.Html.Selector exposing (attribute, containing, tag, text)
 
 
 type alias Interaction id val a =
-    { input : Input.Input id val
+    { input : Input.Field id val
     , decoder : Decode.Decoder id val a
     , result : Result (List (Decode.Error id val)) a
     }
@@ -50,7 +50,7 @@ findInput inputName =
     find [ attribute (name inputName) ]
 
 
-init : Decode.Decoder id val a -> Input.Input id val -> Interaction id val a
+init : Decode.Decoder id val a -> Input.Field id val -> Interaction id val a
 init decoder input =
     { input = input
     , decoder = decoder
@@ -67,7 +67,7 @@ interact matcher event actions =
     let
         query =
             actions.input
-                |> View.fromInput identity
+                |> View.fromField identity
                 |> View.toHtml
                 |> Query.fromHtml
 
