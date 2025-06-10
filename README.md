@@ -22,7 +22,7 @@ Intends to
 ```elm
 import Browser
 import FormToolkit.Decode as Decode
-import FormToolkit.Input as Input exposing (Input)
+import FormToolkit.Field as Field exposing (Field)
 import Html exposing (Html)
 import Html.Events exposing (onClick, onSubmit)
 import Json.Encode
@@ -34,7 +34,7 @@ main =
 
 
 type alias Model =
-    { formFields : Input TeamFields Never
+    { formFields : Field TeamFields Never
     , submitted : Bool
     , team : Maybe Team
     , json : Maybe Json.Encode.Value
@@ -49,38 +49,38 @@ type TeamFields
 
 
 type Msg
-    = FormChanged (Input.Msg TeamFields Never)
+    = FormChanged (Field.Msg TeamFields Never)
     | FormSubmitted
 
 
-teamFields : Input.Input TeamFields val
+teamFields : Field TeamFields val
 teamFields =
-    Input.group []
-        [ Input.text
-            [ Input.label "Team Name"
-            , Input.required True
-            , Input.identifier TeamName
-            , Input.name "team-name"
+    Field.group []
+        [ Field.text
+            [ Field.label "Team Name"
+            , Field.required True
+            , Field.identifier TeamName
+            , Field.name "team-name"
             ]
-        , Input.group
-            [ Input.label "Members (max 5)" ]
-            [ Input.repeatable
-                [ Input.identifier TeamMembers
-                , Input.repeatableMin 1
-                , Input.repeatableMax 5
-                , Input.name "team-members"
+        , Field.group
+            [ Field.label "Members (max 5)" ]
+            [ Field.repeatable
+                [ Field.identifier TeamMembers
+                , Field.repeatableMin 1
+                , Field.repeatableMax 5
+                , Field.name "team-members"
                 ]
-                (Input.group []
-                    [ Input.text
-                        [ Input.label "Member Name"
-                        , Input.required True
-                        , Input.identifier MemberName
-                        , Input.name "member-name"
+                (Field.group []
+                    [ Field.text
+                        [ Field.label "Member Name"
+                        , Field.required True
+                        , Field.identifier MemberName
+                        , Field.name "member-name"
                         ]
-                    , Input.int
-                        [ Input.label "Member Age"
-                        , Input.identifier MemberAge
-                        , Input.name "member-age"
+                    , Field.int
+                        [ Field.label "Member Age"
+                        , Field.identifier MemberAge
+                        , Field.name "member-age"
                         ]
                     ]
                 )
@@ -107,7 +107,7 @@ update msg model =
             let
                 ( formFields, result ) =
                     -- Validates and produces result with decoder and updates with Msg
-                    Input.update teamDecoder inputMsg model.formFields
+                    Field.update teamDecoder inputMsg model.formFields
             in
             { model | formFields = formFields, team = Result.toMaybe result }
 
@@ -131,7 +131,7 @@ view model =
     Html.form
         [ onSubmit FormSubmitted ]
         [ -- Render the form
-          Input.toHtml FormChanged model.formFields
+          Field.toHtml FormChanged model.formFields
         , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
         ]
 
