@@ -1,8 +1,8 @@
 module InputTest exposing (suite)
 
 import Expect
-import FormToolkit.Decode as Decode
 import FormToolkit.Field as Input
+import FormToolkit.Parse as Decode
 import FormToolkit.Value as Value
 import Test exposing (..)
 
@@ -34,7 +34,7 @@ suite =
                                 (Input.value (Value.string "Updated value"))
                             )
                         |> Maybe.map
-                            (Decode.decode
+                            (Decode.parse
                                 (Decode.map2 Tuple.pair
                                     (Decode.field "NestedInput" Decode.string)
                                     (Decode.field "NestedInput2" Decode.string)
@@ -47,7 +47,7 @@ suite =
                         |> Input.updateBy "NestedInput"
                             (Input.updateAttribute (Input.identifier "OtherInput"))
                         |> Maybe.map
-                            (Decode.decode
+                            (Decode.parse
                                 (Decode.map2 Tuple.pair
                                     (Decode.field "NestedInput" Decode.string)
                                     (Decode.field "NestedInput2" Decode.string)

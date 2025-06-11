@@ -1,8 +1,8 @@
-module DecodeTest exposing (suite)
+module ParseTest exposing (suite)
 
 import Expect
 import FormToolkit.Field as Input
-import FormToolkit.Parse as Decode exposing (Error(..))
+import FormToolkit.Parse as Parse exposing (Error(..))
 import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode
@@ -18,28 +18,28 @@ suite =
         [ describe "succeeds"
             [ test "decoding string" <|
                 \_ ->
-                    Decode.parse Decode.string stringInput
+                    Parse.parse Parse.string stringInput
                         |> Expect.equal (Ok "A string")
             , test "decoding int" <|
                 \_ ->
-                    Decode.parse Decode.int intInput
+                    Parse.parse Parse.int intInput
                         |> Expect.equal (Ok 1)
             , test "decoding float" <|
                 \_ ->
-                    Decode.parse Decode.float floatInput
+                    Parse.parse Parse.float floatInput
                         |> Expect.equal (Ok 1.1)
             , test "decoding bool" <|
                 \_ ->
-                    Decode.parse Decode.bool boolInput
+                    Parse.parse Parse.bool boolInput
                         |> Expect.equal (Ok True)
             , test "decoding posix" <|
                 \_ ->
-                    Decode.parse Decode.posix posixInput
+                    Parse.parse Parse.posix posixInput
                         |> Expect.equal (Ok (Time.millisToPosix 0))
             , test "decoding custom value" <|
                 \_ ->
                     Input.select [ Input.value (Value.custom ES) ]
-                        |> Decode.parse Decode.customValue
+                        |> Parse.parse Parse.customValue
                         |> Expect.equal (Ok ES)
             , test "decoding custom value with field with options" <|
                 \_ ->
@@ -51,26 +51,26 @@ suite =
                             , ( "Deutsch", Value.custom DE )
                             ]
                         ]
-                        |> Decode.parse Decode.customValue
+                        |> Parse.parse Parse.customValue
                         |> Expect.equal (Ok ES)
             , test "decoding field by id" <|
                 \_ ->
                     Input.group [] [ stringInput ]
-                        |> Decode.parse
-                            (Decode.field StringField Decode.string)
+                        |> Parse.parse
+                            (Parse.field StringField Parse.string)
                         |> Expect.equal (Ok "A string")
             ]
         , describe "failure"
             [ describe "on simple decoder"
                 [ test "produces error" <|
                     \_ ->
-                        Decode.validateAndParse Decode.int stringInput
+                        Parse.validateAndParse Parse.int stringInput
                             |> Tuple.second
                             |> Expect.equal
                                 (Err [ ParseError (Just StringField) ])
                 , test "validates input" <|
                     \_ ->
-                        Decode.validateAndParse Decode.int stringInput
+                        Parse.validateAndParse Parse.int stringInput
                             |> Tuple.first
                             |> Input.errors
                             |> Expect.equal [ ParseError (Just StringField) ]
@@ -78,8 +78,8 @@ suite =
             , let
                 result =
                     Input.group [] [ stringInput ]
-                        |> Decode.validateAndParse
-                            (Decode.field StringField Decode.int)
+                        |> Parse.validateAndParse
+                            (Parse.field StringField Parse.int)
               in
               describe "on field decoding"
                 [ test "produces error" <|
@@ -96,28 +96,28 @@ suite =
         , describe "encode json"
             [ test "string" <|
                 \_ ->
-                    Decode.parse Decode.json stringInput
+                    Parse.parse Parse.json stringInput
                         |> Result.withDefault (Json.Encode.string "")
                         |> Json.Decode.decodeValue
                             (Json.Decode.field "string-field" Json.Decode.string)
                         |> Expect.equal (Ok "A string")
             , test "group with no name" <|
                 \_ ->
-                    Decode.parse Decode.json
+                    Parse.parse Parse.json
                         (Input.group [] [ stringInput, intInput ])
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue simpleJsonDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
             , test "group name" <|
                 \_ ->
-                    Decode.parse Decode.json groupWithName
+                    Parse.parse Parse.json groupWithName
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue groupWithNameDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
 
             -- , test "repeatable and group with name" <|
             --     \_ ->
-            --         Decode.decode Decode.json
+            --         Parse.decode Parse.json
             --             (Input.repeatable [ Input.name "repeatable" ]
             --                 groupWithName
             --                 [ groupWithName
@@ -133,7 +133,7 @@ suite =
             --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
             -- , test "repeatable and group with noname" <|
             --     \_ ->
-            --         Decode.decode Decode.json
+            --         Parse.decode Parse.json
             --             (Input.repeatable [ Input.name "repeatable" ]
             --                 groupWithNoName
             --                 [ groupWithNoName, groupWithNoName ]
@@ -149,7 +149,7 @@ suite =
         , describe "validates"
             [ let
                 ( updatedInput, result ) =
-                    Decode.validateAndParse (Decode.succeed ()) blankInput
+                    Parse.validateAndParse (Parse.succeed ()) blankInput
               in
               describe "presence when decoding succeeds"
                 [ test "produces error" <|
@@ -166,7 +166,7 @@ suite =
             , let
                 result =
                     Input.group [] [ blankInput ]
-                        |> Decode.validateAndParse (Decode.succeed ())
+                        |> Parse.validateAndParse (Parse.succeed ())
               in
               describe "nested field when not expressely decoded"
                 [ test "produces error" <|
@@ -184,12 +184,12 @@ suite =
                     let
                         ( _, result ) =
                             Input.group [] [ stringInput, intInput ]
-                                |> Decode.validateAndParse
-                                    (Decode.succeed (\_ _ -> ())
-                                        |> Decode.andMap
-                                            (Decode.field StringField Decode.float)
-                                        |> Decode.andMap
-                                            (Decode.field IntField Decode.float)
+                                |> Parse.validateAndParse
+                                    (Parse.succeed (\_ _ -> ())
+                                        |> Parse.andMap
+                                            (Parse.field StringField Parse.float)
+                                        |> Parse.andMap
+                                            (Parse.field IntField Parse.float)
                                     )
                     in
                     result
@@ -204,12 +204,12 @@ suite =
                     let
                         ( updatedInput, result ) =
                             Input.group [] [ stringInput ]
-                                |> Decode.validateAndParse
-                                    (Decode.succeed (\_ _ -> ())
-                                        |> Decode.andMap
-                                            (Decode.field StringField Decode.float)
-                                        |> Decode.andMap
-                                            (Decode.field StringField Decode.float)
+                                |> Parse.validateAndParse
+                                    (Parse.succeed (\_ _ -> ())
+                                        |> Parse.andMap
+                                            (Parse.field StringField Parse.float)
+                                        |> Parse.andMap
+                                            (Parse.field StringField Parse.float)
                                     )
                     in
                     Expect.all
@@ -235,7 +235,7 @@ suite =
                     let
                         { result } =
                             stringInput
-                                |> Interaction.init (Decode.format removeVowels)
+                                |> Interaction.init removeVowels
                                 |> fillInput "string-field"
                                     "the quick fox jumps over the lazy dog"
                                 |> fillInput "string-field"

@@ -8,8 +8,8 @@ module Support.Interaction exposing
     , interact
     )
 
-import FormToolkit.Decode as Decode
 import FormToolkit.Field as Input
+import FormToolkit.Parse as Decode
 import FormToolkit.View as View
 import Html.Attributes exposing (name)
 import Json.Encode
@@ -20,7 +20,7 @@ import Test.Html.Selector exposing (attribute, containing, tag, text)
 
 type alias Interaction id val a =
     { input : Input.Field id val
-    , decoder : Decode.Decoder id val a
+    , decoder : Decode.Parser id val a
     , result : Result (List (Decode.Error id val)) a
     }
 
@@ -50,7 +50,7 @@ findInput inputName =
     find [ attribute (name inputName) ]
 
 
-init : Decode.Decoder id val a -> Input.Field id val -> Interaction id val a
+init : Decode.Parser id val a -> Input.Field id val -> Interaction id val a
 init decoder input =
     { input = input
     , decoder = decoder

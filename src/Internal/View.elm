@@ -12,7 +12,7 @@ module Internal.View exposing
 
 -}
 
-import FormToolkit.Decode as Decode exposing (Error(..))
+import FormToolkit.Parse as Parse exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attributes
@@ -112,7 +112,7 @@ init { events, path, field } =
         }
     , path = path
     , field =
-        Decode.validateAndDecode (Decode.succeed ()) field
+        Parse.validateAndParse (Parse.succeed ()) field
             |> Tuple.first
     }
 

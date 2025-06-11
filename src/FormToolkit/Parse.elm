@@ -1,19 +1,19 @@
-module FormToolkit.Decode exposing
-    ( Decoder
+module FormToolkit.Parse exposing
+    ( Parser
     , field
     , string, int, float, bool, posix, maybe, list
     , value, customValue, json
     , succeed, fail, custom, format
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
-    , decode, validateAndDecode
+    , parse, validateAndParse
     , Error(..), errorToFieldIdentifier
     )
 
 {-| Map the values of an input or group of inputs to any shape you want, if you
 know `Json.Decode` you know how to use this module ;)
 
-@docs Decoder
+@docs Parser
 
 
 # Decoding functions
@@ -32,7 +32,7 @@ know `Json.Decode` you know how to use this module ;)
 
 # Decoding
 
-@docs decode, validateAndDecode
+@docs parse, validateAndParse
 @docs Error, errorToFieldIdentifier
 
 -}
@@ -56,15 +56,15 @@ type Partial id val a
 {-| A decoder that takes a tree of input data and returns a decoded result or an
 error if the decoding fails.
 -}
-type Decoder id val a
-    = Decoder (Field id val -> Partial id val a)
+type Parser id val a
+    = Parser (Field id val -> Partial id val a)
 
 
 type alias Field id val =
     Field.Field id val (Error id val)
 
 
-{-| Decoder for a field with the given identifier using a provided decoder.
+{-| Parse for a field with the given identifier using a provided decoder.
 
     import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
@@ -92,9 +92,9 @@ type alias Field id val =
     --> Ok "Brian"
 
 -}
-field : id -> Decoder id val a -> Decoder id val a
+field : id -> Parser id val a -> Parser id val a
 field id decoder =
-    Decoder
+    Parser
         (\tree ->
             case fieldHelp id decoder tree of
                 ( Just (Success node a), path ) ->
@@ -108,7 +108,7 @@ field id decoder =
         )
 
 
-fieldHelp : id -> Decoder id val a -> Field id val -> ( Maybe (Partial id val a), List Int )
+fieldHelp : id -> Parser id val a -> Field id val -> ( Maybe (Partial id val a), List Int )
 fieldHelp id decoder =
     Tree.foldWithPath
         (\path tree acc ->
@@ -131,7 +131,7 @@ fieldHelp id decoder =
         --> Ok "A string"
 
 -}
-string : Decoder id val String
+string : Parser id val String
 string =
     parseValue Value.toString
 
@@ -146,7 +146,7 @@ string =
         --> Ok 10
 
 -}
-int : Decoder id val Int
+int : Parser id val Int
 int =
     parseValue Value.toInt
 
@@ -161,7 +161,7 @@ int =
         --> Ok 10.5
 
 -}
-float : Decoder id val Float
+float : Parser id val Float
 float =
     parseValue Value.toFloat
 
@@ -176,7 +176,7 @@ float =
         --> Ok True
 
 -}
-bool : Decoder id val Bool
+bool : Parser id val Bool
 bool =
     parseValue Value.toBool
 
@@ -184,7 +184,7 @@ bool =
 {-| Decodes the input value as a
 [Time.Posix](https://package.elm-lang.org/packages/elm/time/latest/Time#Posix).
 -}
-posix : Decoder id val Time.Posix
+posix : Parser id val Time.Posix
 posix =
     parseValue Value.toPosix
 
@@ -203,9 +203,9 @@ posix =
         --> Ok Nothing
 
 -}
-maybe : Decoder id val a -> Decoder id val (Maybe a)
+maybe : Parser id val a -> Parser id val (Maybe a)
 maybe decoder =
-    Decoder
+    Parser
         (\input ->
             if Field.isBlank input then
                 Success input Nothing
@@ -231,9 +231,9 @@ maybe decoder =
         --> Ok [ "mango", "banana" ]
 
 -}
-list : Decoder id val a -> Decoder id val (List a)
+list : Parser id val a -> Parser id val (List a)
 list decoder =
-    Decoder
+    Parser
         (\input ->
             let
                 ( children, result ) =
@@ -252,7 +252,7 @@ list decoder =
 
 
 listHelp :
-    Decoder id val a
+    Parser id val a
     -> Field id val
     -> ( List (Field id val), Result (List (Error id val)) (List a) )
 listHelp decoder =
@@ -288,7 +288,7 @@ listHelp decoder =
         --> Ok (Value.string "A string")
 
 -}
-value : Decoder id val (Value.Value val)
+value : Parser id val (Value.Value val)
 value =
     parseValue Just
 
@@ -337,7 +337,7 @@ option text.
     --> Ok EN
 
 -}
-customValue : Decoder id val val
+customValue : Parser id val val
 customValue =
     parseValue Value.toCustom
 
@@ -377,9 +377,9 @@ Usefull if you just one to forward the form values to a backend.
         --> Ok "{\"first-name\":\"Brian\",\"last-name\":\"Eno\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
 -}
-json : Decoder id val Json.Decode.Value
+json : Parser id val Json.Decode.Value
 json =
-    Decoder
+    Parser
         (\input ->
             case jsonEncodeObject input of
                 Ok a ->
@@ -449,8 +449,8 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
     type Special
         = SpecialValue
 
-    specialDecoder : Decoder id val Special
-    specialDecoder =
+    specialParse : Parse id val Special
+    specialParse =
         string
             |> andThen
                 (\strValue ->
@@ -462,24 +462,24 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
                 )
 
 
-    Field.text [ Field.value (Value.string "special") ] |> decode specialDecoder
+    Field.text [ Field.value (Value.string "special") ] |> decode specialParse
     --> Ok SpecialValue
 
 -}
-succeed : a -> Decoder id val a
+succeed : a -> Parser id val a
 succeed a =
     custom (always (Ok a))
 
 
 {-| A decoder that always fails with a custom error.
 -}
-fail : String -> Decoder id val a
+fail : String -> Parser id val a
 fail err =
     custom (always (Err err))
 
 
 {-| -}
-custom : (Value.Value val -> Result String a) -> Decoder id val a
+custom : (Value.Value val -> Result String a) -> Parser id val a
 custom func =
     parseHelp
         (\input ->
@@ -490,9 +490,9 @@ custom func =
 
 
 {-| -}
-format : (String -> String) -> Decoder id val String
+format : (String -> String) -> Parser id val String
 format func =
-    Decoder
+    Parser
         (\input ->
             case Field.value input |> Internal.Value.toString of
                 Just str ->
@@ -511,7 +511,7 @@ format func =
         |> andThen (\() -> string)
 
 
-parseValue : (Value.Value val -> Maybe a) -> Decoder id val a
+parseValue : (Value.Value val -> Maybe a) -> Parser id val a
 parseValue func =
     parseHelp
         (\input ->
@@ -534,9 +534,9 @@ parseValue func =
         )
 
 
-parseHelp : (Field id val -> Result (Error id val) a) -> Decoder id val a
+parseHelp : (Field id val -> Result (Error id val) a) -> Parser id val a
 parseHelp func =
-    Decoder
+    Parser
         (\input ->
             case func input of
                 Ok a ->
@@ -557,8 +557,8 @@ failure input err =
     -- justinmimbs/date
     import Date exposing (Date)
 
-    dateDecoder : Decoder id val Date
-    dateDecoder =
+    dateParse : Parse id val Date
+    dateParse =
         string
             |> andThen
                 (\strValue ->
@@ -572,13 +572,13 @@ failure input err =
 
 
     Field.text [ Field.value (Value.string "07.03.1981") ]
-        |> decode dateDecoder
+        |> decode dateParse
         --> Ok (Date.fromCalendarDate 1981 Date.March 7)
 
 -}
-andThen : (a -> Decoder id val b) -> Decoder id val a -> Decoder id val b
-andThen func (Decoder decoder) =
-    Decoder
+andThen : (a -> Parser id val b) -> Parser id val a -> Parser id val b
+andThen func (Parser decoder) =
+    Parser
         (\input ->
             case decoder input of
                 Success input2 a ->
@@ -622,19 +622,19 @@ andThen func (Decoder decoder) =
                 ]
             ]
 
-    personDecoder : Decoder Fields val Person
-    personDecoder =
+    personParse : Parse Fields val Person
+    personParse =
         succeed Person
             |> andMap (field FirstName string)
             |> andMap (field LastName string)
             |> andMap (field Age int)
 
 
-    form |> decode personDecoder
+    form |> decode personParse
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
-andMap : Decoder id val a -> Decoder id val (a -> b) -> Decoder id val b
+andMap : Parser id val a -> Parser id val (a -> b) -> Parser id val b
 andMap a b =
     map2 (|>) a b
 
@@ -649,13 +649,13 @@ andMap a b =
         --> Ok "A STRING"
 
 -}
-map : (a -> b) -> Decoder id val a -> Decoder id val b
+map : (a -> b) -> Parser id val a -> Parser id val b
 map func decoder =
-    Decoder (mapHelp func decoder)
+    Parser (mapHelp func decoder)
 
 
-mapHelp : (a -> b) -> Decoder id val a -> Field id val -> Partial id val b
-mapHelp func (Decoder decoder) input =
+mapHelp : (a -> b) -> Parser id val a -> Field id val -> Partial id val b
+mapHelp func (Parser decoder) input =
     case decoder input of
         Success input2 a ->
             Success input2 (func a)
@@ -687,9 +687,9 @@ mapHelp func (Decoder decoder) input =
         --> Ok ( "Iris", "Hefets" )
 
 -}
-map2 : (a -> b -> c) -> Decoder id val a -> Decoder id val b -> Decoder id val c
+map2 : (a -> b -> c) -> Parser id val a -> Parser id val b -> Parser id val c
 map2 func a b =
-    Decoder
+    Parser
         (\input ->
             case apply a input of
                 Success input2 res ->
@@ -721,8 +721,8 @@ map2 func a b =
         , age : Int
         }
 
-    personDecoder : Decoder String val Person
-    personDecoder =
+    personParse : Parse String val Person
+    personParse =
         map3 Person
             (field "FirstName" string)
             (field "LastName" string)
@@ -745,16 +745,16 @@ map2 func a b =
                 ]
             ]
 
-    form |> decode personDecoder
+    form |> decode personParse
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
 map3 :
     (a -> b -> c -> out)
-    -> Decoder id val a
-    -> Decoder id val b
-    -> Decoder id val c
-    -> Decoder id val out
+    -> Parser id val a
+    -> Parser id val b
+    -> Parser id val c
+    -> Parser id val out
 map3 func a b c =
     map2 func a b |> andMap c
 
@@ -762,11 +762,11 @@ map3 func a b c =
 {-| -}
 map4 :
     (a -> b -> c -> d -> out)
-    -> Decoder id val a
-    -> Decoder id val b
-    -> Decoder id val c
-    -> Decoder id val d
-    -> Decoder id val out
+    -> Parser id val a
+    -> Parser id val b
+    -> Parser id val c
+    -> Parser id val d
+    -> Parser id val out
 map4 func a b c d =
     map3 func a b c |> andMap d
 
@@ -774,12 +774,12 @@ map4 func a b c d =
 {-| -}
 map5 :
     (a -> b -> c -> d -> e -> out)
-    -> Decoder id val a
-    -> Decoder id val b
-    -> Decoder id val c
-    -> Decoder id val d
-    -> Decoder id val e
-    -> Decoder id val out
+    -> Parser id val a
+    -> Parser id val b
+    -> Parser id val c
+    -> Parser id val d
+    -> Parser id val e
+    -> Parser id val out
 map5 func a b c d e =
     map4 func a b c d |> andMap e
 
@@ -787,13 +787,13 @@ map5 func a b c d e =
 {-| -}
 map6 :
     (a -> b -> c -> d -> e -> f -> out)
-    -> Decoder id val a
-    -> Decoder id val b
-    -> Decoder id val c
-    -> Decoder id val d
-    -> Decoder id val e
-    -> Decoder id val f
-    -> Decoder id val out
+    -> Parser id val a
+    -> Parser id val b
+    -> Parser id val c
+    -> Parser id val d
+    -> Parser id val e
+    -> Parser id val f
+    -> Parser id val out
 map6 func a b c d e f =
     map5 func a b c d e |> andMap f
 
@@ -801,14 +801,14 @@ map6 func a b c d e f =
 {-| -}
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> out)
-    -> Decoder id val a
-    -> Decoder id val b
-    -> Decoder id val c
-    -> Decoder id val d
-    -> Decoder id val e
-    -> Decoder id val f
-    -> Decoder id val g
-    -> Decoder id val out
+    -> Parser id val a
+    -> Parser id val b
+    -> Parser id val c
+    -> Parser id val d
+    -> Parser id val e
+    -> Parser id val f
+    -> Parser id val g
+    -> Parser id val out
 map7 func a b c d e f g =
     map6 func a b c d e f |> andMap g
 
@@ -816,15 +816,15 @@ map7 func a b c d e f g =
 {-| -}
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> out)
-    -> Decoder id val a
-    -> Decoder id val b
-    -> Decoder id val c
-    -> Decoder id val d
-    -> Decoder id val e
-    -> Decoder id val f
-    -> Decoder id val g
-    -> Decoder id val h
-    -> Decoder id val out
+    -> Parser id val a
+    -> Parser id val b
+    -> Parser id val c
+    -> Parser id val d
+    -> Parser id val e
+    -> Parser id val f
+    -> Parser id val g
+    -> Parser id val h
+    -> Parser id val out
 map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
@@ -847,8 +847,8 @@ map8 func a b c d e f g h =
         --> Err [ ParseError (Just "MyField") ]
 
 -}
-decode : Decoder id val a -> Field id val -> Result (List (Error id val)) a
-decode decoder input =
+parse : Parser id val a -> Field id val -> Result (List (Error id val)) a
+parse decoder input =
     case apply decoder input of
         Success _ a ->
             Ok a
@@ -859,11 +859,11 @@ decode decoder input =
 
 {-| Validates and decodes an input using the given decoder.
 -}
-validateAndDecode :
-    Decoder id val a
+validateAndParse :
+    Parser id val a
     -> Field id val
     -> ( Field id val, Result (List (Error id val)) a )
-validateAndDecode decoder input =
+validateAndParse decoder input =
     case apply (validateTree |> andThen (\() -> decoder)) input of
         Success input2 a ->
             ( input2, Ok a )
@@ -872,9 +872,9 @@ validateAndDecode decoder input =
             ( input2, Err errors )
 
 
-validateTree : Decoder id val ()
+validateTree : Parser id val ()
 validateTree =
-    Decoder
+    Parser
         (\input ->
             let
                 validators =
@@ -901,8 +901,8 @@ validateTree =
         )
 
 
-apply : Decoder id val a -> Field id val -> Partial id val a
-apply (Decoder decoder) =
+apply : Parser id val a -> Field id val -> Partial id val a
+apply (Parser decoder) =
     decoder
 
 

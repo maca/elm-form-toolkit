@@ -32,8 +32,8 @@ module FormToolkit.View exposing
 
 -}
 
-import FormToolkit.Decode exposing (Error)
 import FormToolkit.Field exposing (Field)
+import FormToolkit.Parse exposing (Error)
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
 import Internal.Field exposing (Msg(..))

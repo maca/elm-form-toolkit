@@ -20,8 +20,8 @@ module Support.ExampleInputs exposing
     , stringInputWithOptions
     )
 
-import FormToolkit.Decode as Decode
 import FormToolkit.Field as Input exposing (Field)
+import FormToolkit.Parse as Decode
 import FormToolkit.Value as Value
 import Time
 
@@ -218,14 +218,14 @@ type alias Person =
     }
 
 
-bandDecoder : Decode.Decoder BandFields val Band
+bandDecoder : Decode.Parser BandFields val Band
 bandDecoder =
     Decode.map2 Band
         (Decode.field BandName Decode.string)
         (Decode.field BandMembers (Decode.list personDecoder))
 
 
-personDecoder : Decode.Decoder BandFields val Person
+personDecoder : Decode.Parser BandFields val Person
 personDecoder =
     Decode.map2 Person
         (Decode.field MemberName Decode.string)

@@ -3,8 +3,8 @@ module Chapters.Overview exposing (Model, Msg, chapter, init)
 import Debug
 import ElmBook.Actions exposing (..)
 import ElmBook.Chapter as Chapter exposing (Chapter)
-import FormToolkit.Decode as Decode
 import FormToolkit.Field as Field exposing (Field)
+import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes exposing (novalidate)
@@ -84,7 +84,7 @@ update msg model =
         FormSubmitted ->
             let
                 json =
-                    Decode.decode Decode.json model.formFields
+                    Parse.parse Parse.json model.formFields
                         |> Result.withDefault Json.Encode.null
                         |> Json.Encode.encode 0
             in
@@ -174,16 +174,16 @@ type alias Person =
     }
 
 
-teamDecoder : Decode.Decoder TeamFields Color Team
+teamDecoder : Parse.Parser TeamFields Color Team
 teamDecoder =
-    Decode.map3 Team
-        (Decode.field TeamName Decode.string)
-        (Decode.field TeamMembers (Decode.list personDecoder))
-        (Decode.field TeamColor Decode.customValue)
+    Parse.map3 Team
+        (Parse.field TeamName Parse.string)
+        (Parse.field TeamMembers (Parse.list personDecoder))
+        (Parse.field TeamColor Parse.customValue)
 
 
-personDecoder : Decode.Decoder TeamFields Color Person
+personDecoder : Parse.Parser TeamFields Color Person
 personDecoder =
-    Decode.map2 Person
-        (Decode.field MemberName Decode.string)
-        (Decode.field MemberAge Decode.int)
+    Parse.map2 Person
+        (Parse.field MemberName Parse.string)
+        (Parse.field MemberAge Parse.int)

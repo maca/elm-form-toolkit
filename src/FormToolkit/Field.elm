@@ -62,7 +62,7 @@ their attributes, update, and render them.
 
 -}
 
-import FormToolkit.Decode exposing (Decoder, Error(..))
+import FormToolkit.Parse exposing (Error(..), Parser)
 import FormToolkit.Value as Value
 import Html exposing (Html)
 import Internal.Field as Internal
@@ -104,13 +104,13 @@ type alias Msg id val =
 and a [Msg](#Msg) to reflect user interactions.
 -}
 update :
-    Decoder id val a
+    Parser id val a
     -> Msg id val
     -> Field id val
     -> ( Field id val, Result (List (Error id val)) a )
 update decoder msg field =
     Internal.update msg field
-        |> FormToolkit.Decode.validateAndDecode decoder
+        |> FormToolkit.Parse.validateAndParse decoder
 
 
 {-| Renders the form.
