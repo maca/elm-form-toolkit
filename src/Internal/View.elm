@@ -12,8 +12,7 @@ module Internal.View exposing
 
 -}
 
-import FormToolkit.Parse as Parse exposing (Error(..))
-import FormToolkit.Value as Value
+import FormToolkit.Error exposing (Error(..))
 import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
@@ -104,16 +103,14 @@ init { events, path, field } =
         , onBlur = events.onBlur
         , onAdd = events.onAdd
         , onRemove = events.onRemove
-        , errorToString = errorToString
+        , errorToString = FormToolkit.Error.toEnglish
         , fieldView = inputView
         , groupView = groupView
         , repeatableFieldsGroupView = repeatableFieldsGroupView
         , repeatableFieldView = repeatableFieldView
         }
     , path = path
-    , field =
-        Parse.validateAndParse (Parse.succeed ()) field
-            |> Tuple.first
+    , field = field
     }
 
 
@@ -751,35 +748,3 @@ ariaInvalidAttribute input =
 
     else
         Attributes.attribute "aria-invalid" "true"
-
-
-errorToString : Error id val -> String
-errorToString error =
-    let
-        toString =
-            Value.toString >> Maybe.withDefault ""
-    in
-    case error of
-        ValueTooLarge _ data ->
-            "Should be lesser than " ++ toString data.max
-
-        ValueTooSmall _ data ->
-            "Should be greater than " ++ toString data.min
-
-        ValueNotInRange _ data ->
-            "Should be between " ++ toString data.min ++ " and " ++ toString data.max
-
-        IsBlank _ ->
-            "Should be provided"
-
-        IsGroupNotInput _ ->
-            "A group cannot have a value but the decoder is attempting to read the value"
-
-        NoOptionsProvided _ ->
-            "No options have been provided"
-
-        CustomError _ message ->
-            message
-
-        _ ->
-            "Couldn't parse"

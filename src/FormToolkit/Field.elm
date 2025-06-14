@@ -1,5 +1,5 @@
 module FormToolkit.Field exposing
-    ( Field, Msg, update, toHtml
+    ( Field(..), Msg, update, toHtml
     , text, textarea, email, password, strictAutocomplete
     , int, float
     , date, month
@@ -62,17 +62,19 @@ their attributes, update, and render them.
 
 -}
 
-import FormToolkit.Parse exposing (Error(..), Parser)
+-- import Internal.View as View
+
+import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
-import Internal.Field as Internal
+import Internal.Field
     exposing
         ( Attributes
         , Field
         , FieldType
         , Msg(..)
         )
-import Internal.View as View
+import Internal.View
 import RoseTree.Tree as Tree
 
 
@@ -90,27 +92,22 @@ Fields are preferably identified by a custom type but can also be identified by
 a `String`.
 
 -}
-type alias Field id val =
-    Internal.Field id val (Error id val)
+type Field id val
+    = Field (Internal.Field.Field id val (Error id val))
 
 
 {-| A message generated through interaction with an input.
 -}
 type alias Msg id val =
-    Internal.Msg id val
+    Internal.Field.Msg id val
 
 
 {-| Updates a form by passing a decoder to validate and produce a result,
 and a [Msg](#Msg) to reflect user interactions.
 -}
-update :
-    Parser id val a
-    -> Msg id val
-    -> Field id val
-    -> ( Field id val, Result (List (Error id val)) a )
-update decoder msg field =
-    Internal.update msg field
-        |> FormToolkit.Parse.validateAndParse decoder
+update : Msg id val -> Field id val -> Field id val
+update msg (Field field) =
+    Field (Internal.Field.update msg field)
 
 
 {-| Renders the form.
@@ -128,8 +125,8 @@ update decoder msg field =
 
 -}
 toHtml : (Msg id val -> msg) -> Field id val -> Html msg
-toHtml onChange field =
-    View.init
+toHtml onChange (Field field) =
+    Internal.View.init
         { events =
             { onChange = \path val -> onChange (InputChanged path val)
             , onFocus = onChange << InputFocused
@@ -140,7 +137,7 @@ toHtml onChange field =
         , path = []
         , field = field
         }
-        |> View.toHtml
+        |> Internal.View.toHtml
 
 
 {-| Builds a text input field.
@@ -158,7 +155,7 @@ suggestions.
 -}
 text : List (Attribute id val) -> Field id val
 text =
-    init Internal.Text
+    init Internal.Field.Text
 
 
 {-| Builds a Textarea input field.
@@ -174,7 +171,7 @@ text =
 -}
 textarea : List (Attribute id val) -> Field id val
 textarea =
-    init Internal.TextArea
+    init Internal.Field.TextArea
 
 
 {-| Builds an email input field.
@@ -186,7 +183,7 @@ textarea =
 -}
 email : List (Attribute id val) -> Field id val
 email =
-    init Internal.Email
+    init Internal.Field.Email
 
 
 {-| Builds a password input field.
@@ -198,7 +195,7 @@ email =
 -}
 password : List (Attribute id val) -> Field id val
 password =
-    init Internal.Password
+    init Internal.Field.Password
 
 
 {-| Builds a text input field with strict autocomplete. If the input doesn't
@@ -227,7 +224,7 @@ attribute. For string value options, see [stringOptions](#stringOptions).
 -}
 strictAutocomplete : List (Attribute id val) -> Field id val
 strictAutocomplete =
-    init Internal.StrictAutocomplete
+    init Internal.Field.StrictAutocomplete
 
 
 {-| Builds an integer input field.
@@ -243,7 +240,7 @@ strictAutocomplete =
 -}
 int : List (Attribute id val) -> Field id val
 int =
-    init Internal.Integer
+    init Internal.Field.Integer
 
 
 {-| Builds a floating-point number input field.
@@ -255,7 +252,7 @@ int =
 -}
 float : List (Attribute id val) -> Field id val
 float =
-    init Internal.Float
+    init Internal.Field.Float
 
 
 {-| Builds a date input field.
@@ -267,7 +264,7 @@ float =
 -}
 date : List (Attribute id val) -> Field id val
 date =
-    init Internal.Date
+    init Internal.Field.Date
 
 
 {-| Builds a month input field.
@@ -279,7 +276,7 @@ date =
 -}
 month : List (Attribute id val) -> Field id val
 month =
-    init Internal.Month
+    init Internal.Field.Month
 
 
 {-| Builds a select input field (dropdown).
@@ -303,7 +300,7 @@ month =
 -}
 select : List (Attribute id val) -> Field id val
 select =
-    init Internal.Select
+    init Internal.Field.Select
 
 
 {-| Builds a radio button input field.
@@ -321,7 +318,7 @@ select =
 -}
 radio : List (Attribute id val) -> Field id val
 radio =
-    init Internal.Radio
+    init Internal.Field.Radio
 
 
 {-| Builds a checkbox input field.
@@ -333,7 +330,7 @@ radio =
 -}
 checkbox : List (Attribute id val) -> Field id val
 checkbox =
-    init Internal.Checkbox
+    init Internal.Field.Checkbox
 
 
 {-| Groups a list of fields.
@@ -349,7 +346,12 @@ checkbox =
 -}
 group : List (Attribute id val) -> List (Field id val) -> Field id val
 group attributes =
-    Tree.branch (Internal.init Internal.Group (unwrapAttrs attributes))
+    List.map (\(Field field) -> field)
+        >> Tree.branch
+            (Internal.Field.init Internal.Field.Group
+                (unwrapAttrs attributes)
+            )
+        >> Field
 
 
 {-| Builds a repeatable group of fields from a template field.
@@ -396,23 +398,34 @@ repeatable :
     -> Field id val
     -> List (Field id val -> Field id val)
     -> Field id val
-repeatable attributes template updates =
+repeatable attributes (Field template) updates =
     let
         params =
-            Internal.init (Internal.Repeatable template) (unwrapAttrs attributes)
+            Internal.Field.init (Internal.Field.Repeatable template)
+                (unwrapAttrs attributes)
 
         children =
             List.concat
-                [ List.map (\fn -> fn template) updates
-                , List.repeat (params.repeatableMin - List.length updates) template
+                [ updates
+                    |> List.map
+                        (\fn ->
+                            let
+                                (Field fields) =
+                                    fn (Field template)
+                            in
+                            fields
+                        )
+                , List.repeat
+                    (params.repeatableMin - List.length updates)
+                    template
                 ]
     in
-    Tree.branch params children
+    Field (Tree.branch params children)
 
 
 init : FieldType id val (Error id val) -> List (Attribute id val) -> Field id val
 init inputType attributes =
-    Tree.leaf (Internal.init inputType (unwrapAttrs attributes))
+    Field (Tree.leaf (Internal.Field.init inputType (unwrapAttrs attributes)))
 
 
 unwrapAttrs :
@@ -676,18 +689,26 @@ provided function.
 
 -}
 updateBy : id -> (Field id val -> Field id val) -> Field id val -> Maybe (Field id val)
-updateBy id fn field =
-    if Tree.any (\node -> Internal.identifier node == Just id) field then
+updateBy id fn (Field field) =
+    if
+        Tree.any (\node -> Internal.Field.identifier node == Just id)
+            field
+    then
         Just
             (field
                 |> Tree.map
                     (\node ->
-                        if Internal.identifier node == Just id then
-                            fn node
+                        if Internal.Field.identifier node == Just id then
+                            let
+                                (Field updated) =
+                                    fn (Field node)
+                            in
+                            updated
 
                         else
                             node
                     )
+                |> Field
             )
 
     else
@@ -707,8 +728,8 @@ updateBy id fn field =
 
 -}
 updateAttribute : Attribute id val -> Field id val -> Field id val
-updateAttribute attr =
-    Internal.updateAttributes (unwrapAttrs [ attr ])
+updateAttribute attr (Field field) =
+    Field (Internal.Field.updateAttributes (unwrapAttrs [ attr ]) field)
 
 
 {-| Updates several field attributes.
@@ -733,15 +754,15 @@ updateAttribute attr =
 
 -}
 updateAttributes : List (Attribute id val) -> Field id val -> Field id val
-updateAttributes attrList =
-    Internal.updateAttributes (unwrapAttrs attrList)
+updateAttributes attrList (Field field) =
+    Field (Internal.Field.updateAttributes (unwrapAttrs attrList) field)
 
 
 {-| Collects all errors from a field and its children.
 -}
 errors : Field id val -> List (Error id val)
-errors =
-    Internal.errors
+errors (Field field) =
+    Internal.Field.errors field
 
 
 {-| Transforms identifiers or errors in a field, useful for combining fields
@@ -786,8 +807,12 @@ with identifiers of different types.
 
 -}
 map : (a -> b) -> Field a val -> Field b val
-map func =
-    Tree.mapValues (Internal.map func identity (mapError func identity))
+map func (Field field) =
+    Field
+        (Tree.mapValues
+            (Internal.Field.map func identity (mapError func identity))
+            field
+        )
 
 
 mapError : (a -> b) -> (Value.Value val1 -> Value.Value val2) -> Error a val1 -> Error b val2
@@ -872,13 +897,16 @@ fields with different value types.
 
 -}
 mapValues : (Value.Value val1 -> Value.Value val2) -> Field id val1 -> Field id val2
-mapValues func =
-    Tree.mapValues
-        (Internal.map identity
-            (\val ->
-                case func (Value.Value val) of
-                    Value.Value val_ ->
-                        val_
+mapValues func (Field field) =
+    Field
+        (Tree.mapValues
+            (Internal.Field.map identity
+                (\val ->
+                    case func (Value.Value val) of
+                        Value.Value val_ ->
+                            val_
+                )
+                (mapError identity func)
             )
-            (mapError identity func)
+            field
         )

@@ -7,7 +7,7 @@ module FormToolkit.Parse exposing
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     , parse, validateAndParse
-    , Error(..), errorToFieldIdentifier
+    , errorToFieldIdentifier
     )
 
 {-| Map the values of an input or group of inputs to any shape you want, if you
@@ -33,13 +33,15 @@ know `Json.Decode` you know how to use this module ;)
 # Decoding
 
 @docs parse, validateAndParse
-@docs Error, errorToFieldIdentifier
+@docs errorToFieldIdentifier
 
 -}
 
 import Dict
+import FormToolkit.Error exposing (Error(..))
+import FormToolkit.Field exposing (Field(..))
 import FormToolkit.Value as Value
-import Internal.Field as Field
+import Internal.Field
 import Internal.Value
 import Json.Decode
 import Json.Encode
@@ -48,23 +50,23 @@ import RoseTree.Tree as Tree
 import Time
 
 
+type alias InternalField id val =
+    Internal.Field.Field id val (Error id val)
+
+
 type Partial id val a
-    = Failure (Field id val) (List (Error id val))
-    | Success (Field id val) a
+    = Failure (InternalField id val) (List (Error id val))
+    | Success (InternalField id val) a
 
 
-{-| A decoder that takes a tree of input data and returns a decoded result or an
+{-| A parser that takes a tree of input data and returns a parsed result or an
 error if the decoding fails.
 -}
 type Parser id val a
-    = Parser (Field id val -> Partial id val a)
+    = Parser (InternalField id val -> Partial id val a)
 
 
-type alias Field id val =
-    Field.Field id val (Error id val)
-
-
-{-| Parse for a field with the given identifier using a provided decoder.
+{-| Parse for a field with the given identifier using a provided parser.
 
     import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
@@ -88,15 +90,15 @@ type alias Field id val =
                 ]
             ]
 
-    form |> decode (field FirstName string)
+    form |> parse (field FirstName string)
     --> Ok "Brian"
 
 -}
 field : id -> Parser id val a -> Parser id val a
-field id decoder =
+field id parser =
     Parser
         (\tree ->
-            case fieldHelp id decoder tree of
+            case fieldHelp id parser tree of
                 ( Just (Success node a), path ) ->
                     Success (Tree.replaceAt path node tree) a
 
@@ -104,16 +106,16 @@ field id decoder =
                     Failure (Tree.replaceAt path node tree) errors
 
                 ( Nothing, _ ) ->
-                    failure tree (InputNotFound id)
+                    failure (Field tree) (InputNotFound id)
         )
 
 
-fieldHelp : id -> Parser id val a -> Field id val -> ( Maybe (Partial id val a), List Int )
-fieldHelp id decoder =
+fieldHelp : id -> Parser id val a -> InternalField id val -> ( Maybe (Partial id val a), List Int )
+fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
-            if Field.identifier tree == Just id then
-                ( Just (apply decoder tree), path )
+            if Internal.Field.identifier tree == Just id then
+                ( Just (apply parser tree), path )
 
             else
                 acc
@@ -121,13 +123,13 @@ fieldHelp id decoder =
         ( Nothing, [] )
 
 
-{-| Decodes the input value as a `String`.
+{-| Parses the input value as a `String`.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
     Field.text [ Field.value (Value.string "A string") ]
-        |> decode string
+        |> parse string
         --> Ok "A string"
 
 -}
@@ -136,13 +138,13 @@ string =
     parseValue Value.toString
 
 
-{-| Decodes the input value as an `Int`.
+{-| Parses the input value as an `Int`.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
     Field.text [ Field.value (Value.int 10) ]
-        |> decode int
+        |> parse int
         --> Ok 10
 
 -}
@@ -151,13 +153,13 @@ int =
     parseValue Value.toInt
 
 
-{-| Decodes the input value as a `Float`.
+{-| Parses the input value as a `Float`.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
     Field.text [ Field.value (Value.float 10.5) ]
-        |> decode float
+        |> parse float
         --> Ok 10.5
 
 -}
@@ -166,13 +168,13 @@ float =
     parseValue Value.toFloat
 
 
-{-| Decodes the input value as a `Bool`.
+{-| Parses the input value as a `Bool`.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
     Field.text [ Field.value (Value.bool True) ]
-        |> decode bool
+        |> parse bool
         --> Ok True
 
 -}
@@ -181,7 +183,7 @@ bool =
     parseValue Value.toBool
 
 
-{-| Decodes the input value as a
+{-| Parses the input value as a
 [Time.Posix](https://package.elm-lang.org/packages/elm/time/latest/Time#Posix).
 -}
 posix : Parser id val Time.Posix
@@ -195,27 +197,27 @@ posix =
     import FormToolkit.Value as Value
 
     Field.text [ Field.value (Value.string "A string") ]
-        |> decode (maybe string)
+        |> parse (maybe string)
         --> Ok (Just "A string")
 
     Field.text []
-        |> decode (maybe string)
+        |> parse (maybe string)
         --> Ok Nothing
 
 -}
 maybe : Parser id val a -> Parser id val (Maybe a)
-maybe decoder =
+maybe parser =
     Parser
         (\input ->
-            if Field.isBlank input then
+            if Internal.Field.isBlank input then
                 Success input Nothing
 
             else
-                mapHelp Just decoder input
+                mapHelp Just parser input
         )
 
 
-{-| Decodes a list of inputs using the given decoder.
+{-| Parses a list of inputs using the given parser.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value
@@ -227,17 +229,17 @@ maybe decoder =
         , Field.updateAttribute
             (Field.value (Value.string "banana") )
         ]
-        |> decode (list string)
+        |> parse (list string)
         --> Ok [ "mango", "banana" ]
 
 -}
 list : Parser id val a -> Parser id val (List a)
-list decoder =
+list parser =
     Parser
         (\input ->
             let
                 ( children, result ) =
-                    listHelp decoder input
+                    listHelp parser input
 
                 input2 =
                     Tree.branch (Tree.value input) children
@@ -253,13 +255,13 @@ list decoder =
 
 listHelp :
     Parser id val a
-    -> Field id val
-    -> ( List (Field id val), Result (List (Error id val)) (List a) )
-listHelp decoder =
+    -> InternalField id val
+    -> ( List (InternalField id val), Result (List (Error id val)) (List a) )
+listHelp parser =
     Tree.children
         >> List.foldr
             (\node ( nodes, result ) ->
-                case apply decoder node of
+                case apply parser node of
                     Success node2 a ->
                         ( node2 :: nodes
                         , Result.map2 (::) (Ok a) result
@@ -284,7 +286,7 @@ listHelp decoder =
     import FormToolkit.Value as Value
 
     Field.text [ Field.value (Value.string "A string") ]
-        |> decode value
+        |> parse value
         --> Ok (Value.string "A string")
 
 -}
@@ -293,7 +295,7 @@ value =
     parseValue Just
 
 
-{-| Decodes the custom value of an input.
+{-| Parses the custom value of an input.
 
 Tipically used for `select` or `radio` inputs with options of custom value, but
 also for autocompleatable text inputs where the inputted text corresponds to an
@@ -330,10 +332,10 @@ option text.
                 ]
             ]
 
-    langSelect |> decode customValue
+    langSelect |> parse customValue
     --> Ok ES
 
-    autocomplete |> decode customValue
+    autocomplete |> parse customValue
     --> Ok EN
 
 -}
@@ -345,7 +347,7 @@ customValue =
 {-| Converts the entire input tree into a JSON
 [Value](https://package.elm-lang.org/packages/elm/json/latest/Json-Encode#Value).
 Field `name` property will be used as the key, if an input name is not present
-the decoder will fail.
+the parser will fail.
 
 Usefull if you just one to forward the form values to a backend.
 
@@ -372,7 +374,7 @@ Usefull if you just one to forward the form values to a backend.
                 (Field.value (Value.string "banana") )
             ]
         ]
-        |> decode json
+        |> parse json
         |> Result.map (Json.Encode.encode 0)
         --> Ok "{\"first-name\":\"Brian\",\"last-name\":\"Eno\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
@@ -386,32 +388,35 @@ json =
                     Success input a
 
                 Err err ->
-                    failure input err
+                    failure (Field input) err
         )
 
 
-jsonEncodeObject : Field id val -> Result (Error id val) Json.Encode.Value
+jsonEncodeObject : InternalField id val -> Result (Error id val) Json.Encode.Value
 jsonEncodeObject input =
     jsonEncodeHelp input [] |> Result.map Json.Encode.object
 
 
 jsonEncodeHelp :
-    Field id val
+    InternalField id val
     -> List ( String, Json.Decode.Value )
     -> Result (Error id val) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp input acc =
     let
         accumulate jsonValue =
-            case Field.name input of
+            case Internal.Field.name input of
                 Just name ->
                     Ok (( name, jsonValue ) :: acc)
 
                 Nothing ->
-                    Err (RepeatableHasNoName (Field.identifier input))
+                    Err
+                        (RepeatableHasNoName
+                            (Internal.Field.identifier input)
+                        )
     in
-    case Field.inputType input of
-        Field.Group ->
-            case Field.name input of
+    case Internal.Field.inputType input of
+        Internal.Field.Group ->
+            case Internal.Field.name input of
                 Nothing ->
                     Tree.children input
                         |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
@@ -424,23 +429,28 @@ jsonEncodeHelp input acc =
                         |> Result.map Json.Encode.object
                         |> Result.andThen accumulate
 
-        Field.Repeatable _ ->
+        Internal.Field.Repeatable _ ->
             Tree.children input
                 |> List.foldr (\e -> Result.map2 (::) (jsonEncodeObject e)) (Ok [])
                 |> Result.map (Json.Encode.list identity)
                 |> Result.andThen accumulate
 
         _ ->
-            case Field.name input of
+            case Internal.Field.name input of
                 Just name ->
-                    Ok (( name, Internal.Value.encode (Field.value input) ) :: acc)
+                    Ok
+                        (( name
+                         , Internal.Value.encode (Internal.Field.value input)
+                         )
+                            :: acc
+                        )
 
                 Nothing ->
                     Ok acc
 
 
-{-| A decoder that always succeeds with the given value, use for buiding
-decoding pipelines with [andMap](#andMap), or to chain decoders with
+{-| A parser that always succeeds with the given value, use for buiding
+decoding pipelines with [andMap](#andMap), or to chain parsers with
 [andThen](#andThen).
 
     import FormToolkit.Field as Field
@@ -449,7 +459,7 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
     type Special
         = SpecialValue
 
-    specialParse : Parse id val Special
+    specialParse : Parser id val Special
     specialParse =
         string
             |> andThen
@@ -462,7 +472,7 @@ decoding pipelines with [andMap](#andMap), or to chain decoders with
                 )
 
 
-    Field.text [ Field.value (Value.string "special") ] |> decode specialParse
+    Field.text [ Field.value (Value.string "special") ] |> parse specialParse
     --> Ok SpecialValue
 
 -}
@@ -471,7 +481,7 @@ succeed a =
     custom (always (Ok a))
 
 
-{-| A decoder that always fails with a custom error.
+{-| A parser that always fails with a custom error.
 -}
 fail : String -> Parser id val a
 fail err =
@@ -483,9 +493,9 @@ custom : (Value.Value val -> Result String a) -> Parser id val a
 custom func =
     parseHelp
         (\input ->
-            func (Value.Value (Field.value input))
+            func (Value.Value (Internal.Field.value input))
                 |> Result.mapError
-                    (CustomError (Field.identifier input))
+                    (CustomError (Internal.Field.identifier input))
         )
 
 
@@ -494,7 +504,10 @@ format : (String -> String) -> Parser id val String
 format func =
     Parser
         (\input ->
-            case Field.value input |> Internal.Value.toString of
+            case
+                Internal.Field.value input
+                    |> Internal.Value.toString
+            of
                 Just str ->
                     Success
                         (Tree.updateValue
@@ -515,26 +528,26 @@ parseValue : (Value.Value val -> Maybe a) -> Parser id val a
 parseValue func =
     parseHelp
         (\input ->
-            if Field.isGroup input then
-                Err (IsGroupNotInput (Field.identifier input))
+            if Internal.Field.isGroup input then
+                Err (IsGroupNotInput (Internal.Field.identifier input))
 
             else
-                Internal.Value.toString (Field.value input)
+                Internal.Value.toString (Internal.Field.value input)
                     |> Maybe.andThen
                         (\key ->
-                            Field.options input
+                            Internal.Field.options input
                                 |> Dict.fromList
                                 |> Dict.get key
                         )
-                    |> Maybe.withDefault (Field.value input)
+                    |> Maybe.withDefault (Internal.Field.value input)
                     |> (func << Value.Value)
                     |> Maybe.map Ok
                     |> Maybe.withDefault
-                        (Err (ParseError (Field.identifier input)))
+                        (Err (ParseError (Internal.Field.identifier input)))
         )
 
 
-parseHelp : (Field id val -> Result (Error id val) a) -> Parser id val a
+parseHelp : (InternalField id val -> Result (Error id val) a) -> Parser id val a
 parseHelp func =
     Parser
         (\input ->
@@ -543,44 +556,44 @@ parseHelp func =
                     Success input a
 
                 Err err ->
-                    failure input err
+                    failure (Field input) err
         )
 
 
 failure : Field id val -> Error id val -> Partial id val a
-failure input err =
-    Failure (Field.setErrors [ err ] input) [ err ]
+failure (Field input) err =
+    Failure (Internal.Field.setErrors [ err ] input) [ err ]
 
 
-{-| Chains together decoders that depend on previous decoding results.
+{-| Chains together parsers that depend on previous decoding results.
 
-    -- justinmimbs/date
-    import Date exposing (Date)
+    import FormToolkit.Field as Field exposing (Field)
+    import FormToolkit.Value as Value
 
-    dateParse : Parse id val Date
-    dateParse =
-        string
+    wordsParser : Parser id val (List String)
+    wordsParser =
+        int
             |> andThen
                 (\strValue ->
-                    case Date.fromString "dd.MM.yyyy" strValue of
-                        Ok date ->
-                            succeed date
+                    case String.words strValue of
+                        [] ->
+                            fail "No words"
 
-                        Err err ->
-                            fail err
+                        words ->
+                            succeed words
                 )
 
 
-    Field.text [ Field.value (Value.string "07.03.1981") ]
-        |> decode dateParse
-        --> Ok (Date.fromCalendarDate 1981 Date.March 7)
+    Field.text [ Field.value (Value.string "red green blue") ]
+        |> parse wordsParser
+        --> Ok (["red", "green", "blue"])
 
 -}
 andThen : (a -> Parser id val b) -> Parser id val a -> Parser id val b
-andThen func (Parser decoder) =
+andThen func (Parser parser) =
     Parser
         (\input ->
-            case decoder input of
+            case parser input of
                 Success input2 a ->
                     apply (func a) input2
 
@@ -589,7 +602,7 @@ andThen func (Parser decoder) =
         )
 
 
-{-| Incrementally apply decoders in a pipeline fashion.
+{-| Incrementally apply parsers in a pipeline fashion.
 
     import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
@@ -622,7 +635,7 @@ andThen func (Parser decoder) =
                 ]
             ]
 
-    personParse : Parse Fields val Person
+    personParse : Parser Fields val Person
     personParse =
         succeed Person
             |> andMap (field FirstName string)
@@ -630,7 +643,7 @@ andThen func (Parser decoder) =
             |> andMap (field Age int)
 
 
-    form |> decode personParse
+    form |> parse personParse
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -639,24 +652,24 @@ andMap a b =
     map2 (|>) a b
 
 
-{-| Transforms the result of a decoder using a function.
+{-| Transforms the result of a parser using a function.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value
 
     Field.text [ Field.value (Value.string "a string") ]
-        |> decode (map String.toUpper string)
+        |> parse (map String.toUpper string)
         --> Ok "A STRING"
 
 -}
 map : (a -> b) -> Parser id val a -> Parser id val b
-map func decoder =
-    Parser (mapHelp func decoder)
+map func parser =
+    Parser (mapHelp func parser)
 
 
-mapHelp : (a -> b) -> Parser id val a -> Field id val -> Partial id val b
-mapHelp func (Parser decoder) input =
-    case decoder input of
+mapHelp : (a -> b) -> Parser id val a -> InternalField id val -> Partial id val b
+mapHelp func (Parser parser) input =
+    case parser input of
         Success input2 a ->
             Success input2 (func a)
 
@@ -664,7 +677,7 @@ mapHelp func (Parser decoder) input =
             Failure input2 errors
 
 
-{-| Combines two decoders using a function.
+{-| Combines two parsers using a function.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value
@@ -679,7 +692,7 @@ mapHelp func (Parser decoder) input =
             , Field.value (Value.string "Hefets")
             ]
         ]
-        |> decode
+        |> parse
             (map2 Tuple.pair
                 (field "FirstName" string)
                 (field "LastName" string)
@@ -710,7 +723,7 @@ map2 func a b =
         )
 
 
-{-| Combines three decoders using a function.
+{-| Combines three parsers using a function.
 
     import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
@@ -721,7 +734,7 @@ map2 func a b =
         , age : Int
         }
 
-    personParse : Parse String val Person
+    personParse : Parser String val Person
     personParse =
         map3 Person
             (field "FirstName" string)
@@ -745,7 +758,7 @@ map2 func a b =
                 ]
             ]
 
-    form |> decode personParse
+    form |> parse personParse
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -829,27 +842,18 @@ map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
-{-| Decodes an input using the given decoder without applying field validations
+
+-- Field.text [ Field.value (Value.string "A string"), Field.required True ]
+--     |> parse string
+--     --> Ok "A string"
+
+
+{-| Parses an input using the given parser without applying field validations
 (required, min, max...).
-
-    import FormToolkit.Field as Field
-    import FormToolkit.Value as Value
-
-    Field.text [ Field.value (Value.string "A string"), Field.required True ]
-        |> decode string
-        --> Ok "A string"
-
-    Field.text
-        [ Field.value (Value.bool True)
-        , Field.identifier "MyField"
-        ]
-        |> decode string
-        --> Err [ ParseError (Just "MyField") ]
-
 -}
 parse : Parser id val a -> Field id val -> Result (List (Error id val)) a
-parse decoder input =
-    case apply decoder input of
+parse parser (Field input) =
+    case apply parser input of
         Success _ a ->
             Ok a
 
@@ -857,19 +861,19 @@ parse decoder input =
             Err errors
 
 
-{-| Validates and decodes an input using the given decoder.
+{-| Validates and parses an input using the given parser.
 -}
 validateAndParse :
     Parser id val a
     -> Field id val
     -> ( Field id val, Result (List (Error id val)) a )
-validateAndParse decoder input =
-    case apply (validateTree |> andThen (\() -> decoder)) input of
+validateAndParse parser (Field input) =
+    case apply (validateTree |> andThen (\() -> parser)) input of
         Success input2 a ->
-            ( input2, Ok a )
+            ( Field input2, Ok a )
 
         Failure input2 errors ->
-            ( input2, Err errors )
+            ( Field input2, Err errors )
 
 
 validateTree : Parser id val ()
@@ -888,11 +892,11 @@ validateTree =
                                     node
 
                                 errors ->
-                                    Field.setErrors errors node
+                                    Internal.Field.setErrors errors node
                         )
                         input
             in
-            case Field.errors updated of
+            case Internal.Field.errors updated of
                 [] ->
                     Success updated ()
 
@@ -901,58 +905,65 @@ validateTree =
         )
 
 
-apply : Parser id val a -> Field id val -> Partial id val a
-apply (Parser decoder) =
-    decoder
+apply : Parser id val a -> InternalField id val -> Partial id val a
+apply (Parser parser) =
+    parser
 
 
-checkRequired : Field id val -> Maybe (Error id val)
+checkRequired : InternalField id val -> Maybe (Error id val)
 checkRequired input =
-    if Field.isRequired input && Field.isBlank input then
-        Just (IsBlank (Field.identifier input))
+    if
+        Internal.Field.isRequired input
+            && Internal.Field.isBlank input
+    then
+        Just (IsBlank (Internal.Field.identifier input))
 
     else
         Nothing
 
 
-checkInRange : Field id val -> Maybe (Error id val)
+checkInRange : InternalField id val -> Maybe (Error id val)
 checkInRange tree =
     let
         val =
-            Value.Value (Field.value tree)
+            Value.Value (Internal.Field.value tree)
 
         min =
-            Value.Value (Field.min tree)
+            Value.Value (Internal.Field.min tree)
 
         max =
-            Value.Value (Field.max tree)
+            Value.Value (Internal.Field.max tree)
     in
     case
-        ( Internal.Value.compare (Field.value tree) (Field.min tree)
-        , Internal.Value.compare (Field.value tree) (Field.max tree)
+        ( Internal.Value.compare
+            (Internal.Field.value tree)
+            (Internal.Field.min tree)
+        , Internal.Value.compare
+            (Internal.Field.value tree)
+            (Internal.Field.max tree)
         )
     of
         ( Just LT, Just _ ) ->
             Just
-                (ValueNotInRange (Field.identifier tree)
+                (ValueNotInRange (Internal.Field.identifier tree)
                     { value = val, min = min, max = max }
                 )
 
         ( Just _, Just GT ) ->
             Just
-                (ValueNotInRange (Field.identifier tree)
+                (ValueNotInRange (Internal.Field.identifier tree)
                     { value = val, min = min, max = max }
                 )
 
         ( Just LT, Nothing ) ->
             Just
-                (ValueTooSmall (Field.identifier tree)
+                (ValueTooSmall (Internal.Field.identifier tree)
                     { value = val, min = min }
                 )
 
         ( Nothing, Just GT ) ->
             Just
-                (ValueTooLarge (Field.identifier tree)
+                (ValueTooLarge (Internal.Field.identifier tree)
                     { value = val, max = max }
                 )
 
@@ -960,41 +971,24 @@ checkInRange tree =
             Nothing
 
 
-checkOptionsProvided : Field id val -> Maybe (Error id val)
+checkOptionsProvided : InternalField id val -> Maybe (Error id val)
 checkOptionsProvided input =
-    case ( Field.inputType input, Field.options input ) of
-        ( Field.Select, [] ) ->
-            Just (NoOptionsProvided (Field.identifier input))
+    case
+        ( Internal.Field.inputType input
+        , Internal.Field.options input
+        )
+    of
+        ( Internal.Field.Select, [] ) ->
+            Just (NoOptionsProvided (Internal.Field.identifier input))
 
-        ( Field.Radio, [] ) ->
-            Just (NoOptionsProvided (Field.identifier input))
+        ( Internal.Field.Radio, [] ) ->
+            Just (NoOptionsProvided (Internal.Field.identifier input))
 
-        ( Field.StrictAutocomplete, [] ) ->
-            Just (NoOptionsProvided (Field.identifier input))
+        ( Internal.Field.StrictAutocomplete, [] ) ->
+            Just (NoOptionsProvided (Internal.Field.identifier input))
 
         _ ->
             Nothing
-
-
-{-| Represents an error that occurred during decoding or validation.
--}
-type Error id val
-    = ValueTooLarge (Maybe id) { value : Value.Value val, max : Value.Value val }
-    | ValueTooSmall (Maybe id) { value : Value.Value val, min : Value.Value val }
-    | ValueNotInRange
-        (Maybe id)
-        { value : Value.Value val
-        , min : Value.Value val
-        , max : Value.Value val
-        }
-    | IsBlank (Maybe id)
-    | CustomError (Maybe id) String
-    | ListError (Maybe id) { index : Int, error : Error id val }
-    | InputNotFound id
-    | RepeatableHasNoName (Maybe id)
-    | IsGroupNotInput (Maybe id)
-    | NoOptionsProvided (Maybe id)
-    | ParseError (Maybe id)
 
 
 {-| Obtain the indentifier for the field corresponding to the error, if the

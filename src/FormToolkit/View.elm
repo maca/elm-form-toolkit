@@ -32,8 +32,8 @@ module FormToolkit.View exposing
 
 -}
 
-import FormToolkit.Field exposing (Field)
-import FormToolkit.Parse exposing (Error)
+import FormToolkit.Error exposing (Error)
+import FormToolkit.Field exposing (Field(..))
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
 import Internal.Field exposing (Msg(..))
@@ -61,7 +61,7 @@ type View id val msg
 
 -}
 fromField : (Msg id val -> msg) -> Field id val -> View id val msg
-fromField onChange field =
+fromField onChange (Field field) =
     View
         (Internal.View.init
             { events =
