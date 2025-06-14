@@ -63,7 +63,7 @@ toEnglish error =
             "Couldn't parse"
 
 
-{-| Obtain the indentifier for the field corresponding to the error, if the
+{-| Obtain the identifier for the field corresponding to the error, if the
 field has identifier.
 -}
 toFieldId : Error id val -> Maybe id

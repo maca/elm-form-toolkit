@@ -1,6 +1,6 @@
 # Form Toolkit
 
-A package for building, parsing and validating, and rendering forms.
+A package for building, parsing, validating, and rendering forms.
 
 Intends to
 
@@ -91,7 +91,7 @@ teamFields =
 
 init : Model
 init =
-    { -- You want to keep the stateful input group in your model, don't worry there are
+    { -- You want to keep the stateful input group in your model, don't worry, there are
       -- no functions or weird stuff in there
       formFields = teamFields
     , submitted = False
@@ -115,7 +115,7 @@ update msg model =
             { model
                 | submitted = True
 
-                -- Uses Input.name values as keys to build a json object
+                -- Uses Field.name values as keys to build a json object
                 , json =
                     Decode.decode Decode.json model.formFields
                         |> Result.toMaybe

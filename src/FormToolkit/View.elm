@@ -41,7 +41,7 @@ import Internal.View
 import RoseTree.Tree as Tree
 
 
-{-| A view is a way to configure the generated markdown for an `Field` or group
+{-| A view is a way to configure the generated markup for an `Field` or group
 of fields.
 -}
 type View id val msg

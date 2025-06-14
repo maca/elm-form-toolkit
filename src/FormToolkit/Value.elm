@@ -148,7 +148,7 @@ toInt (Value value) =
     Internal.toInt value
 
 
-{-| Convert poxis values to `Posix`.
+{-| Convert posix values to `Posix`.
 
     toPosix (time (Time.millisToPosix 0))
         == Just (Time.millisToPosix 0)
@@ -169,10 +169,10 @@ toCustom (Value value) =
 
 {-| Apply a function to a custom value preserving other kind of values.
 
-    mapCuston (Tuple.mapFirst not) (custom ( True, False ))
+    mapCustom (Tuple.mapFirst not) (custom ( True, False ))
         == custom ( False, False )
 
-    mapCuston (Tuple.mapFirst not) (int 1)
+    mapCustom (Tuple.mapFirst not) (int 1)
         == int 1
 
 -}

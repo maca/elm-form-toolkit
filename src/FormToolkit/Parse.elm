@@ -301,7 +301,7 @@ value =
 
 {-| Parses the custom value of an input.
 
-Tipically used for `select` or `radio` inputs with options of custom value, but
+Typically used for `select` or `radio` inputs with options of custom value, but
 also for autocompleatable text inputs where the inputted text corresponds to an
 option text.
 
@@ -353,7 +353,7 @@ customValue =
 Field `name` property will be used as the key, if an input name is not present
 the parser will fail.
 
-Usefull if you just one to forward the form values to a backend.
+Useful if you just want to forward the form values to a backend.
 
     import FormToolkit.Field as Field
     import FormToolkit.Value as Value

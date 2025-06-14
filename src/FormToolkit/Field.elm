@@ -588,13 +588,13 @@ options values =
 `datalist` for a [text](#text) field or [strictAutocomplete](#strictAutocomplete)
 to provide autocomplete suggestions.
 
-    flavourField : Field id ( Bool, Bool )
-    flavourField =
+    flavorField : Field id ( Bool, Bool )
+    flavorField =
         text
-            [ label "Favorite favour"
+            [ label "Favorite flavor"
             , stringOptions
                 [ "Chocolate"
-                , "Pistaccio"
+                , "Pistachio"
                 , "Caramel salt"
                 ]
             ]
@@ -745,7 +745,7 @@ updateAttribute attr (Field field) =
             [ value (Value.string "Chocolate")
             , stringOptions
                 [ "Chocolate"
-                , "Pistaccio"
+                , "Pistachio"
                 , "Caramel salt"
                 ]
             ]
