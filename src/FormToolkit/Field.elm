@@ -98,15 +98,15 @@ type Field id val
 
 {-| A message generated through interaction with an input.
 -}
-type alias Msg id val =
-    Internal.Field.Msg id val
+type Msg id val
+    = Msg (Internal.Field.Msg id val)
 
 
 {-| Updates a form by passing a decoder to validate and produce a result,
 and a [Msg](#Msg) to reflect user interactions.
 -}
 update : Msg id val -> Field id val -> Field id val
-update msg (Field field) =
+update (Msg msg) (Field field) =
     Field (Internal.Field.update msg field)
 
 
@@ -128,11 +128,11 @@ toHtml : (Msg id val -> msg) -> Field id val -> Html msg
 toHtml onChange (Field field) =
     Internal.View.init
         { events =
-            { onChange = \path val -> onChange (InputChanged path val)
-            , onFocus = onChange << InputFocused
-            , onBlur = onChange << InputBlured
-            , onAdd = onChange << InputsAdded
-            , onRemove = onChange << InputsRemoved
+            { onChange = \path val -> onChange (Msg (InputChanged path val))
+            , onFocus = onChange << Msg << InputFocused
+            , onBlur = onChange << Msg << InputBlured
+            , onAdd = onChange << Msg << InputsAdded
+            , onRemove = onChange << Msg << InputsRemoved
             }
         , path = []
         , field = field

@@ -1,8 +1,8 @@
-module FormToolkit.Error exposing (Error(..), toEnglish)
+module FormToolkit.Error exposing (Error(..), toEnglish, toFieldId)
 
 {-|
 
-@docs Error, toEnglish
+@docs Error, toEnglish, toFieldId
 
 -}
 
@@ -61,3 +61,43 @@ toEnglish error =
 
         _ ->
             "Couldn't parse"
+
+
+{-| Obtain the indentifier for the field corresponding to the error, if the
+field has identifier.
+-}
+toFieldId : Error id val -> Maybe id
+toFieldId error =
+    case error of
+        ValueTooLarge maybeId _ ->
+            maybeId
+
+        ValueTooSmall maybeId _ ->
+            maybeId
+
+        ValueNotInRange maybeId _ ->
+            maybeId
+
+        IsGroupNotInput maybeId ->
+            maybeId
+
+        IsBlank maybeId ->
+            maybeId
+
+        CustomError maybeId _ ->
+            maybeId
+
+        ListError maybeId _ ->
+            maybeId
+
+        InputNotFound id ->
+            Just id
+
+        RepeatableHasNoName maybeId ->
+            maybeId
+
+        NoOptionsProvided maybeId ->
+            maybeId
+
+        ParseError maybeId ->
+            maybeId

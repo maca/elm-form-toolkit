@@ -1,13 +1,13 @@
 module FormToolkit.Parse exposing
     ( Parser
+    , parse, validateAndParse
     , field
     , string, int, float, bool, posix, maybe, list
     , value, customValue, json
-    , succeed, fail, custom, format
+    , succeed, fail, custom
+    , format
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
-    , parse, validateAndParse
-    , errorToFieldIdentifier
     )
 
 {-| Map the values of an input or group of inputs to any shape you want, if you
@@ -16,24 +16,28 @@ know `Json.Decode` you know how to use this module ;)
 @docs Parser
 
 
-# Decoding functions
+# Parsing
 
+@docs parse, validateAndParse
 @docs field
+
+
+# Values
+
 @docs string, int, float, bool, posix, maybe, list
 @docs value, customValue, json
-@docs succeed, fail, custom, format
+@docs succeed, fail, custom
+
+
+# Validation
+
+@docs format
 
 
 # Maps, combinators and pipeline style decoding
 
 @docs map, map2, map3, map4, map5, map6, map7, map8
 @docs andThen, andMap
-
-
-# Decoding
-
-@docs parse, validateAndParse
-@docs errorToFieldIdentifier
 
 -}
 
@@ -989,43 +993,3 @@ checkOptionsProvided input =
 
         _ ->
             Nothing
-
-
-{-| Obtain the indentifier for the field corresponding to the error, if the
-field has identifier.
--}
-errorToFieldIdentifier : Error id val -> Maybe id
-errorToFieldIdentifier error =
-    case error of
-        ValueTooLarge maybeId _ ->
-            maybeId
-
-        ValueTooSmall maybeId _ ->
-            maybeId
-
-        ValueNotInRange maybeId _ ->
-            maybeId
-
-        IsGroupNotInput maybeId ->
-            maybeId
-
-        IsBlank maybeId ->
-            maybeId
-
-        CustomError maybeId _ ->
-            maybeId
-
-        ListError maybeId _ ->
-            maybeId
-
-        InputNotFound id ->
-            Just id
-
-        RepeatableHasNoName maybeId ->
-            maybeId
-
-        NoOptionsProvided maybeId ->
-            maybeId
-
-        ParseError maybeId ->
-            maybeId
