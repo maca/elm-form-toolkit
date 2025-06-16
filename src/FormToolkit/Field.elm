@@ -1,5 +1,5 @@
 module FormToolkit.Field exposing
-    ( Field(..), Msg, update, toHtml
+    ( Field(..), Msg(..), update, toHtml
     , text, textarea, email, password, strictAutocomplete
     , int, float
     , date, month

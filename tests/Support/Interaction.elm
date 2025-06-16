@@ -8,8 +8,9 @@ module Support.Interaction exposing
     , interact
     )
 
-import FormToolkit.Field as Input
-import FormToolkit.Parse as Decode
+import FormToolkit.Error exposing (Error(..))
+import FormToolkit.Field exposing (Field, Msg)
+import FormToolkit.Parse as Parse
 import FormToolkit.View as View
 import Html.Attributes exposing (name)
 import Json.Encode
@@ -19,9 +20,9 @@ import Test.Html.Selector exposing (attribute, containing, tag, text)
 
 
 type alias Interaction id val a =
-    { input : Input.Field id val
-    , decoder : Decode.Parser id val a
-    , result : Result (List (Decode.Error id val)) a
+    { input : Field id val
+    , decoder : Parse.Parser id val a
+    , result : Result (List (Error id val)) a
     }
 
 
@@ -50,16 +51,16 @@ findInput inputName =
     find [ attribute (name inputName) ]
 
 
-init : Decode.Parser id val a -> Input.Field id val -> Interaction id val a
+init : Parse.Parser id val a -> Field id val -> Interaction id val a
 init decoder input =
     { input = input
     , decoder = decoder
-    , result = Err [ Decode.CustomError Nothing "Not modified" ]
+    , result = Err [ CustomError Nothing "Not modified" ]
     }
 
 
 interact :
-    (Query.Single (Input.Msg id val) -> Query.Single (Input.Msg id val))
+    (Query.Single (Msg id val) -> Query.Single (Msg id val))
     -> ( String, Json.Encode.Value )
     -> Interaction id val a
     -> Interaction id val a
@@ -75,8 +76,12 @@ interact matcher event actions =
             matcher query
                 |> Event.simulate event
                 |> Event.toResult
-                |> Result.map (\msg -> Input.update actions.decoder msg actions.input)
-                |> Result.mapError (Decode.CustomError Nothing)
+                |> Result.map
+                    (\msg ->
+                        FormToolkit.Field.update msg actions.input
+                            |> Parse.validateAndParse actions.decoder
+                    )
+                |> Result.mapError (CustomError Nothing)
                 |> Result.withDefault ( actions.input, actions.result )
     in
     { actions | result = result, input = input }

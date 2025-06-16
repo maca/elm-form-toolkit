@@ -1,8 +1,9 @@
 module ParseTest exposing (suite)
 
 import Expect
+import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Field as Input
-import FormToolkit.Parse as Parse exposing (Error(..))
+import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode
@@ -125,7 +126,7 @@ suite =
             --                 ]
             --             )
             --             |> Result.withDefault Json.Encode.null
-            --             |> Json.Decode.decodeValue
+            --             |> Json.Parse.decodeValue
             --                 (Json.Decode.field "repeatable"
             --                     (Json.Decode.list groupWithNameDecoder)
             --                 )
@@ -235,7 +236,7 @@ suite =
                     let
                         { result } =
                             stringInput
-                                |> Interaction.init removeVowels
+                                |> Interaction.init (Parse.format removeVowels)
                                 |> fillInput "string-field"
                                     "the quick fox jumps over the lazy dog"
                                 |> fillInput "string-field"

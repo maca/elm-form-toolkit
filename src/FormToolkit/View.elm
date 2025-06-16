@@ -33,10 +33,10 @@ module FormToolkit.View exposing
 -}
 
 import FormToolkit.Error exposing (Error)
-import FormToolkit.Field exposing (Field(..))
+import FormToolkit.Field exposing (Field(..), Msg(..))
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
-import Internal.Field exposing (Msg(..))
+import Internal.Field
 import Internal.View
 import RoseTree.Tree as Tree
 
@@ -65,11 +65,14 @@ fromField onChange (Field field) =
     View
         (Internal.View.init
             { events =
-                { onChange = \path value -> onChange (InputChanged path value)
-                , onFocus = onChange << InputFocused
-                , onBlur = onChange << InputBlured
-                , onAdd = onChange << InputsAdded
-                , onRemove = onChange << InputsRemoved
+                { onChange =
+                    \path value ->
+                        onChange
+                            (Msg (Internal.Field.InputChanged path value))
+                , onFocus = onChange << Msg << Internal.Field.InputFocused
+                , onBlur = onChange << Msg << Internal.Field.InputBlured
+                , onAdd = onChange << Msg << Internal.Field.InputsAdded
+                , onRemove = onChange << Msg << Internal.Field.InputsRemoved
                 }
             , path = []
             , field = field
