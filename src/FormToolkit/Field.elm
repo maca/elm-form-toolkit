@@ -74,6 +74,7 @@ import Internal.Field
         , FieldType
         , Msg(..)
         )
+import Internal.Parse
 import Internal.View
 import RoseTree.Tree as Tree
 
@@ -107,7 +108,10 @@ and a [Msg](#Msg) to reflect user interactions.
 -}
 update : Msg id val -> Field id val -> Field id val
 update (Msg msg) (Field field) =
-    Field (Internal.Field.update msg field)
+    Field
+        (Internal.Field.update msg field
+            |> Internal.Parse.validate
+        )
 
 
 {-| Renders the form.
@@ -364,7 +368,7 @@ The markup includes buttons for adding and removing fields.
 Relevant attributes are [repeatableMin](#repeatableMin),
 [repeatableMax](#repeatableMax), and [copies](#copies).
 
-    import FormToolkit.Decode as Decode
+    import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
     emailsFields : Field id val
@@ -389,7 +393,7 @@ Relevant attributes are [repeatableMin](#repeatableMin),
                 )
             ]
 
-    emailsFields |> Decode.decode (Decode.list Decode.string)
+    emailsFields |> Parse.parse (Parse.list Parse.string)
     --> Ok [ "email@example.com", "other-email@example.com" ]
 
 -}
@@ -425,7 +429,28 @@ repeatable attributes (Field template) updates =
 
 init : FieldType id val (Error id val) -> List (Attribute id val) -> Field id val
 init inputType attributes =
-    Field (Tree.leaf (Internal.Field.init inputType (unwrapAttrs attributes)))
+    let
+        field =
+            Tree.leaf (Internal.Field.init inputType (unwrapAttrs attributes))
+
+        errored =
+            Internal.Field.setErrors
+                [ NoOptionsProvided (Internal.Field.identifier field)
+                ]
+                field
+    in
+    case ( Internal.Field.inputType field, Internal.Field.options field ) of
+        ( Internal.Field.Select, [] ) ->
+            Field errored
+
+        ( Internal.Field.Radio, [] ) ->
+            Field errored
+
+        ( Internal.Field.StrictAutocomplete, [] ) ->
+            Field errored
+
+        _ ->
+            Field field
 
 
 unwrapAttrs :
@@ -443,7 +468,7 @@ type Attribute id val
 
 {-| Sets the name of a field.
 
-        import FormToolkit.Decode as Decode
+        import FormToolkit.Parse as Parse
         import Json.Encode
 
         text
@@ -451,7 +476,7 @@ type Attribute id val
             , name "first-name"
             , value (Value.string "Chavela")
             ]
-            |> Decode.decode Decode.json
+            |> Parse.parse Parse.json
             |> Result.map (Json.Encode.encode 0)
             --> Ok "{\"first-name\":\"Chavela\"}"
 
@@ -468,7 +493,7 @@ customizing the rendering of a specific field or field error.
 Any type can be used as an identifier, but using a custom type is encouraged
 for added type safety.
 
-    import FormToolkit.Decode as Decode
+    import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
     type Fields
@@ -491,8 +516,8 @@ for added type safety.
             ]
 
     form
-        |> Decode.decode
-            (Decode.field FirstName Decode.string)
+        |> Parse.parse
+            (Parse.field FirstName Parse.string)
         --> Ok "Juan"
 
 -}
@@ -503,11 +528,11 @@ identifier id =
 
 {-| Sets the value of a field.
 
-    import FormToolkit.Decode as Decode
+    import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
     text [ label "Name", value (Value.string "Chavela") ]
-        |> Decode.decode Decode.string
+        |> Parse.parse Parse.string
         --> Ok "Chavela"
 
 -}
@@ -519,11 +544,11 @@ value (Value.Value inputValue) =
 {-| Marks a field as required, parsing and validation will fail and the missing
 field error will be displayed.
 
-    import FormToolkit.Decode as Decode
+    import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
     text [ label "First name" ]
-        |> Decode.decode (Decode.maybe Decode.string)
+        |> Parse.parse (Parse.maybe Parse.string)
         --> Ok Nothing
 
 -}
@@ -668,7 +693,7 @@ repeatableMax integer =
 field is found, returns the topmost field with the nested field updated by the
 provided function.
 
-    import FormToolkit.Decode as Decode
+    import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
     group []
@@ -682,8 +707,8 @@ provided function.
                 (value (Value.string "Updated"))
             )
         |> Maybe.map
-            (Decode.decode
-                (Decode.field "Field" Decode.string)
+            (Parse.parse
+                (Parse.field "Field" Parse.string)
             )
         --> Just (Ok "Updated")
 
@@ -717,13 +742,13 @@ updateBy id fn (Field field) =
 
 {-| Updates a field attribute.
 
-    import FormToolkit.Decode as Decode
+    import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
     text
         [ value (Value.string "Value") ]
         |> updateAttribute (value (Value.string "Updated"))
-        |> Decode.decode Decode.string
+        |> Parse.parse Parse.string
         --> Ok "Updated"
 
 -}
@@ -734,7 +759,7 @@ updateAttribute attr (Field field) =
 
 {-| Updates several field attributes.
 
-    import FormToolkit.Decode as Decode
+    import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
     text
@@ -749,7 +774,7 @@ updateAttribute attr (Field field) =
                 , "Caramel salt"
                 ]
             ]
-        |> Decode.decode Decode.string
+        |> Parse.parse Parse.string
         --> Ok "Chocolate"
 
 -}

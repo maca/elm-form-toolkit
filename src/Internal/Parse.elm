@@ -1,22 +1,21 @@
 module Internal.Parse exposing
-    ( Parser(..)
-    , field, string, maybe, list, json, custom, format
-    , map, map2, andThen, andMap
-    , parseValue, parse, validateAndParse
+    ( Parser(..), Partial(..)
+    , field, list, json, custom, format, maybe
+    , map, map2, andThen
+    , parseValue, parse, validateAndParse, validate
     )
 
 {-|
 
-@docs Parser
-@docs field, string, maybe, list, json, custom, format
-@docs map, map2, andThen, andMap
-@docs parseValue, parse, validateAndParse
+@docs Parser, Partial
+@docs field, list, json, custom, format, maybe
+@docs map, map2, andThen
+@docs parseValue, parse, validateAndParse, validate
 
 -}
 
 import Dict
 import FormToolkit.Error exposing (Error(..))
-import FormToolkit.Field exposing (Field(..))
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Value
@@ -26,17 +25,17 @@ import List.Extra
 import RoseTree.Tree as Tree
 
 
-type alias InternalField id val =
+type alias Field id val =
     Internal.Field.Field id val (Error id val)
 
 
 type Partial id val a
-    = Failure (InternalField id val) (List (Error id val))
-    | Success (InternalField id val) a
+    = Failure (Field id val) (List (Error id val))
+    | Success (Field id val) a
 
 
 type Parser id val a
-    = Parser (InternalField id val -> Partial id val a)
+    = Parser (Field id val -> Partial id val a)
 
 
 field : id -> Parser id val a -> Parser id val a
@@ -55,7 +54,7 @@ field id parser =
         )
 
 
-fieldHelp : id -> Parser id val a -> InternalField id val -> ( Maybe (Partial id val a), List Int )
+fieldHelp : id -> Parser id val a -> Field id val -> ( Maybe (Partial id val a), List Int )
 fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
@@ -107,8 +106,8 @@ list parser =
 
 listHelp :
     Parser id val a
-    -> InternalField id val
-    -> ( List (InternalField id val), Result (List (Error id val)) (List a) )
+    -> Field id val
+    -> ( List (Field id val), Result (List (Error id val)) (List a) )
 listHelp parser =
     Tree.children
         >> List.foldr
@@ -145,13 +144,13 @@ json =
         )
 
 
-jsonEncodeObject : InternalField id val -> Result (Error id val) Json.Encode.Value
+jsonEncodeObject : Field id val -> Result (Error id val) Json.Encode.Value
 jsonEncodeObject input =
     jsonEncodeHelp input [] |> Result.map Json.Encode.object
 
 
 jsonEncodeHelp :
-    InternalField id val
+    Field id val
     -> List ( String, Json.Decode.Value )
     -> Result (Error id val) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp input acc =
@@ -259,7 +258,7 @@ parseValue func =
         )
 
 
-parseHelp : (InternalField id val -> Result (Error id val) a) -> Parser id val a
+parseHelp : (Field id val -> Result (Error id val) a) -> Parser id val a
 parseHelp func =
     Parser
         (\input ->
@@ -272,7 +271,7 @@ parseHelp func =
         )
 
 
-failure : InternalField id val -> Error id val -> Partial id val a
+failure : Field id val -> Error id val -> Partial id val a
 failure input err =
     Failure (Internal.Field.setErrors [ err ] input) [ err ]
 
@@ -290,17 +289,12 @@ andThen func (Parser parser) =
         )
 
 
-andMap : Parser id val a -> Parser id val (a -> b) -> Parser id val b
-andMap a b =
-    map2 (|>) a b
-
-
 map : (a -> b) -> Parser id val a -> Parser id val b
 map func parser =
     Parser (mapHelp func parser)
 
 
-mapHelp : (a -> b) -> Parser id val a -> InternalField id val -> Partial id val b
+mapHelp : (a -> b) -> Parser id val a -> Field id val -> Partial id val b
 mapHelp func (Parser parser) input =
     case parser input of
         Success input2 a ->
@@ -333,11 +327,8 @@ map2 func a b =
         )
 
 
-{-| Parses an input using the given parser without applying field validations
-(required, min, max...).
--}
 parse : Parser id val a -> Field id val -> Result (List (Error id val)) a
-parse parser (Field input) =
+parse parser input =
     case apply parser input of
         Success _ a ->
             Ok a
@@ -346,56 +337,72 @@ parse parser (Field input) =
             Err errors
 
 
-{-| Validates and parses an input using the given parser.
--}
 validateAndParse :
     Parser id val a
     -> Field id val
     -> ( Field id val, Result (List (Error id val)) a )
-validateAndParse parser (Field input) =
+validateAndParse parser input =
     case apply (validateTree |> andThen (\() -> parser)) input of
         Success input2 a ->
-            ( Field input2, Ok a )
+            ( input2, Ok a )
 
         Failure input2 errors ->
-            ( Field input2, Err errors )
+            ( input2, Err errors )
+
+
+validate : Field id val -> Field id val
+validate input =
+    case apply validateTree input of
+        Success input2 _ ->
+            input2
+
+        Failure input2 _ ->
+            input2
 
 
 validateTree : Parser id val ()
 validateTree =
     Parser
-        (\input ->
-            let
-                validators =
-                    [ checkRequired, checkInRange, checkOptionsProvided ]
-
-                updated =
-                    Tree.map
-                        (\node ->
-                            case List.filterMap ((|>) node) validators of
-                                [] ->
-                                    node
-
-                                errors ->
-                                    Internal.Field.setErrors errors node
-                        )
-                        input
-            in
-            case Internal.Field.errors updated of
-                [] ->
-                    Success updated ()
-
-                errors ->
-                    Failure updated errors
+        (validateField
+            [ checkRequired
+            , checkInRange
+            , checkOptionsProvided
+            ]
         )
 
 
-apply : Parser id val a -> InternalField id val -> Partial id val a
+validateField :
+    List (Field id val -> Maybe (Error id val))
+    -> Field id val
+    -> Partial id val ()
+validateField validators input =
+    let
+        updated =
+            Tree.map
+                (\node ->
+                    case List.filterMap ((|>) node) validators of
+                        [] ->
+                            node
+
+                        errors ->
+                            Internal.Field.setErrors errors node
+                )
+                input
+    in
+    case Internal.Field.errors updated of
+        [] ->
+            Success updated ()
+
+        errors ->
+            Failure updated errors
+
+
+apply : Parser id val a -> Field id val -> Partial id val a
 apply (Parser parser) =
     parser
 
 
-checkRequired : InternalField id val -> Maybe (Error id val)
+checkRequired : Field id val -> Maybe (Error id val)
 checkRequired input =
     if
         Internal.Field.isRequired input
@@ -407,7 +414,7 @@ checkRequired input =
         Nothing
 
 
-checkInRange : InternalField id val -> Maybe (Error id val)
+checkInRange : Field id val -> Maybe (Error id val)
 checkInRange tree =
     let
         val =
@@ -456,7 +463,7 @@ checkInRange tree =
             Nothing
 
 
-checkOptionsProvided : InternalField id val -> Maybe (Error id val)
+checkOptionsProvided : Field id val -> Maybe (Error id val)
 checkOptionsProvided input =
     case
         ( Internal.Field.inputType input

@@ -41,10 +41,10 @@ know `Json.Decode` you know how to use this module ;)
 
 -}
 
-import FormToolkit.Error exposing (Error(..))
+import FormToolkit.Error exposing (Error)
 import FormToolkit.Field exposing (Field(..))
 import FormToolkit.Value as Value
-import Internal.Parse exposing (Parser(..))
+import Internal.Parse
 import Json.Decode
 import Time
 
@@ -364,7 +364,7 @@ parseValue func =
 
     wordsParser : Parser id val (List String)
     wordsParser =
-        int
+        string
             |> andThen
                 (\strValue ->
                     case String.words strValue of
@@ -601,6 +601,9 @@ map8 func a b c d e f g h =
 {-| Parses an input using the given parser without applying field validations
 (required, min, max...).
 
+    import FormToolkit.Field as Field exposing (Field)
+    import FormToolkit.Value as Value
+
     Field.text
         [ Field.value (Value.string "A string")
         , Field.required True
@@ -610,7 +613,7 @@ map8 func a b c d e f g h =
 
 -}
 parse : Parser id val a -> Field id val -> Result (List (Error id val)) a
-parse (Parser parser) input =
+parse (Parser parser) (Field input) =
     Internal.Parse.parse parser input
 
 
@@ -620,8 +623,9 @@ validateAndParse :
     Parser id val a
     -> Field id val
     -> ( Field id val, Result (List (Error id val)) a )
-validateAndParse (Parser parser) input =
+validateAndParse (Parser parser) (Field input) =
     Internal.Parse.validateAndParse parser input
+        |> Tuple.mapFirst Field
 
 
 unwrap : Parser id val b -> Internal.Parse.Parser id val b

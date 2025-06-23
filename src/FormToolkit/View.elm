@@ -354,7 +354,7 @@ customizeGroup viewFunc (View ({ attributes } as view)) =
 group of inputs and the and the button to add new inputs.
 
 To customize the template used to add a new input see
-[customizeRepeatingField](#customizeRepeatingField).
+[customizeRepeatingFieldTemplate](#customizeRepeatingFieldTemplate).
 
     view : View String val ()
     view =

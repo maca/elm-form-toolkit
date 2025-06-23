@@ -70,8 +70,11 @@ update msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                ( formFields, result ) =
-                    Field.update teamDecoder inputMsg model.formFields
+                formFields =
+                    Field.update inputMsg model.formFields
+
+                result =
+                    Parse.parse teamDecoder formFields
             in
             ( { model
                 | formFields = formFields

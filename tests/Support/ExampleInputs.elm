@@ -11,7 +11,6 @@ module Support.ExampleInputs exposing
     , checkboxInput
     , floatInput
     , groupWithName
-    , groupWithNoName
     , intInput
     , posixInput
     , radioInput
@@ -157,11 +156,6 @@ radioInput =
 groupWithName : Field FieldId val
 groupWithName =
     Input.group [ Input.name "group" ] [ stringInput, intInput ]
-
-
-groupWithNoName : Field FieldId val
-groupWithNoName =
-    Input.group [] [ stringInput, intInput ]
 
 
 type BandFields
