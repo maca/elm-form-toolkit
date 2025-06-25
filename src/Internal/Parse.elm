@@ -1,16 +1,16 @@
 module Internal.Parse exposing
     ( Parser(..), Partial(..)
-    , field, list, json, custom, format, maybe
+    , field, list, json, custom, maybe
     , map, map2, andThen
-    , parseValue, parse, validateAndParse, validate
+    , parseValue, parse, validate
     )
 
 {-|
 
 @docs Parser, Partial
-@docs field, list, json, custom, format, maybe
+@docs field, list, json, custom, maybe
 @docs map, map2, andThen
-@docs parseValue, parse, validateAndParse, validate
+@docs parseValue, parse, validate
 
 -}
 
@@ -67,9 +67,10 @@ fieldHelp id parser =
         ( Nothing, [] )
 
 
-string : Parser id val String
-string =
-    parseValue Value.toString
+
+-- string : Parser id val String
+-- string =
+--     parseValue Value.toString
 
 
 maybe : Parser id val a -> Parser id val (Maybe a)
@@ -211,28 +212,28 @@ custom func =
         )
 
 
-format : (String -> String) -> Parser id val String
-format func =
-    Parser
-        (\input ->
-            case
-                Internal.Field.value input
-                    |> Internal.Value.toString
-            of
-                Just str ->
-                    Success
-                        (Tree.updateValue
-                            (\attrs ->
-                                { attrs | value = Internal.Value.Text (func str) }
-                            )
-                            input
-                        )
-                        ()
 
-                Nothing ->
-                    Success input ()
-        )
-        |> andThen (\() -> string)
+-- format : (String -> String) -> Parser id val String
+-- format func =
+--     Parser
+--         (\input ->
+--             case
+--                 Internal.Field.value input
+--                     |> Internal.Value.toString
+--             of
+--                 Just str ->
+--                     Success
+--                         (Tree.updateValue
+--                             (\attrs ->
+--                                 { attrs | value = Internal.Value.Text (func str) }
+--                             )
+--                             input
+--                         )
+--                         ()
+--                 Nothing ->
+--                     Success input ()
+--         )
+--         |> andThen (\() -> string)
 
 
 parseValue : (Value.Value val -> Maybe a) -> Parser id val a
@@ -335,19 +336,6 @@ parse parser input =
 
         Failure _ errors ->
             Err errors
-
-
-validateAndParse :
-    Parser id val a
-    -> Field id val
-    -> ( Field id val, Result (List (Error id val)) a )
-validateAndParse parser input =
-    case apply (validateTree |> andThen (\() -> parser)) input of
-        Success input2 a ->
-            ( input2, Ok a )
-
-        Failure input2 errors ->
-            ( input2, Err errors )
 
 
 validate : Field id val -> Field id val

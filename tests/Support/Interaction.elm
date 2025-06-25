@@ -20,7 +20,7 @@ import Test.Html.Selector exposing (attribute, containing, tag, text)
 
 
 type alias Interaction id val a =
-    { input : Field id val
+    { field : Field id val
     , decoder : Parse.Parser id val a
     , result : Result (List (Error id val)) a
     }
@@ -53,7 +53,7 @@ findInput inputName =
 
 init : Parse.Parser id val a -> Field id val -> Interaction id val a
 init decoder input =
-    { input = input
+    { field = input
     , decoder = decoder
     , result = Err [ CustomError Nothing "Not modified" ]
     }
@@ -67,21 +67,26 @@ interact :
 interact matcher event actions =
     let
         query =
-            actions.input
+            actions.field
                 |> View.fromField identity
                 |> View.toHtml
                 |> Query.fromHtml
 
-        ( input, result ) =
+        ( field, result ) =
             matcher query
                 |> Event.simulate event
                 |> Event.toResult
                 |> Result.map
                     (\msg ->
-                        FormToolkit.Field.update msg actions.input
-                            |> Parse.validateAndParse actions.decoder
+                        let
+                            updated =
+                                FormToolkit.Field.update msg actions.field
+                        in
+                        ( updated
+                        , Parse.parse actions.decoder updated
+                        )
                     )
                 |> Result.mapError (CustomError Nothing)
-                |> Result.withDefault ( actions.input, actions.result )
+                |> Result.withDefault ( actions.field, actions.result )
     in
-    { actions | result = result, input = input }
+    { actions | result = result, field = field }

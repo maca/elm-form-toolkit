@@ -1,11 +1,10 @@
 module FormToolkit.Parse exposing
     ( Parser
-    , parse, validateAndParse
+    , parse
     , field
     , string, int, float, bool, posix, maybe, list
     , value, customValue, json
     , succeed, fail, custom
-    , format
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     )
@@ -18,7 +17,7 @@ know `Json.Decode` you know how to use this module ;)
 
 # Parsing
 
-@docs parse, validateAndParse
+@docs parse
 @docs field
 
 
@@ -27,11 +26,6 @@ know `Json.Decode` you know how to use this module ;)
 @docs string, int, float, bool, posix, maybe, list
 @docs value, customValue, json
 @docs succeed, fail, custom
-
-
-# Validation
-
-@docs format
 
 
 # Maps, combinators and pipeline style decoding
@@ -346,12 +340,6 @@ custom =
     Internal.Parse.custom >> Parser
 
 
-{-| -}
-format : (String -> String) -> Parser id val String
-format func =
-    Parser (Internal.Parse.format func)
-
-
 parseValue : (Value.Value val -> Maybe a) -> Parser id val a
 parseValue func =
     Parser (Internal.Parse.parseValue func)
@@ -615,17 +603,6 @@ map8 func a b c d e f g h =
 parse : Parser id val a -> Field id val -> Result (List (Error id val)) a
 parse (Parser parser) (Field input) =
     Internal.Parse.parse parser input
-
-
-{-| Validates and parses an input using the given parser.
--}
-validateAndParse :
-    Parser id val a
-    -> Field id val
-    -> ( Field id val, Result (List (Error id val)) a )
-validateAndParse (Parser parser) (Field input) =
-    Internal.Parse.validateAndParse parser input
-        |> Tuple.mapFirst Field
 
 
 unwrap : Parser id val b -> Internal.Parse.Parser id val b

@@ -49,11 +49,11 @@ suite =
             , test "shows validation feedback" <|
                 \_ ->
                     let
-                        { input } =
+                        { field } =
                             Interaction.init Decode.string blankInput
                                 |> blur "blank-field"
                     in
-                    input
+                    field
                         |> Input.toHtml (always never)
                         |> Query.fromHtml
                         |> Expect.all
@@ -171,11 +171,11 @@ suite =
             , test "shows validation feedback" <|
                 \_ ->
                     let
-                        { input } =
+                        { field } =
                             Interaction.init Decode.bool checkboxInput
                                 |> blur "checkbox"
                     in
-                    input
+                    field
                         |> Input.toHtml (always never)
                         |> Query.fromHtml
                         |> Expect.all
@@ -232,11 +232,11 @@ suite =
             , test "shows validation feedback" <|
                 \_ ->
                     let
-                        { input } =
+                        { field } =
                             Interaction.init Decode.string selectInput
                                 |> blur "select"
                     in
-                    input
+                    field
                         |> Input.toHtml (always never)
                         |> Query.fromHtml
                         |> Expect.all
@@ -310,13 +310,13 @@ suite =
             , test "has invalid options and errors after failed validation" <|
                 \_ ->
                     let
-                        { input } =
+                        { field } =
                             Interaction.init Decode.bool radioInput
                                 |> interact
                                     (Query.find [ id "radio-inputs-1-option" ])
                                     Event.blur
                     in
-                    input
+                    field
                         |> Input.toHtml (always never)
                         |> Query.fromHtml
                         |> Expect.all
