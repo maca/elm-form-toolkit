@@ -4,8 +4,8 @@ module Support.ExampleInputs exposing
     , FieldId(..)
     , Lang(..)
     , Person
-    , bandDecoder
     , bandFields
+    , bandParser
     , blankInput
     , boolInput
     , checkboxInput
@@ -19,8 +19,9 @@ module Support.ExampleInputs exposing
     , stringInputWithOptions
     )
 
+import Dict
 import FormToolkit.Field as Input exposing (Field)
-import FormToolkit.Parse as Decode
+import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Time
 
@@ -41,7 +42,7 @@ type Lang
     | DE
 
 
-stringInput : Field FieldId val
+stringInput : Field FieldId
 stringInput =
     Input.text
         [ Input.label "Enter your string"
@@ -53,7 +54,7 @@ stringInput =
         ]
 
 
-stringInputWithOptions : Field FieldId val
+stringInputWithOptions : Field FieldId
 stringInputWithOptions =
     Input.text
         [ Input.label "Enter your string"
@@ -66,7 +67,7 @@ stringInputWithOptions =
         ]
 
 
-intInput : Field FieldId val
+intInput : Field FieldId
 intInput =
     Input.text
         [ Input.label "Enter your int"
@@ -76,7 +77,7 @@ intInput =
         ]
 
 
-boolInput : Field FieldId val
+boolInput : Field FieldId
 boolInput =
     Input.text
         [ Input.label "Enter your bool"
@@ -85,7 +86,7 @@ boolInput =
         ]
 
 
-floatInput : Field FieldId val
+floatInput : Field FieldId
 floatInput =
     Input.text
         [ Input.label "Enter your float"
@@ -94,7 +95,7 @@ floatInput =
         ]
 
 
-posixInput : Field FieldId val
+posixInput : Field FieldId
 posixInput =
     Input.text
         [ Input.label "Enter your posix"
@@ -103,7 +104,7 @@ posixInput =
         ]
 
 
-blankInput : Field FieldId val
+blankInput : Field FieldId
 blankInput =
     Input.text
         [ Input.label "Enter nothing"
@@ -113,7 +114,7 @@ blankInput =
         ]
 
 
-checkboxInput : Field id val
+checkboxInput : Field id
 checkboxInput =
     Input.checkbox
         [ Input.label "Accept"
@@ -123,7 +124,7 @@ checkboxInput =
         ]
 
 
-selectInput : Field FieldId Lang
+selectInput : Field FieldId
 selectInput =
     Input.select
         [ Input.label "Language"
@@ -131,15 +132,11 @@ selectInput =
         , Input.name "select"
         , Input.identifier SelectField
         , Input.required True
-        , Input.options
-            [ ( "Español", Value.custom ES )
-            , ( "English", Value.custom EN )
-            , ( "Deutsch", Value.custom DE )
-            ]
+        , Input.stringOptions (List.map Tuple.first languages)
         ]
 
 
-radioInput : Field id val
+radioInput : Field id
 radioInput =
     Input.radio
         [ Input.label "Radio inputs"
@@ -153,7 +150,7 @@ radioInput =
         ]
 
 
-groupWithName : Field FieldId val
+groupWithName : Field FieldId
 groupWithName =
     Input.group [ Input.name "group" ] [ stringInput, intInput ]
 
@@ -165,7 +162,7 @@ type BandFields
     | MemberAge
 
 
-bandFields : Field BandFields val
+bandFields : Field BandFields
 bandFields =
     Input.group []
         [ Input.text
@@ -212,15 +209,38 @@ type alias Person =
     }
 
 
-bandDecoder : Decode.Parser BandFields val Band
-bandDecoder =
-    Decode.map2 Band
-        (Decode.field BandName Decode.string)
-        (Decode.field BandMembers (Decode.list personDecoder))
+bandParser : Parse.Parser BandFields Band
+bandParser =
+    Parse.map2 Band
+        (Parse.field BandName Parse.string)
+        (Parse.field BandMembers (Parse.list personParser))
 
 
-personDecoder : Decode.Parser BandFields val Person
-personDecoder =
-    Decode.map2 Person
-        (Decode.field MemberName Decode.string)
-        (Decode.field MemberAge Decode.int)
+personParser : Parse.Parser BandFields Person
+personParser =
+    Parse.map2 Person
+        (Parse.field MemberName Parse.string)
+        (Parse.field MemberAge Parse.int)
+
+
+languageParser : Parse.Parser id Lang
+languageParser =
+    let
+        languageDict =
+            Dict.fromList languages
+    in
+    Parse.string
+        |> Parse.andThen
+            (\langStr ->
+                Dict.get langStr languageDict
+                    |> Maybe.map Parse.succeed
+                    |> Maybe.withDefault (Parse.fail "Cannot find language")
+            )
+
+
+languages : List ( String, Lang )
+languages =
+    [ ( "Español", ES )
+    , ( "English", EN )
+    , ( "Deutsch", DE )
+    ]

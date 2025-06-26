@@ -2,10 +2,7 @@ module FormToolkit.Value exposing
     ( Value(..)
     , string, int, float, bool, blank
     , date, month, time
-    , custom
     , toString, toBool, toFloat, toInt, toPosix
-    , toCustom
-    , mapCustom
     )
 
 {-| Value is used to set default input values of type either string, integer,
@@ -17,18 +14,11 @@ float, boolean, date, month, or time.
 @docs Value
 @docs string, int, float, bool, blank
 @docs date, month, time
-@docs custom
 
 
 # Convert
 
 @docs toString, toBool, toFloat, toInt, toPosix
-@docs toCustom
-
-
-# Map
-
-@docs mapCustom
 
 -}
 
@@ -38,12 +28,12 @@ import Time exposing (Posix)
 
 
 {-| -}
-type Value val
-    = Value (Internal.Value val)
+type Value
+    = Value Internal.Value
 
 
 {-| -}
-string : String -> Value val
+string : String -> Value
 string str =
     String.nonBlank str
         |> Maybe.map (Value << Internal.Text)
@@ -51,51 +41,45 @@ string str =
 
 
 {-| -}
-int : Int -> Value val
+int : Int -> Value
 int =
     Value << Internal.fromInt
 
 
 {-| -}
-float : Float -> Value val
+float : Float -> Value
 float =
     Value << Internal.fromFloat
 
 
 {-| -}
-bool : Bool -> Value val
+bool : Bool -> Value
 bool =
     Value << Internal.fromBool
 
 
 {-| -}
-blank : Value val
+blank : Value
 blank =
     Value Internal.blank
 
 
 {-| -}
-date : Posix -> Value val
+date : Posix -> Value
 date =
     Value << Internal.Date
 
 
 {-| -}
-month : Posix -> Value val
+month : Posix -> Value
 month =
     Value << Internal.Month
 
 
 {-| -}
-time : Posix -> Value val
+time : Posix -> Value
 time =
     Value << Internal.Time
-
-
-{-| -}
-custom : val -> Value val
-custom =
-    Value << Internal.Custom
 
 
 {-| All values except for blank have a string representation.
@@ -107,7 +91,7 @@ custom =
     toString blank == Nothing
 
 -}
-toString : Value val -> Maybe String
+toString : Value -> Maybe String
 toString (Value value) =
     Internal.toString value
 
@@ -119,7 +103,7 @@ toString (Value value) =
     toBool (string "True") == Nothing
 
 -}
-toBool : Value val -> Maybe Bool
+toBool : Value -> Maybe Bool
 toBool (Value value) =
     Internal.toBool value
 
@@ -131,7 +115,7 @@ toBool (Value value) =
     toFloat (string "3.14") == Nothing
 
 -}
-toFloat : Value val -> Maybe Float
+toFloat : Value -> Maybe Float
 toFloat (Value value) =
     Internal.toFloat value
 
@@ -143,7 +127,7 @@ toFloat (Value value) =
     toInt (string "42") == Nothing
 
 -}
-toInt : Value val -> Maybe Int
+toInt : Value -> Maybe Int
 toInt (Value value) =
     Internal.toInt value
 
@@ -156,26 +140,6 @@ toInt (Value value) =
     toPosix blank == Nothing
 
 -}
-toPosix : Value val -> Maybe Time.Posix
+toPosix : Value -> Maybe Time.Posix
 toPosix (Value value) =
     Internal.toPosix value
-
-
-{-| -}
-toCustom : Value val -> Maybe val
-toCustom (Value value) =
-    Internal.toCustom value
-
-
-{-| Apply a function to a custom value preserving other kind of values.
-
-    mapCustom (Tuple.mapFirst not) (custom ( True, False ))
-        == custom ( False, False )
-
-    mapCustom (Tuple.mapFirst not) (int 1)
-        == int 1
-
--}
-mapCustom : (val1 -> val2) -> Value val1 -> Value val2
-mapCustom fun (Value value) =
-    Value (Internal.mapCustom fun value)

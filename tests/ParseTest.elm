@@ -37,23 +37,14 @@ suite =
                 \_ ->
                     Parse.parse Parse.posix posixInput
                         |> Expect.equal (Ok (Time.millisToPosix 0))
-            , test "decoding custom value" <|
-                \_ ->
-                    Input.select [ Input.value (Value.custom ES) ]
-                        |> Parse.parse Parse.customValue
-                        |> Expect.equal (Ok ES)
             , test "decoding custom value with field with options" <|
                 \_ ->
                     Input.select
                         [ Input.value (Value.string "Español")
-                        , Input.options
-                            [ ( "Español", Value.custom ES )
-                            , ( "English", Value.custom EN )
-                            , ( "Deutsch", Value.custom DE )
-                            ]
+                        , Input.stringOptions [ "Español", "English", "Deutsch" ]
                         ]
-                        |> Parse.parse Parse.customValue
-                        |> Expect.equal (Ok ES)
+                        |> Parse.parse Parse.string
+                        |> Expect.equal (Ok "Español")
             , test "decoding field by id" <|
                 \_ ->
                     Input.group [] [ stringInput ]

@@ -11,18 +11,18 @@ import FormToolkit.Value as Value
 
 {-| Represents an error that occurred during decoding or validation.
 -}
-type Error id val
-    = ValueTooLarge (Maybe id) { value : Value.Value val, max : Value.Value val }
-    | ValueTooSmall (Maybe id) { value : Value.Value val, min : Value.Value val }
+type Error id
+    = ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
+    | ValueTooSmall (Maybe id) { value : Value.Value, min : Value.Value }
     | ValueNotInRange
         (Maybe id)
-        { value : Value.Value val
-        , min : Value.Value val
-        , max : Value.Value val
+        { value : Value.Value
+        , min : Value.Value
+        , max : Value.Value
         }
     | IsBlank (Maybe id)
     | CustomError (Maybe id) String
-    | ListError (Maybe id) { index : Int, error : Error id val }
+    | ListError (Maybe id) { index : Int, error : Error id }
     | InputNotFound id
     | RepeatableHasNoName (Maybe id)
     | IsGroupNotInput (Maybe id)
@@ -31,7 +31,7 @@ type Error id val
 
 
 {-| -}
-toEnglish : Error id val -> String
+toEnglish : Error id -> String
 toEnglish error =
     let
         toString =
@@ -66,7 +66,7 @@ toEnglish error =
 {-| Obtain the identifier for the field corresponding to the error, if the
 field has identifier.
 -}
-toFieldId : Error id val -> Maybe id
+toFieldId : Error id -> Maybe id
 toFieldId error =
     case error of
         ValueTooLarge maybeId _ ->

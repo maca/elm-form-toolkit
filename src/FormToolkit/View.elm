@@ -44,8 +44,8 @@ import RoseTree.Tree as Tree
 {-| A view is a way to configure the generated markup for an `Field` or group
 of fields.
 -}
-type View id val msg
-    = View (Internal.View.View id val msg)
+type View id msg
+    = View (Internal.View.View id msg)
 
 
 {-| Construct a view from an `Field`.
@@ -60,7 +60,7 @@ type View id val msg
             |> View.toHtml
 
 -}
-fromField : (Msg id val -> msg) -> Field id val -> View id val msg
+fromField : (Msg id -> msg) -> Field id -> View id msg
 fromField onChange (Field field) =
     View
         (Internal.View.init
@@ -82,7 +82,7 @@ fromField onChange (Field field) =
 
 {-| Render a view
 -}
-toHtml : View id val msg -> Html msg
+toHtml : View id msg -> Html msg
 toHtml (View view) =
     Internal.View.toHtml view
 
@@ -110,7 +110,7 @@ Maybe you want to render segments of the same form in different UI sections.
             )
 
 -}
-partial : id -> View id val msg -> Maybe (View id val msg)
+partial : id -> View id msg -> Maybe (View id msg)
 partial id (View view) =
     Internal.View.partial id view |> Maybe.map View
 
@@ -185,9 +185,9 @@ field, or for fields of a certain type.
 
 -}
 customizeError :
-    ({ inputType : InputType, error : Error id val } -> String)
-    -> View id val msg
-    -> View id val msg
+    ({ inputType : InputType, error : Error id } -> String)
+    -> View id msg
+    -> View id msg
 customizeError viewFunc (View ({ attributes, field } as view)) =
     View
         { view
@@ -255,11 +255,11 @@ customizeField :
         , inputType : InputType
         , inputName : Maybe String
         , inputPlaceholder : Maybe String
-        , inputValue : Value val
-        , inputMin : Value val
-        , inputMax : Value val
-        , inputOptions : List ( String, Value val )
-        , inputOnChange : Value val -> msg
+        , inputValue : Value
+        , inputMin : Value
+        , inputMax : Value
+        , inputOptions : List ( String, Value )
+        , inputOnChange : Value -> msg
         , inputOnBlur : msg
         , inputOnFocus : msg
         , labelText : Maybe String
@@ -269,8 +269,8 @@ customizeField :
      }
      -> Html msg
     )
-    -> View id val msg
-    -> View id val msg
+    -> View id msg
+    -> View id msg
 customizeField viewFunc (View ({ attributes, field } as view)) =
     View
         { view
@@ -344,8 +344,8 @@ customizeGroup :
      }
      -> Html msg
     )
-    -> View id val msg
-    -> View id val msg
+    -> View id msg
+    -> View id msg
 customizeGroup viewFunc (View ({ attributes } as view)) =
     View { view | attributes = { attributes | groupView = viewFunc } }
 
@@ -395,8 +395,8 @@ customizeRepeatableFields :
      }
      -> Html msg
     )
-    -> View id val msg
-    -> View id val msg
+    -> View id msg
+    -> View id msg
 customizeRepeatableFields viewFunc (View ({ attributes, field } as view)) =
     View
         { view
@@ -460,8 +460,8 @@ customizeRepeatingFieldTemplate :
      }
      -> Html msg
     )
-    -> View id val msg
-    -> View id val msg
+    -> View id msg
+    -> View id msg
 customizeRepeatingFieldTemplate viewFunc (View ({ attributes, field } as view)) =
     View
         { view
@@ -531,7 +531,7 @@ type InputType
     | Checkbox
 
 
-fieldTypeToInputType : Internal.Field.FieldType id val err -> InputType
+fieldTypeToInputType : Internal.Field.FieldType id err -> InputType
 fieldTypeToInputType inputType =
     case inputType of
         Internal.Field.Text ->

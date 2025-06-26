@@ -22,24 +22,24 @@ import Json.Decode
 import RoseTree.Tree as Tree
 
 
-type alias Field id val =
-    Field.Field id val (Error id val)
+type alias Field id =
+    Field.Field id (Error id)
 
 
-type alias View id val msg =
-    { attributes : ViewAttributes id val msg
+type alias View id msg =
+    { attributes : ViewAttributes id msg
     , path : List Int
-    , field : Field id val
+    , field : Field id
     }
 
 
-type alias ViewAttributes id val msg =
-    { onChange : List Int -> Internal.Value.Value val -> msg
+type alias ViewAttributes id msg =
+    { onChange : List Int -> Internal.Value.Value -> msg
     , onFocus : List Int -> msg
     , onBlur : List Int -> msg
     , onAdd : List Int -> msg
     , onRemove : List Int -> msg
-    , errorToString : Error id val -> String
+    , errorToString : Error id -> String
     , fieldView : FieldView msg -> Html msg
     , groupView : GroupView id msg -> Html msg
     , repeatableFieldsGroupView : RepeatableFieldsGroupView msg -> Html msg
@@ -86,16 +86,16 @@ type alias RepeatableFieldView msg =
 
 init :
     { events :
-        { onChange : List Int -> Internal.Value.Value val -> msg
+        { onChange : List Int -> Internal.Value.Value -> msg
         , onFocus : List Int -> msg
         , onBlur : List Int -> msg
         , onAdd : List Int -> msg
         , onRemove : List Int -> msg
         }
     , path : List Int
-    , field : Field id val
+    , field : Field id
     }
-    -> View id val msg
+    -> View id msg
 init { events, path, field } =
     { attributes =
         { onChange = events.onChange
@@ -114,13 +114,13 @@ init { events, path, field } =
     }
 
 
-partial : id -> View id val msg -> Maybe (View id val msg)
+partial : id -> View id msg -> Maybe (View id msg)
 partial id { field, attributes } =
     findNode id field
         |> Maybe.map (\( found, path ) -> View attributes path found)
 
 
-findNode : id -> Field id val -> Maybe ( Field id val, List Int )
+findNode : id -> Field id -> Maybe ( Field id, List Int )
 findNode id =
     Tree.foldWithPath
         (\path node foundPath ->
@@ -133,7 +133,7 @@ findNode id =
         Nothing
 
 
-toHtml : View id val msg -> Html msg
+toHtml : View id msg -> Html msg
 toHtml { field, path, attributes } =
     let
         unwrappedField =
@@ -208,7 +208,7 @@ toHtml { field, path, attributes } =
             wrapInput (checkboxToHtml attributes path field)
 
 
-labelToHtml : Maybe String -> List Int -> Field id val -> (UserAttributes -> Html msg)
+labelToHtml : Maybe String -> List Int -> Field id -> (UserAttributes -> Html msg)
 labelToHtml label path input element =
     case label of
         Just str ->
@@ -223,7 +223,7 @@ labelToHtml label path input element =
             Html.text ""
 
 
-groupToHtml : ViewAttributes id val msg -> List Int -> Field id val -> Html msg
+groupToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
 groupToHtml attributes path input =
     let
         { identifier, label } =
@@ -240,7 +240,7 @@ groupToHtml attributes path input =
         }
 
 
-repeatableToHtml : ViewAttributes id val msg -> List Int -> Field id val -> Html msg
+repeatableToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
 repeatableToHtml attributes path input =
     let
         unwrappedField =
@@ -330,10 +330,10 @@ repeatableToHtml attributes path input =
 
 
 inputToHtml :
-    ViewAttributes id val msg
+    ViewAttributes id msg
     -> String
     -> List Int
-    -> Field id val
+    -> Field id
     -> List (Html.Attribute msg)
     -> (UserAttributes -> Html msg)
 inputToHtml attributes inputType path input htmlAttrs element =
@@ -374,9 +374,9 @@ inputToHtml attributes inputType path input htmlAttrs element =
 
 
 textAreaToHtml :
-    ViewAttributes id val msg
+    ViewAttributes id msg
     -> List Int
-    -> Field id val
+    -> Field id
     -> (UserAttributes -> Html msg)
 textAreaToHtml attributes path input element =
     let
@@ -436,9 +436,9 @@ textAreaToHtml attributes path input element =
 
 
 selectToHtml :
-    ViewAttributes id val msg
+    ViewAttributes id msg
     -> List Int
-    -> Field id val
+    -> Field id
     -> (UserAttributes -> Html msg)
 selectToHtml { onChange, onFocus, onBlur } path input element =
     let
@@ -471,9 +471,9 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
 
 
 radioToHtml :
-    ViewAttributes id val msg
+    ViewAttributes id msg
     -> List Int
-    -> Field id val
+    -> Field id
     -> (UserAttributes -> Html msg)
 radioToHtml { onChange, onFocus, onBlur } path input element =
     let
@@ -514,9 +514,9 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
 
 
 checkboxToHtml :
-    ViewAttributes id val msg
+    ViewAttributes id msg
     -> List Int
-    -> Field id val
+    -> Field id
     -> (UserAttributes -> Html msg)
 checkboxToHtml attributes path input element =
     Html.input
@@ -538,7 +538,7 @@ checkboxToHtml attributes path input element =
 
 valueAttribute :
     (String -> Html.Attribute msg)
-    -> Internal.Value.Value val
+    -> Internal.Value.Value
     -> Html.Attribute msg
 valueAttribute f inputValue =
     case inputValue of
@@ -551,7 +551,7 @@ valueAttribute f inputValue =
                 |> Maybe.withDefault (Attributes.class "")
 
 
-textInputHtmlAttributes : ViewAttributes id val msg -> List Int -> Field id val -> List (Html.Attribute msg)
+textInputHtmlAttributes : ViewAttributes id msg -> List Int -> Field id -> List (Html.Attribute msg)
 textInputHtmlAttributes attributes path input =
     List.concat
         [ if Field.isAutocompleteable input then
@@ -575,32 +575,32 @@ textInputHtmlAttributes attributes path input =
         ]
 
 
-inputId : Field id val -> List Int -> String
+inputId : Field id -> List Int -> String
 inputId input path =
     String.join "-" (Field.inputIdString input :: List.map String.fromInt path)
 
 
-labelId : Field id val -> List Int -> String
+labelId : Field id -> List Int -> String
 labelId input path =
     inputId input path ++ "-label"
 
 
-hintId : Field id val -> List Int -> String
+hintId : Field id -> List Int -> String
 hintId input path =
     inputId input path ++ "-hint"
 
 
-radioOptionId : Field id val -> List Int -> String
+radioOptionId : Field id -> List Int -> String
 radioOptionId input path =
     inputId input path ++ "-option"
 
 
-datalistId : Field id val -> List Int -> String
+datalistId : Field id -> List Int -> String
 datalistId input path =
     inputId input path ++ "-datalist"
 
 
-visibleErrors : Field id val -> List (Error id val)
+visibleErrors : Field id -> List (Error id)
 visibleErrors input =
     let
         { errors, status, inputType } =
@@ -718,14 +718,14 @@ userProvidedAttributes element =
         :: List.map (\( k, v ) -> Attributes.style k v) element.styles
 
 
-nameAttribute : Field id val -> Html.Attribute msg
+nameAttribute : Field id -> Html.Attribute msg
 nameAttribute input =
     Field.name input
         |> Maybe.map Attributes.name
         |> Maybe.withDefault (Attributes.class "")
 
 
-ariaDescribedByAttribute : Field id val -> List Int -> Html.Attribute msg
+ariaDescribedByAttribute : Field id -> List Int -> Html.Attribute msg
 ariaDescribedByAttribute input path =
     Field.hint input
         |> Maybe.map
@@ -733,7 +733,7 @@ ariaDescribedByAttribute input path =
         |> Maybe.withDefault (Attributes.class "")
 
 
-ariaLabeledByAttribute : Field id val -> List Int -> Html.Attribute msg
+ariaLabeledByAttribute : Field id -> List Int -> Html.Attribute msg
 ariaLabeledByAttribute input path =
     Field.label input
         |> Maybe.map
@@ -741,7 +741,7 @@ ariaLabeledByAttribute input path =
         |> Maybe.withDefault (Attributes.class "")
 
 
-ariaInvalidAttribute : Field id val -> Html.Attribute msg
+ariaInvalidAttribute : Field id -> Html.Attribute msg
 ariaInvalidAttribute input =
     if List.isEmpty (visibleErrors input) then
         Attributes.class ""

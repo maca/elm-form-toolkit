@@ -25,20 +25,20 @@ import List.Extra
 import RoseTree.Tree as Tree
 
 
-type alias Field id val =
-    Internal.Field.Field id val (Error id val)
+type alias Field id =
+    Internal.Field.Field id (Error id)
 
 
-type Partial id val a
-    = Failure (Field id val) (List (Error id val))
-    | Success (Field id val) a
+type Partial id a
+    = Failure (Field id) (List (Error id))
+    | Success (Field id) a
 
 
-type Parser id val a
-    = Parser (Field id val -> Partial id val a)
+type Parser id a
+    = Parser (Field id -> Partial id a)
 
 
-field : id -> Parser id val a -> Parser id val a
+field : id -> Parser id a -> Parser id a
 field id parser =
     Parser
         (\tree ->
@@ -54,7 +54,7 @@ field id parser =
         )
 
 
-fieldHelp : id -> Parser id val a -> Field id val -> ( Maybe (Partial id val a), List Int )
+fieldHelp : id -> Parser id a -> Field id -> ( Maybe (Partial id a), List Int )
 fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
@@ -73,7 +73,7 @@ fieldHelp id parser =
 --     parseValue Value.toString
 
 
-maybe : Parser id val a -> Parser id val (Maybe a)
+maybe : Parser id a -> Parser id (Maybe a)
 maybe parser =
     Parser
         (\input ->
@@ -85,7 +85,7 @@ maybe parser =
         )
 
 
-list : Parser id val a -> Parser id val (List a)
+list : Parser id a -> Parser id (List a)
 list parser =
     Parser
         (\input ->
@@ -106,9 +106,9 @@ list parser =
 
 
 listHelp :
-    Parser id val a
-    -> Field id val
-    -> ( List (Field id val), Result (List (Error id val)) (List a) )
+    Parser id a
+    -> Field id
+    -> ( List (Field id), Result (List (Error id)) (List a) )
 listHelp parser =
     Tree.children
         >> List.foldr
@@ -132,7 +132,7 @@ listHelp parser =
             ( [], Ok [] )
 
 
-json : Parser id val Json.Decode.Value
+json : Parser id Json.Decode.Value
 json =
     Parser
         (\input ->
@@ -145,15 +145,15 @@ json =
         )
 
 
-jsonEncodeObject : Field id val -> Result (Error id val) Json.Encode.Value
+jsonEncodeObject : Field id -> Result (Error id) Json.Encode.Value
 jsonEncodeObject input =
     jsonEncodeHelp input [] |> Result.map Json.Encode.object
 
 
 jsonEncodeHelp :
-    Field id val
+    Field id
     -> List ( String, Json.Decode.Value )
-    -> Result (Error id val) (List ( String, Json.Decode.Value ))
+    -> Result (Error id) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp input acc =
     let
         accumulate jsonValue =
@@ -202,7 +202,7 @@ jsonEncodeHelp input acc =
                     Ok acc
 
 
-custom : (Value.Value val -> Result String a) -> Parser id val a
+custom : (Value.Value -> Result String a) -> Parser id a
 custom func =
     parseHelp
         (\input ->
@@ -236,7 +236,7 @@ custom func =
 --         |> andThen (\() -> string)
 
 
-parseValue : (Value.Value val -> Maybe a) -> Parser id val a
+parseValue : (Value.Value -> Maybe a) -> Parser id a
 parseValue func =
     parseHelp
         (\input ->
@@ -259,7 +259,7 @@ parseValue func =
         )
 
 
-parseHelp : (Field id val -> Result (Error id val) a) -> Parser id val a
+parseHelp : (Field id -> Result (Error id) a) -> Parser id a
 parseHelp func =
     Parser
         (\input ->
@@ -272,12 +272,12 @@ parseHelp func =
         )
 
 
-failure : Field id val -> Error id val -> Partial id val a
+failure : Field id -> Error id -> Partial id a
 failure input err =
     Failure (Internal.Field.setErrors [ err ] input) [ err ]
 
 
-andThen : (a -> Parser id val b) -> Parser id val a -> Parser id val b
+andThen : (a -> Parser id b) -> Parser id a -> Parser id b
 andThen func (Parser parser) =
     Parser
         (\input ->
@@ -290,12 +290,12 @@ andThen func (Parser parser) =
         )
 
 
-map : (a -> b) -> Parser id val a -> Parser id val b
+map : (a -> b) -> Parser id a -> Parser id b
 map func parser =
     Parser (mapHelp func parser)
 
 
-mapHelp : (a -> b) -> Parser id val a -> Field id val -> Partial id val b
+mapHelp : (a -> b) -> Parser id a -> Field id -> Partial id b
 mapHelp func (Parser parser) input =
     case parser input of
         Success input2 a ->
@@ -305,7 +305,7 @@ mapHelp func (Parser parser) input =
             Failure input2 errors
 
 
-map2 : (a -> b -> c) -> Parser id val a -> Parser id val b -> Parser id val c
+map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
 map2 func a b =
     Parser
         (\input ->
@@ -328,9 +328,9 @@ map2 func a b =
         )
 
 
-parse : Parser id val a -> Field id val -> Result (List (Error id val)) a
+parse : Parser id a -> Field id -> Result (List (Error id)) a
 parse parser input =
-    case apply parser input of
+    case apply (validateTree |> andThen (always parser)) input of
         Success _ a ->
             Ok a
 
@@ -338,7 +338,7 @@ parse parser input =
             Err errors
 
 
-validate : Field id val -> Field id val
+validate : Field id -> Field id
 validate input =
     case apply validateTree input of
         Success input2 _ ->
@@ -348,7 +348,7 @@ validate input =
             input2
 
 
-validateTree : Parser id val ()
+validateTree : Parser id ()
 validateTree =
     Parser
         (validateField
@@ -360,9 +360,9 @@ validateTree =
 
 
 validateField :
-    List (Field id val -> Maybe (Error id val))
-    -> Field id val
-    -> Partial id val ()
+    List (Field id -> Maybe (Error id))
+    -> Field id
+    -> Partial id ()
 validateField validators input =
     let
         updated =
@@ -385,12 +385,12 @@ validateField validators input =
             Failure updated errors
 
 
-apply : Parser id val a -> Field id val -> Partial id val a
+apply : Parser id a -> Field id -> Partial id a
 apply (Parser parser) =
     parser
 
 
-checkRequired : Field id val -> Maybe (Error id val)
+checkRequired : Field id -> Maybe (Error id)
 checkRequired input =
     if
         Internal.Field.isRequired input
@@ -402,7 +402,7 @@ checkRequired input =
         Nothing
 
 
-checkInRange : Field id val -> Maybe (Error id val)
+checkInRange : Field id -> Maybe (Error id)
 checkInRange tree =
     let
         val =
@@ -451,7 +451,7 @@ checkInRange tree =
             Nothing
 
 
-checkOptionsProvided : Field id val -> Maybe (Error id val)
+checkOptionsProvided : Field id -> Maybe (Error id)
 checkOptionsProvided input =
     case
         ( Internal.Field.inputType input

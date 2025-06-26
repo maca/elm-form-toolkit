@@ -1,8 +1,10 @@
 module Chapters.Overview exposing (Model, Msg, chapter, init)
 
 import Debug
+import Dict exposing (Dict)
 import ElmBook.Actions exposing (..)
 import ElmBook.Chapter as Chapter exposing (Chapter)
+import FormToolkit.Error as Error
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
@@ -35,7 +37,7 @@ chapter =
 
 
 type alias Model =
-    { formFields : Field TeamFields Color
+    { formFields : Field TeamFields
     , submitted : Bool
     , team : Maybe Team
     }
@@ -50,7 +52,7 @@ type TeamFields
 
 
 type Msg
-    = FormChanged (Field.Msg TeamFields Color)
+    = FormChanged (Field.Msg TeamFields)
     | FormSubmitted
 
 
@@ -110,7 +112,7 @@ view model =
         ]
 
 
-teamFields : Field.Field TeamFields Color
+teamFields : Field.Field TeamFields
 teamFields =
     Field.group []
         [ Field.textarea
@@ -125,11 +127,7 @@ teamFields =
             , Field.required True
             , Field.identifier TeamColor
             , Field.name "team-color"
-            , Field.options
-                [ ( "red", Value.custom Red )
-                , ( "green", Value.custom Green )
-                , ( "blue", Value.custom Blue )
-                ]
+            , Field.stringOptions (colors |> List.map Tuple.first)
             ]
         , Field.group
             [ Field.label "Members (max 5)" ]
@@ -177,15 +175,36 @@ type alias Person =
     }
 
 
-teamDecoder : Parse.Parser TeamFields Color Team
+colors : List ( String, Color )
+colors =
+    [ ( "Red", Red )
+    , ( "Green", Green )
+    , ( "Blue", Blue )
+    ]
+
+
+teamDecoder : Parse.Parser TeamFields Team
 teamDecoder =
+    let
+        colorsDict =
+            Dict.fromList colors
+    in
     Parse.map3 Team
         (Parse.field TeamName Parse.string)
         (Parse.field TeamMembers (Parse.list personDecoder))
-        (Parse.field TeamColor Parse.customValue)
+        (Parse.field TeamColor
+            (Parse.string
+                |> Parse.andThen
+                    (\colorStr ->
+                        Dict.get colorStr colorsDict
+                            |> Maybe.map Parse.succeed
+                            |> Maybe.withDefault (Parse.fail "Cannot find color")
+                    )
+            )
+        )
 
 
-personDecoder : Parse.Parser TeamFields Color Person
+personDecoder : Parse.Parser TeamFields Person
 personDecoder =
     Parse.map2 Person
         (Parse.field MemberName Parse.string)

@@ -10,9 +10,9 @@ module FormToolkit.Field exposing
     , options, stringOptions, min, max, autogrow
     , noattr
     , copies, repeatableMin, repeatableMax
-    , updateBy, updateAttribute, updateAttributes
+    , updateWithId, updateAttribute, updateAttributes
     , errors
-    , map, mapValues
+    , map
     )
 
 {-| Provides types and functions to create form fields of various types, set
@@ -48,7 +48,7 @@ their attributes, update, and render them.
 
 # Update attributes
 
-@docs updateBy, updateAttribute, updateAttributes
+@docs updateWithId, updateAttribute, updateAttributes
 
 
 # Error
@@ -58,7 +58,7 @@ their attributes, update, and render them.
 
 # Mapping and composition
 
-@docs map, mapValues
+@docs map
 
 -}
 
@@ -93,20 +93,20 @@ Fields are preferably identified by a custom type but can also be identified by
 a `String`.
 
 -}
-type Field id val
-    = Field (Internal.Field.Field id val (Error id val))
+type Field id
+    = Field (Internal.Field.Field id (Error id))
 
 
 {-| A message generated through interaction with an input.
 -}
-type Msg id val
-    = Msg (Internal.Field.Msg id val)
+type Msg id
+    = Msg (Internal.Field.Msg id)
 
 
 {-| Updates a form by passing a decoder to validate and produce a result,
 and a [Msg](#Msg) to reflect user interactions.
 -}
-update : Msg id val -> Field id val -> Field id val
+update : Msg id -> Field id -> Field id
 update (Msg msg) (Field field) =
     Field
         (Internal.Field.update msg field
@@ -128,7 +128,7 @@ update (Msg msg) (Field field) =
             |> toHtml FieldsUpdated
 
 -}
-toHtml : (Msg id val -> msg) -> Field id val -> Html msg
+toHtml : (Msg id -> msg) -> Field id -> Html msg
 toHtml onChange (Field field) =
     Internal.View.init
         { events =
@@ -149,7 +149,7 @@ toHtml onChange (Field field) =
 [options](#options) can be provided to construct a `datalist` for autocomplete
 suggestions.
 
-    usernameField : Field id val
+    usernameField : Field id
     usernameField =
         text
             [ label "Username"
@@ -157,14 +157,14 @@ suggestions.
             ]
 
 -}
-text : List (Attribute id val) -> Field id val
+text : List (Attribute id val) -> Field id
 text =
     init Internal.Field.Text
 
 
 {-| Builds a Textarea input field.
 
-    commentsField : Field id val
+    commentsField : Field id
     commentsField =
         textarea
             [ label "Comments"
@@ -173,67 +173,56 @@ text =
             ]
 
 -}
-textarea : List (Attribute id val) -> Field id val
+textarea : List (Attribute id val) -> Field id
 textarea =
     init Internal.Field.TextArea
 
 
 {-| Builds an email input field.
 
-    emailField : Field id val
+    emailField : Field id
     emailField =
         email [ label "Email", required True ]
 
 -}
-email : List (Attribute id val) -> Field id val
+email : List (Attribute id val) -> Field id
 email =
     init Internal.Field.Email
 
 
 {-| Builds a password input field.
 
-    passwordField : Field id val
+    passwordField : Field id
     passwordField =
         password [ label "Password", required True ]
 
 -}
-password : List (Attribute id val) -> Field id val
+password : List (Attribute id val) -> Field id
 password =
     init Internal.Field.Password
 
 
-{-| Builds a text input field with strict autocomplete. If the input doesn't
+{-| Builds a text input field with strict autocomplete. If the user input doesn't
 match a provided option, the input value will be blank. The value can be of
 any type.
 
 For non-strict autocomplete, use [text](#text) with the [options](#options)
 attribute. For string value options, see [stringOptions](#stringOptions).
 
-    type Lang
-        = ES
-        | EN
-        | DE
-
-    languageField : Field id Lang
-    languageField =
-        strictAutocomplete
-            [ label "Language"
-            , options
-                [ ( "Español", Value.custom ES )
-                , ( "English", Value.custom EN )
-                , ( "Deutsch", Value.custom DE )
-                ]
-            ]
+    strictAutocomplete
+        [ label "Language"
+        , stringOptions [ "Español", "English", "Deutsch" ]
+        ]
 
 -}
-strictAutocomplete : List (Attribute id val) -> Field id val
+strictAutocomplete : List (Attribute id val) -> Field id
 strictAutocomplete =
     init Internal.Field.StrictAutocomplete
 
 
 {-| Builds an integer input field.
 
-    ageField : Field id val
+    ageField : Field id
     ageField =
         int
             [ label "Age"
@@ -242,74 +231,65 @@ strictAutocomplete =
             ]
 
 -}
-int : List (Attribute id val) -> Field id val
+int : List (Attribute id val) -> Field id
 int =
     init Internal.Field.Integer
 
 
 {-| Builds a floating-point number input field.
 
-    priceField : Field id val
+    priceField : Field id
     priceField =
         float [ label "Price", min (Value.float 0.0) ]
 
 -}
-float : List (Attribute id val) -> Field id val
+float : List (Attribute id val) -> Field id
 float =
     init Internal.Field.Float
 
 
 {-| Builds a date input field.
 
-    birthdateField : Field id val
+    birthdateField : Field id
     birthdateField =
         date [ label "Birthdate", required True ]
 
 -}
-date : List (Attribute id val) -> Field id val
+date : List (Attribute id val) -> Field id
 date =
     init Internal.Field.Date
 
 
 {-| Builds a month input field.
 
-    monthField : Field id val
+    monthField : Field id
     monthField =
         month [ label "Expiry Month" ]
 
 -}
-month : List (Attribute id val) -> Field id val
+month : List (Attribute id val) -> Field id
 month =
     init Internal.Field.Month
 
 
 {-| Builds a select input field (dropdown).
 
-    type Lang
-        = ES
-        | EN
-        | DE
-
-    langSelect : Field id Lang
+    langSelect : Field id
     langSelect =
         select
             [ label "Language"
-            , options
-                [ ( "Español", Value.custom ES )
-                , ( "English", Value.custom EN )
-                , ( "Deutsch", Value.custom DE )
-                ]
+            , stringOptions [ "Español", "English", "Deutsch" ]
             ]
 
 -}
-select : List (Attribute id val) -> Field id val
+select : List (Attribute id val) -> Field id
 select =
     init Internal.Field.Select
 
 
 {-| Builds a radio button input field.
 
-    lightOnField : Field id val
+    lightOnField : Field id
     lightOnField =
         radio
             [ label "Light is"
@@ -320,26 +300,26 @@ select =
             ]
 
 -}
-radio : List (Attribute id val) -> Field id val
+radio : List (Attribute id val) -> Field id
 radio =
     init Internal.Field.Radio
 
 
 {-| Builds a checkbox input field.
 
-    consentField : Field id val
+    consentField : Field id
     consentField =
         checkbox [ label "Subscribe to newsletter" ]
 
 -}
-checkbox : List (Attribute id val) -> Field id val
+checkbox : List (Attribute id val) -> Field id
 checkbox =
     init Internal.Field.Checkbox
 
 
 {-| Groups a list of fields.
 
-    nameFields : Field id val
+    nameFields : Field id
     nameFields =
         group
             [ name "person-name" ]
@@ -348,7 +328,7 @@ checkbox =
             ]
 
 -}
-group : List (Attribute id val) -> List (Field id val) -> Field id val
+group : List (Attribute id val) -> List (Field id) -> Field id
 group attributes =
     List.map (\(Field field) -> field)
         >> Tree.branch
@@ -371,7 +351,7 @@ Relevant attributes are [repeatableMin](#repeatableMin),
     import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
 
-    emailsFields : Field id val
+    emailsFields : Field id
     emailsFields =
         repeatable
             [ name "emails"
@@ -399,9 +379,9 @@ Relevant attributes are [repeatableMin](#repeatableMin),
 -}
 repeatable :
     List (Attribute id val)
-    -> Field id val
-    -> List (Field id val -> Field id val)
-    -> Field id val
+    -> Field id
+    -> List (Field id -> Field id)
+    -> Field id
 repeatable attributes (Field template) updates =
     let
         params =
@@ -427,7 +407,7 @@ repeatable attributes (Field template) updates =
     Field (Tree.branch params children)
 
 
-init : FieldType id val (Error id val) -> List (Attribute id val) -> Field id val
+init : FieldType id (Error id) -> List (Attribute id val) -> Field id
 init inputType attributes =
     let
         field =
@@ -455,7 +435,7 @@ init inputType attributes =
 
 unwrapAttrs :
     List (Attribute id val)
-    -> List (Attributes id val (Error id val) -> Attributes id val (Error id val))
+    -> List (Attributes id (Error id) -> Attributes id (Error id))
 unwrapAttrs =
     List.map (\(Attribute f) -> f)
 
@@ -463,7 +443,7 @@ unwrapAttrs =
 {-| Represents an attribute that can be applied to a field.
 -}
 type Attribute id val
-    = Attribute (Attributes id val (Error id val) -> Attributes id val (Error id val))
+    = Attribute (Attributes id (Error id) -> Attributes id (Error id))
 
 
 {-| Sets the name of a field.
@@ -500,7 +480,7 @@ for added type safety.
         = FirstName
         | LastName
 
-    form : Field Fields value
+    form : Field Fields
     form =
         group []
             [ text
@@ -536,7 +516,7 @@ identifier id =
         --> Ok "Chavela"
 
 -}
-value : Value.Value val -> Attribute id val
+value : Value.Value -> Attribute id val
 value (Value.Value inputValue) =
     Attribute (\field -> { field | value = inputValue })
 
@@ -583,21 +563,13 @@ hint str =
 `datalist` for a [text](#text) field or [strictAutocomplete](#strictAutocomplete)
 to provide autocomplete suggestions.
 
-    yesSelect : Field id ( Bool, Bool )
-    yesSelect =
-        select
-            [ label "Language"
-            , value (Value.custom ( True, True ))
-            , options
-                [ ( "Yes-yes", Value.custom ( True, True ) )
-                , ( "Yes-no", Value.custom ( True, False ) )
-                , ( "No-yes", Value.custom ( False, True ) )
-                , ( "No-no", Value.custom ( False, False ) )
-                ]
-            ]
+    select
+        [ label "Agreed?"
+        , options [ ( "Yes", Value.bool True ), ( "No", Value.bool False ) ]
+        ]
 
 -}
-options : List ( String, Value.Value val ) -> Attribute id val
+options : List ( String, Value.Value ) -> Attribute id val
 options values =
     Attribute
         (\field ->
@@ -633,7 +605,7 @@ stringOptions values =
 {-| Sets the minimum value for a field input if its value is scalar:
 `int`, `float`, `date`, `month`, or `time`.
 -}
-min : Value.Value val -> Attribute id val
+min : Value.Value -> Attribute id val
 min (Value.Value val) =
     Attribute (\field -> { field | min = val })
 
@@ -641,7 +613,7 @@ min (Value.Value val) =
 {-| Sets the maximum value for a field input if its value is scalar:
 `int`, `float`, `date`, `month`, or `time`.
 -}
-max : Value.Value val -> Attribute id val
+max : Value.Value -> Attribute id val
 max (Value.Value val) =
     Attribute (\field -> { field | max = val })
 
@@ -702,7 +674,7 @@ provided function.
             , value (Value.string "Value")
             ]
         ]
-        |> updateBy "Field"
+        |> updateWithId "Field"
             (updateAttribute
                 (value (Value.string "Updated"))
             )
@@ -713,8 +685,8 @@ provided function.
         --> Just (Ok "Updated")
 
 -}
-updateBy : id -> (Field id val -> Field id val) -> Field id val -> Maybe (Field id val)
-updateBy id fn (Field field) =
+updateWithId : id -> (Field id -> Field id) -> Field id -> Maybe (Field id)
+updateWithId id fn (Field field) =
     if
         Tree.any (\node -> Internal.Field.identifier node == Just id)
             field
@@ -752,9 +724,9 @@ updateBy id fn (Field field) =
         --> Ok "Updated"
 
 -}
-updateAttribute : Attribute id val -> Field id val -> Field id val
-updateAttribute attr (Field field) =
-    Field (Internal.Field.updateAttributes (unwrapAttrs [ attr ]) field)
+updateAttribute : Attribute id val -> Field id -> Field id
+updateAttribute attr =
+    updateAttributes [ attr ]
 
 
 {-| Updates several field attributes.
@@ -778,14 +750,17 @@ updateAttribute attr (Field field) =
         --> Ok "Chocolate"
 
 -}
-updateAttributes : List (Attribute id val) -> Field id val -> Field id val
+updateAttributes : List (Attribute id val) -> Field id -> Field id
 updateAttributes attrList (Field field) =
-    Field (Internal.Field.updateAttributes (unwrapAttrs attrList) field)
+    Field
+        (Internal.Field.updateAttributes (unwrapAttrs attrList) field
+            |> Internal.Parse.validate
+        )
 
 
 {-| Collects all errors from a field and its children.
 -}
-errors : Field id val -> List (Error id val)
+errors : Field id -> List (Error id)
 errors (Field field) =
     Internal.Field.errors field
 
@@ -802,7 +777,7 @@ with identifiers of different types.
         | TeamMembers
         | MemberFields PersonFields
 
-    personsFields : Field PersonFields val
+    personsFields : Field PersonFields
     personsFields =
         group []
             [ text
@@ -815,7 +790,7 @@ with identifiers of different types.
                 ]
             ]
 
-    teamFields : Field TeamFields val
+    teamFields : Field TeamFields
     teamFields =
         group []
             [ text
@@ -831,7 +806,7 @@ with identifiers of different types.
             ]
 
 -}
-map : (a -> b) -> Field a val -> Field b val
+map : (a -> b) -> Field a -> Field b
 map func (Field field) =
     Field
         (Tree.mapValues
@@ -840,7 +815,7 @@ map func (Field field) =
         )
 
 
-mapError : (a -> b) -> (Value.Value val1 -> Value.Value val2) -> Error a val1 -> Error b val2
+mapError : (a -> b) -> (Value.Value -> Value.Value) -> Error a -> Error b
 mapError transformId transformVal error =
     case error of
         ValueTooLarge id params ->
@@ -888,50 +863,3 @@ mapError transformId transformVal error =
 
         ParseError id ->
             ParseError (Maybe.map transformId id)
-
-
-{-| Maps all of the values of a field. Similar to [map](#map), which allows
-combining fields with different identifier types, `mapValues` enables composing
-fields with different value types.
-
-    import FormToolkit.Value as Value
-
-    (select
-        [ label "Language"
-        , value (Value.custom ( 1, False ))
-        , options
-            [ ( "Yes-yes", Value.custom ( 1, True ) )
-            , ( "Yes-no", Value.custom ( 1, False ) )
-            , ( "No-yes", Value.custom ( 0, True ) )
-            , ( "No-no", Value.custom ( 0, False ) )
-            ]
-        ]
-        |> mapValues (Value.mapCustom (Tuple.mapFirst String.fromInt))
-        )
-        == select
-            [ label "Language"
-            , value (Value.custom ( "1", False ))
-            , options
-                [ ( "Yes-yes", Value.custom ( "1", True ) )
-                , ( "Yes-no", Value.custom ( "1", False ) )
-                , ( "No-yes", Value.custom ( "0", True ) )
-                , ( "No-no", Value.custom ( "0", False ) )
-                ]
-            ]
-            --> True
-
--}
-mapValues : (Value.Value val1 -> Value.Value val2) -> Field id val1 -> Field id val2
-mapValues func (Field field) =
-    Field
-        (Tree.mapValues
-            (Internal.Field.map identity
-                (\val ->
-                    case func (Value.Value val) of
-                        Value.Value val_ ->
-                            val_
-                )
-                (mapError identity func)
-            )
-            field
-        )

@@ -2,7 +2,7 @@ module ViewTest exposing (suite)
 
 import Expect
 import FormToolkit.Field as Input
-import FormToolkit.Parse as Decode
+import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Html.Attributes as Attrs exposing (for, name, required)
 import Support.ExampleInputs exposing (..)
@@ -50,7 +50,7 @@ suite =
                 \_ ->
                     let
                         { field } =
-                            Interaction.init Decode.string blankInput
+                            Interaction.init Parse.string blankInput
                                 |> blur "blank-field"
                     in
                     field
@@ -113,29 +113,21 @@ suite =
                         { result } =
                             Input.strictAutocomplete
                                 [ Input.name "language"
-                                , Input.options
-                                    [ ( "Español", Value.custom ES )
-                                    , ( "English", Value.custom EN )
-                                    , ( "Deutsch", Value.custom DE )
-                                    ]
+                                , Input.stringOptions [ "Español", "English", "Deutsch" ]
                                 ]
-                                |> Interaction.init Decode.value
+                                |> Interaction.init Parse.string
                                 |> fillInput "language" "Español"
                     in
-                    Expect.equal result (Ok (Value.custom ES))
+                    Expect.equal result (Ok "Español")
             , test "requires strict value" <|
                 \_ ->
                     let
                         { result } =
                             Input.strictAutocomplete
                                 [ Input.name "language"
-                                , Input.options
-                                    [ ( "Español", Value.custom ES )
-                                    , ( "English", Value.custom EN )
-                                    , ( "Deutsch", Value.custom DE )
-                                    ]
+                                , Input.stringOptions [ "Español", "English", "Deutsch" ]
                                 ]
-                                |> Interaction.init Decode.value
+                                |> Interaction.init Parse.value
                                 |> fillInput "language" "Else"
                     in
                     Expect.equal result (Ok Value.blank)
@@ -172,7 +164,7 @@ suite =
                 \_ ->
                     let
                         { field } =
-                            Interaction.init Decode.bool checkboxInput
+                            Interaction.init Parse.bool checkboxInput
                                 |> blur "checkbox"
                     in
                     field
@@ -233,7 +225,7 @@ suite =
                 \_ ->
                     let
                         { field } =
-                            Interaction.init Decode.string selectInput
+                            Interaction.init Parse.string selectInput
                                 |> blur "select"
                     in
                     field
@@ -311,7 +303,7 @@ suite =
                 \_ ->
                     let
                         { field } =
-                            Interaction.init Decode.bool radioInput
+                            Interaction.init Parse.bool radioInput
                                 |> interact
                                     (Query.find [ id "radio-inputs-1-option" ])
                                     Event.blur
@@ -338,7 +330,7 @@ suite =
             \_ ->
                 let
                     { result } =
-                        Interaction.init bandDecoder bandFields
+                        Interaction.init bandParser bandFields
                             |> fillInput "band-name" "Love and Rockets"
                             |> fillInput "member-name" "Daniel Ash"
                             |> fillInput "member-age" "67"

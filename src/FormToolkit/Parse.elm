@@ -3,8 +3,8 @@ module FormToolkit.Parse exposing
     , parse
     , field
     , string, int, float, bool, posix, maybe, list
-    , value, customValue, json
-    , succeed, fail, custom
+    , value, json
+    , succeed, fail
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
     )
@@ -24,8 +24,8 @@ know `Json.Decode` you know how to use this module ;)
 # Values
 
 @docs string, int, float, bool, posix, maybe, list
-@docs value, customValue, json
-@docs succeed, fail, custom
+@docs value, json
+@docs succeed, fail
 
 
 # Maps, combinators and pipeline style decoding
@@ -46,8 +46,8 @@ import Time
 {-| A parser that takes a tree of input data and returns a parsed result or an
 error if the decoding fails.
 -}
-type Parser id val a
-    = Parser (Internal.Parse.Parser id val a)
+type Parser id a
+    = Parser (Internal.Parse.Parser id a)
 
 
 {-| Parse for a field with the given identifier using a provided parser.
@@ -59,7 +59,7 @@ type Parser id val a
         = FirstName
         | LastName
 
-    form : Field Fields val
+    form : Field Fields
     form =
         Field.group []
             [ Field.text
@@ -78,7 +78,7 @@ type Parser id val a
     --> Ok "Brian"
 
 -}
-field : id -> Parser id val a -> Parser id val a
+field : id -> Parser id a -> Parser id a
 field id (Parser parser) =
     Parser (Internal.Parse.field id parser)
 
@@ -93,7 +93,7 @@ field id (Parser parser) =
         --> Ok "A string"
 
 -}
-string : Parser id val String
+string : Parser id String
 string =
     parseValue Value.toString
 
@@ -108,7 +108,7 @@ string =
         --> Ok 10
 
 -}
-int : Parser id val Int
+int : Parser id Int
 int =
     parseValue Value.toInt
 
@@ -123,7 +123,7 @@ int =
         --> Ok 10.5
 
 -}
-float : Parser id val Float
+float : Parser id Float
 float =
     parseValue Value.toFloat
 
@@ -138,7 +138,7 @@ float =
         --> Ok True
 
 -}
-bool : Parser id val Bool
+bool : Parser id Bool
 bool =
     parseValue Value.toBool
 
@@ -146,7 +146,7 @@ bool =
 {-| Parses the input value as a
 [Time.Posix](https://package.elm-lang.org/packages/elm/time/latest/Time#Posix).
 -}
-posix : Parser id val Time.Posix
+posix : Parser id Time.Posix
 posix =
     parseValue Value.toPosix
 
@@ -165,7 +165,7 @@ posix =
         --> Ok Nothing
 
 -}
-maybe : Parser id val a -> Parser id val (Maybe a)
+maybe : Parser id a -> Parser id (Maybe a)
 maybe (Parser parser) =
     Parser (Internal.Parse.maybe parser)
 
@@ -186,7 +186,7 @@ maybe (Parser parser) =
         --> Ok [ "mango", "banana" ]
 
 -}
-list : Parser id val a -> Parser id val (List a)
+list : Parser id a -> Parser id (List a)
 list (Parser parser) =
     Parser (Internal.Parse.list parser)
 
@@ -201,58 +201,9 @@ list (Parser parser) =
         --> Ok (Value.string "A string")
 
 -}
-value : Parser id val (Value.Value val)
+value : Parser id Value.Value
 value =
     parseValue Just
-
-
-{-| Parses the custom value of an input.
-
-Typically used for `select` or `radio` inputs with options of custom value, but
-also for autocompleatable text inputs where the inputted text corresponds to an
-option text.
-
-    import FormToolkit.Field as Field exposing (Field)
-    import FormToolkit.Value as Value
-
-    type Lang
-        = ES
-        | EN
-        | DE
-
-    langSelect : Field id Lang
-    langSelect =
-        Field.select
-            [ Field.label "Language"
-            , Field.value (Value.custom ES)
-            , Field.options
-                [ ( "Español", Value.custom ES )
-                , ( "English", Value.custom EN )
-                , ( "Deutsch", Value.custom DE )
-                ]
-            ]
-
-    autocomplete : Field id Lang
-    autocomplete =
-        Field.text
-            [ Field.value (Value.string "English")
-            , Field.options
-                [ ( "Español", Value.custom ES )
-                , ( "English", Value.custom EN )
-                , ( "Deutsch", Value.custom DE )
-                ]
-            ]
-
-    langSelect |> parse customValue
-    --> Ok ES
-
-    autocomplete |> parse customValue
-    --> Ok EN
-
--}
-customValue : Parser id val val
-customValue =
-    parseValue Value.toCustom
 
 
 {-| Converts the entire input tree into a JSON
@@ -290,7 +241,7 @@ Useful if you just want to forward the form values to a backend.
         --> Ok "{\"first-name\":\"Brian\",\"last-name\":\"Eno\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
 -}
-json : Parser id val Json.Decode.Value
+json : Parser id Json.Decode.Value
 json =
     Parser Internal.Parse.json
 
@@ -305,7 +256,7 @@ decoding pipelines with [andMap](#andMap), or to chain parsers with
     type Special
         = SpecialValue
 
-    specialParse : Parser id val Special
+    specialParse : Parser id Special
     specialParse =
         string
             |> andThen
@@ -318,29 +269,30 @@ decoding pipelines with [andMap](#andMap), or to chain parsers with
                 )
 
 
-    Field.text [ Field.value (Value.string "special") ] |> parse specialParse
-    --> Ok SpecialValue
+    Field.text [ Field.value (Value.string "special") ]
+        |> parse specialParse
+        --> Ok SpecialValue
 
 -}
-succeed : a -> Parser id val a
+succeed : a -> Parser id a
 succeed a =
     custom (always (Ok a))
 
 
 {-| A parser that always fails with a custom error.
 -}
-fail : String -> Parser id val a
+fail : String -> Parser id a
 fail err =
     custom (always (Err err))
 
 
 {-| -}
-custom : (Value.Value val -> Result String a) -> Parser id val a
+custom : (Value.Value -> Result String a) -> Parser id a
 custom =
     Internal.Parse.custom >> Parser
 
 
-parseValue : (Value.Value val -> Maybe a) -> Parser id val a
+parseValue : (Value.Value -> Maybe a) -> Parser id a
 parseValue func =
     Parser (Internal.Parse.parseValue func)
 
@@ -350,7 +302,7 @@ parseValue func =
     import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
 
-    wordsParser : Parser id val (List String)
+    wordsParser : Parser id (List String)
     wordsParser =
         string
             |> andThen
@@ -369,7 +321,7 @@ parseValue func =
         --> Ok (["red", "green", "blue"])
 
 -}
-andThen : (a -> Parser id val b) -> Parser id val a -> Parser id val b
+andThen : (a -> Parser id b) -> Parser id a -> Parser id b
 andThen func (Parser parser) =
     Parser (Internal.Parse.andThen (func >> unwrap) parser)
 
@@ -390,7 +342,7 @@ andThen func (Parser parser) =
         | LastName
         | Age
 
-    form : Field Fields val
+    form : Field Fields
     form =
         Field.group []
             [ Field.text
@@ -407,7 +359,7 @@ andThen func (Parser parser) =
                 ]
             ]
 
-    personParse : Parser Fields val Person
+    personParse : Parser Fields Person
     personParse =
         succeed Person
             |> andMap (field FirstName string)
@@ -419,7 +371,7 @@ andThen func (Parser parser) =
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
-andMap : Parser id val a -> Parser id val (a -> b) -> Parser id val b
+andMap : Parser id a -> Parser id (a -> b) -> Parser id b
 andMap a b =
     map2 (|>) a b
 
@@ -434,7 +386,7 @@ andMap a b =
         --> Ok "A STRING"
 
 -}
-map : (a -> b) -> Parser id val a -> Parser id val b
+map : (a -> b) -> Parser id a -> Parser id b
 map func (Parser parser) =
     Parser (Internal.Parse.map func parser)
 
@@ -462,7 +414,7 @@ map func (Parser parser) =
         --> Ok ( "Iris", "Hefets" )
 
 -}
-map2 : (a -> b -> c) -> Parser id val a -> Parser id val b -> Parser id val c
+map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
 map2 func (Parser a) (Parser b) =
     Parser (Internal.Parse.map2 func a b)
 
@@ -478,14 +430,14 @@ map2 func (Parser a) (Parser b) =
         , age : Int
         }
 
-    personParse : Parser String val Person
+    personParse : Parser String Person
     personParse =
         map3 Person
             (field "FirstName" string)
             (field "LastName" string)
             (field "Age" int)
 
-    form : Field String val
+    form : Field String
     form =
         Field.group []
             [ Field.text
@@ -508,10 +460,10 @@ map2 func (Parser a) (Parser b) =
 -}
 map3 :
     (a -> b -> c -> out)
-    -> Parser id val a
-    -> Parser id val b
-    -> Parser id val c
-    -> Parser id val out
+    -> Parser id a
+    -> Parser id b
+    -> Parser id c
+    -> Parser id out
 map3 func a b c =
     map2 func a b |> andMap c
 
@@ -519,11 +471,11 @@ map3 func a b c =
 {-| -}
 map4 :
     (a -> b -> c -> d -> out)
-    -> Parser id val a
-    -> Parser id val b
-    -> Parser id val c
-    -> Parser id val d
-    -> Parser id val out
+    -> Parser id a
+    -> Parser id b
+    -> Parser id c
+    -> Parser id d
+    -> Parser id out
 map4 func a b c d =
     map3 func a b c |> andMap d
 
@@ -531,12 +483,12 @@ map4 func a b c d =
 {-| -}
 map5 :
     (a -> b -> c -> d -> e -> out)
-    -> Parser id val a
-    -> Parser id val b
-    -> Parser id val c
-    -> Parser id val d
-    -> Parser id val e
-    -> Parser id val out
+    -> Parser id a
+    -> Parser id b
+    -> Parser id c
+    -> Parser id d
+    -> Parser id e
+    -> Parser id out
 map5 func a b c d e =
     map4 func a b c d |> andMap e
 
@@ -544,13 +496,13 @@ map5 func a b c d e =
 {-| -}
 map6 :
     (a -> b -> c -> d -> e -> f -> out)
-    -> Parser id val a
-    -> Parser id val b
-    -> Parser id val c
-    -> Parser id val d
-    -> Parser id val e
-    -> Parser id val f
-    -> Parser id val out
+    -> Parser id a
+    -> Parser id b
+    -> Parser id c
+    -> Parser id d
+    -> Parser id e
+    -> Parser id f
+    -> Parser id out
 map6 func a b c d e f =
     map5 func a b c d e |> andMap f
 
@@ -558,14 +510,14 @@ map6 func a b c d e f =
 {-| -}
 map7 :
     (a -> b -> c -> d -> e -> f -> g -> out)
-    -> Parser id val a
-    -> Parser id val b
-    -> Parser id val c
-    -> Parser id val d
-    -> Parser id val e
-    -> Parser id val f
-    -> Parser id val g
-    -> Parser id val out
+    -> Parser id a
+    -> Parser id b
+    -> Parser id c
+    -> Parser id d
+    -> Parser id e
+    -> Parser id f
+    -> Parser id g
+    -> Parser id out
 map7 func a b c d e f g =
     map6 func a b c d e f |> andMap g
 
@@ -573,15 +525,15 @@ map7 func a b c d e f g =
 {-| -}
 map8 :
     (a -> b -> c -> d -> e -> f -> g -> h -> out)
-    -> Parser id val a
-    -> Parser id val b
-    -> Parser id val c
-    -> Parser id val d
-    -> Parser id val e
-    -> Parser id val f
-    -> Parser id val g
-    -> Parser id val h
-    -> Parser id val out
+    -> Parser id a
+    -> Parser id b
+    -> Parser id c
+    -> Parser id d
+    -> Parser id e
+    -> Parser id f
+    -> Parser id g
+    -> Parser id h
+    -> Parser id out
 map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
@@ -600,11 +552,11 @@ map8 func a b c d e f g h =
     --> Ok "A string"
 
 -}
-parse : Parser id val a -> Field id val -> Result (List (Error id val)) a
+parse : Parser id a -> Field id -> Result (List (Error id)) a
 parse (Parser parser) (Field input) =
     Internal.Parse.parse parser input
 
 
-unwrap : Parser id val b -> Internal.Parse.Parser id val b
+unwrap : Parser id b -> Internal.Parse.Parser id b
 unwrap (Parser parser) =
     parser
