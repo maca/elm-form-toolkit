@@ -202,6 +202,27 @@ groupWithNameDecoder =
 
 
 
+-- format : (String -> String) -> Parser id val String
+-- format func =
+--     Parser
+--         (\input ->
+--             case
+--                 Internal.Field.value input
+--                     |> Internal.Value.toString
+--             of
+--                 Just str ->
+--                     Success
+--                         (Tree.updateValue
+--                             (\attrs ->
+--                                 { attrs | value = Internal.Value.Text (func str) }
+--                             )
+--                             input
+--                         )
+--                         ()
+--                 Nothing ->
+--                     Success input ()
+--         )
+--         |> andThen (\() -> string)
 -- removeVowels : String -> String
 -- removeVowels =
 --     String.replace "a" ""

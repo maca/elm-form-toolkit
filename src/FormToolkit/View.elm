@@ -494,14 +494,14 @@ toAttrs =
     List.foldl (\(Attribute f) -> f) Internal.View.defaultAttributes
 
 
-{-| Apply a conditional list of classes
+{-| Apply a CSS class
 -}
 class : String -> Attribute msg
 class classStr =
     classList [ ( classStr, True ) ]
 
 
-{-| Apply a conditional list of classes
+{-| Apply a conditional list of CSS classes
 -}
 classList : List ( String, Bool ) -> Attribute msg
 classList classTuple =

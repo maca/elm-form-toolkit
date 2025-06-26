@@ -67,12 +67,6 @@ fieldHelp id parser =
         ( Nothing, [] )
 
 
-
--- string : Parser id val String
--- string =
---     parseValue Value.toString
-
-
 maybe : Parser id a -> Parser id (Maybe a)
 maybe parser =
     Parser
@@ -210,30 +204,6 @@ custom func =
                 |> Result.mapError
                     (CustomError (Internal.Field.identifier input))
         )
-
-
-
--- format : (String -> String) -> Parser id val String
--- format func =
---     Parser
---         (\input ->
---             case
---                 Internal.Field.value input
---                     |> Internal.Value.toString
---             of
---                 Just str ->
---                     Success
---                         (Tree.updateValue
---                             (\attrs ->
---                                 { attrs | value = Internal.Value.Text (func str) }
---                             )
---                             input
---                         )
---                         ()
---                 Nothing ->
---                     Success input ()
---         )
---         |> andThen (\() -> string)
 
 
 parseValue : (Value.Value -> Maybe a) -> Parser id a

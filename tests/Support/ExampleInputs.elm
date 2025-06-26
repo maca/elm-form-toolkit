@@ -20,7 +20,7 @@ module Support.ExampleInputs exposing
     )
 
 import Dict
-import FormToolkit.Field as Input exposing (Field)
+import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Time
@@ -44,106 +44,106 @@ type Lang
 
 stringInput : Field FieldId
 stringInput =
-    Input.text
-        [ Input.label "Enter your string"
-        , Input.identifier StringField
-        , Input.name "string-field"
-        , Input.value (Value.string "A string")
-        , Input.placeholder "String value"
-        , Input.hint "Must be a string"
+    Field.text
+        [ Field.label "Enter your string"
+        , Field.identifier StringField
+        , Field.name "string-field"
+        , Field.value (Value.string "A string")
+        , Field.placeholder "String value"
+        , Field.hint "Must be a string"
         ]
 
 
 stringInputWithOptions : Field FieldId
 stringInputWithOptions =
-    Input.text
-        [ Input.label "Enter your string"
-        , Input.identifier StringField
-        , Input.name "string-field"
-        , Input.value (Value.string "A string")
-        , Input.placeholder "String value"
-        , Input.hint "Must be a string"
-        , Input.stringOptions [ "red", "green", "blue" ]
+    Field.text
+        [ Field.label "Enter your string"
+        , Field.identifier StringField
+        , Field.name "string-field"
+        , Field.value (Value.string "A string")
+        , Field.placeholder "String value"
+        , Field.hint "Must be a string"
+        , Field.stringOptions [ "red", "green", "blue" ]
         ]
 
 
 intInput : Field FieldId
 intInput =
-    Input.text
-        [ Input.label "Enter your int"
-        , Input.identifier IntField
-        , Input.name "int-field"
-        , Input.value (Value.int 1)
+    Field.text
+        [ Field.label "Enter your int"
+        , Field.identifier IntField
+        , Field.name "int-field"
+        , Field.value (Value.int 1)
         ]
 
 
 boolInput : Field FieldId
 boolInput =
-    Input.text
-        [ Input.label "Enter your bool"
-        , Input.identifier BoolField
-        , Input.value (Value.bool True)
+    Field.text
+        [ Field.label "Enter your bool"
+        , Field.identifier BoolField
+        , Field.value (Value.bool True)
         ]
 
 
 floatInput : Field FieldId
 floatInput =
-    Input.text
-        [ Input.label "Enter your float"
-        , Input.identifier FloatField
-        , Input.value (Value.float 1.1)
+    Field.text
+        [ Field.label "Enter your float"
+        , Field.identifier FloatField
+        , Field.value (Value.float 1.1)
         ]
 
 
 posixInput : Field FieldId
 posixInput =
-    Input.text
-        [ Input.label "Enter your posix"
-        , Input.identifier PosixField
-        , Input.value (Value.time (Time.millisToPosix 0))
+    Field.text
+        [ Field.label "Enter your posix"
+        , Field.identifier PosixField
+        , Field.value (Value.time (Time.millisToPosix 0))
         ]
 
 
 blankInput : Field FieldId
 blankInput =
-    Input.text
-        [ Input.label "Enter nothing"
-        , Input.name "blank-field"
-        , Input.required True
-        , Input.identifier BlankField
+    Field.text
+        [ Field.label "Enter nothing"
+        , Field.name "blank-field"
+        , Field.required True
+        , Field.identifier BlankField
         ]
 
 
 checkboxInput : Field id
 checkboxInput =
-    Input.checkbox
-        [ Input.label "Accept"
-        , Input.hint "You have to check the box"
-        , Input.name "checkbox"
-        , Input.required True
+    Field.checkbox
+        [ Field.label "Accept"
+        , Field.hint "You have to check the box"
+        , Field.name "checkbox"
+        , Field.required True
         ]
 
 
 selectInput : Field FieldId
 selectInput =
-    Input.select
-        [ Input.label "Language"
-        , Input.hint "Select language"
-        , Input.name "select"
-        , Input.identifier SelectField
-        , Input.required True
-        , Input.stringOptions (List.map Tuple.first languages)
+    Field.select
+        [ Field.label "Language"
+        , Field.hint "Select language"
+        , Field.name "select"
+        , Field.identifier SelectField
+        , Field.required True
+        , Field.stringOptions (List.map Tuple.first languages)
         ]
 
 
 radioInput : Field id
 radioInput =
-    Input.radio
-        [ Input.label "Radio inputs"
-        , Input.name "radio-inputs"
-        , Input.required True
-        , Input.hint "Turn the light on or off"
-        , Input.options
+    Field.radio
+        [ Field.label "Radio inputs"
+        , Field.name "radio-inputs"
+        , Field.required True
+        , Field.hint "Turn the light on or off"
+        , Field.options
             [ ( "On", Value.bool True )
             , ( "Off", Value.bool False )
             ]
@@ -152,7 +152,7 @@ radioInput =
 
 groupWithName : Field FieldId
 groupWithName =
-    Input.group [ Input.name "group" ] [ stringInput, intInput ]
+    Field.group [ Field.name "group" ] [ stringInput, intInput ]
 
 
 type BandFields
@@ -164,31 +164,31 @@ type BandFields
 
 bandFields : Field BandFields
 bandFields =
-    Input.group []
-        [ Input.text
-            [ Input.label "Band Name"
-            , Input.required True
-            , Input.identifier BandName
-            , Input.name "band-name"
+    Field.group []
+        [ Field.text
+            [ Field.label "Band Name"
+            , Field.required True
+            , Field.identifier BandName
+            , Field.name "band-name"
             ]
-        , Input.group
-            [ Input.label "Members (max 5)" ]
-            [ Input.repeatable
-                [ Input.identifier BandMembers
-                , Input.repeatableMin 1
-                , Input.repeatableMax 5
-                , Input.name "band-members"
+        , Field.group
+            [ Field.label "Members (max 5)" ]
+            [ Field.repeatable
+                [ Field.identifier BandMembers
+                , Field.repeatableMin 1
+                , Field.repeatableMax 5
+                , Field.name "band-members"
                 ]
-                (Input.group []
-                    [ Input.text
-                        [ Input.label "Member Name"
-                        , Input.identifier MemberName
-                        , Input.name "member-name"
+                (Field.group []
+                    [ Field.text
+                        [ Field.label "Member Name"
+                        , Field.identifier MemberName
+                        , Field.name "member-name"
                         ]
-                    , Input.int
-                        [ Input.label "Member Age"
-                        , Input.identifier MemberAge
-                        , Input.name "member-age"
+                    , Field.int
+                        [ Field.label "Member Age"
+                        , Field.identifier MemberAge
+                        , Field.name "member-age"
                         ]
                     ]
                 )

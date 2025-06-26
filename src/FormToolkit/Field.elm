@@ -62,8 +62,6 @@ their attributes, update, and render them.
 
 -}
 
--- import Internal.View as View
-
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
@@ -413,7 +411,7 @@ init inputType attributes =
         field =
             Tree.leaf (Internal.Field.init inputType (unwrapAttrs attributes))
 
-        errored =
+        fieldWithMissingOptions =
             Internal.Field.setErrors
                 [ NoOptionsProvided (Internal.Field.identifier field)
                 ]
@@ -421,13 +419,13 @@ init inputType attributes =
     in
     case ( Internal.Field.inputType field, Internal.Field.options field ) of
         ( Internal.Field.Select, [] ) ->
-            Field errored
+            Field fieldWithMissingOptions
 
         ( Internal.Field.Radio, [] ) ->
-            Field errored
+            Field fieldWithMissingOptions
 
         ( Internal.Field.StrictAutocomplete, [] ) ->
-            Field errored
+            Field fieldWithMissingOptions
 
         _ ->
             Field field
