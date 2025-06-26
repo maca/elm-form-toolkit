@@ -4,7 +4,6 @@ import Expect
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
-import FormToolkit.View as View
 import Html.Attributes as Attrs exposing (for, name, required)
 import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)

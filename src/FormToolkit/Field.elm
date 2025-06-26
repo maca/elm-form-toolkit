@@ -69,7 +69,7 @@ import Internal.Field
     exposing
         ( Attributes
         , Field
-        , FieldType
+        , FieldType(..)
         , Msg(..)
         )
 import Internal.Parse
@@ -659,9 +659,7 @@ repeatableMax integer =
     Attribute (\field -> { field | repeatableMax = Just integer })
 
 
-{-| Finds a nested field by [identifier](#identifier) and, if the nested
-field is found, returns the topmost field with the nested field updated by the
-provided function.
+{-| Updates a field corresponding to [identifier](#identifier).
 
     import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
@@ -676,20 +674,20 @@ provided function.
             (updateAttribute
                 (value (Value.string "Updated"))
             )
-        |> Maybe.map
+        |> Result.andThen
             (Parse.parse
                 (Parse.field "Field" Parse.string)
             )
-        --> Just (Ok "Updated")
+        --> Ok "Updated"
 
 -}
-updateWithId : id -> (Field id -> Field id) -> Field id -> Maybe (Field id)
+updateWithId : id -> (Field id -> Field id) -> Field id -> Result (List (Error id)) (Field id)
 updateWithId id fn (Field field) =
     if
         Tree.any (\node -> Internal.Field.identifier node == Just id)
             field
     then
-        Just
+        Ok
             (field
                 |> Tree.map
                     (\node ->
@@ -707,7 +705,7 @@ updateWithId id fn (Field field) =
             )
 
     else
-        Nothing
+        Err [ InputNotFound id ]
 
 
 {-| Updates a field attribute.
