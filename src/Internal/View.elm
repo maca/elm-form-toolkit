@@ -54,6 +54,7 @@ type alias FieldView msg =
     , hint : UserAttributes -> Html msg
     , errors : List String
     , path : List Int
+    , class : String
     }
 
 
@@ -160,6 +161,7 @@ toHtml { field, path, attributes } =
                             Nothing ->
                                 Html.text ""
                 , path = path
+                , class = String.concat unwrappedField.classList
                 }
     in
     case unwrappedField.inputType of
@@ -671,10 +673,11 @@ repeatableFieldView { field, removeFieldsButton } =
 
 
 inputView : FieldView msg -> Html msg
-inputView { isRequired, label, input, errors, hint } =
+inputView { isRequired, label, input, errors, hint, class } =
     Html.div
         [ Attributes.class "field"
         , Attributes.classList [ ( "required", isRequired ) ]
+        , Attributes.class class
         ]
         [ label defaultAttributes
         , Html.div

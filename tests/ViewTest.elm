@@ -57,6 +57,17 @@ stringFieldTests =
                         , Query.find [ id "string-field-hint" ]
                             >> Query.has [ text "Must be a string" ]
                         ]
+        , test "class" <|
+            \_ ->
+                stringInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.has
+                            [ class "field"
+                            , class "styled-string-field"
+                            ]
+                        ]
         , test "validation feedback" <|
             \_ ->
                 let

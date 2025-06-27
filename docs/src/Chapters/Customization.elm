@@ -5,6 +5,7 @@ import ElmBook.Actions exposing (updateStateWithCmdWith)
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
+import FormToolkit.View as View
 import Html exposing (Html)
 import Html.Attributes as Attr exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
@@ -12,8 +13,9 @@ import Result
 import Support.Shipment
 import Support.ShipmentForm
     exposing
-        ( ShipmentFields(..)
-        , ShippingInformationFields(..)
+        ( AddressFields(..)
+        , CardFields(..)
+        , ShipmentFields(..)
         , shipmentFields
         , shipmentParser
         )
@@ -83,17 +85,52 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    let
+        fieldsView =
+            View.fromField FormChanged model.formFields
+    in
     Html.div
         []
-        [ Html.h1 []
-            [ Html.text "Customization"
-            ]
+        [ Html.h1 [] [ Html.text "Customization" ]
+        , creditCard fieldsView
         , Html.div
             [ Attr.class "milligram" ]
             [ Html.form
                 [ onSubmit FormSubmitted, novalidate True ]
-                [ Field.toHtml FormChanged model.formFields
+                [ View.toHtml fieldsView
                 , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
+                ]
+            ]
+        ]
+
+
+creditCard : View.View ShipmentFields msg -> Html msg
+creditCard fieldsView =
+    Html.div []
+        [ Html.div
+            [ Attr.class "credit-card-container" ]
+            [ Html.div
+                [ Attr.class "credit-card floating" ]
+                [ Html.div [ Attr.class "card-thickness-layer" ] []
+                , Html.div
+                    [ Attr.class "card-body" ]
+                    [ Html.div [ Attr.class "card-chip" ] []
+                    , View.partial (CardFields CardInfo) fieldsView
+                        |> Maybe.map View.toHtml
+                        |> Maybe.withDefault (Html.text "")
+                    , Html.div []
+                        [ Html.div
+                            [ Attr.class "card-holder-name text-emboss" ]
+                            [ Html.text "JOHN DOE" ]
+                        , Html.div
+                            [ Attr.class "card-number text-emboss" ]
+                            [ Html.text "1234-5678-9012-3456" ]
+                        , Html.div
+                            [ Attr.class "card-expiry-date text-emboss" ]
+                            [ Html.text "12/20" ]
+                        , Html.div [ Attr.class "card-mastercard-logo" ] []
+                        ]
+                    ]
                 ]
             ]
         ]

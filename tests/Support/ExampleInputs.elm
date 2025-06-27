@@ -19,7 +19,6 @@ module Support.ExampleInputs exposing
     , stringInputWithOptions
     )
 
-import Dict
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
@@ -51,6 +50,7 @@ stringInput =
         , Field.value (Value.string "A string")
         , Field.placeholder "String value"
         , Field.hint "Must be a string"
+        , Field.class "styled-string-field"
         ]
 
 
@@ -221,21 +221,6 @@ personParser =
     Parse.map2 Person
         (Parse.field MemberName Parse.string)
         (Parse.field MemberAge Parse.int)
-
-
-languageParser : Parse.Parser id Lang
-languageParser =
-    let
-        languageDict =
-            Dict.fromList languages
-    in
-    Parse.string
-        |> Parse.andThen
-            (\langStr ->
-                Dict.get langStr languageDict
-                    |> Maybe.map Parse.succeed
-                    |> Maybe.withDefault (Parse.fail "Cannot find language")
-            )
 
 
 languages : List ( String, Lang )

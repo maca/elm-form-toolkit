@@ -73,6 +73,7 @@ type alias Attributes id err =
     , addFieldsButtonCopy : String
     , removeFieldsButtonCopy : String
     , errors : List err
+    , classList : List String
     }
 
 
@@ -101,6 +102,7 @@ init inputType_ =
         , addFieldsButtonCopy = "Add"
         , removeFieldsButtonCopy = "Remove"
         , errors = []
+        , classList = []
         }
 
 
@@ -323,19 +325,19 @@ setErrors error =
         )
 
 
-map : (a -> b) -> (Value -> Value) -> (err1 -> err2) -> Attributes a err1 -> Attributes b err2
-map func valToVal errToErr input =
-    { inputType = mapFieldType func errToErr valToVal input.inputType
+map : (a -> b) -> (err1 -> err2) -> Attributes a err1 -> Attributes b err2
+map func errToErr input =
+    { inputType = mapFieldType func errToErr input.inputType
     , name = input.name
-    , value = valToVal input.value
+    , value = input.value
     , isRequired = input.isRequired
     , label = input.label
     , placeholder = input.placeholder
     , hint = input.hint
-    , min = valToVal input.min
-    , max = valToVal input.max
+    , min = input.min
+    , max = input.max
     , autogrow = input.autogrow
-    , options = List.map (Tuple.mapSecond valToVal) input.options
+    , options = input.options
     , identifier = Maybe.map func input.identifier
     , status = input.status
     , repeatableMin = input.repeatableMin
@@ -343,14 +345,15 @@ map func valToVal errToErr input =
     , addFieldsButtonCopy = input.addFieldsButtonCopy
     , removeFieldsButtonCopy = input.removeFieldsButtonCopy
     , errors = List.map errToErr input.errors
+    , classList = input.classList
     }
 
 
-mapFieldType : (a -> b) -> (err1 -> err2) -> (Value -> Value) -> FieldType a err1 -> FieldType b err2
-mapFieldType func errToErr valToVal inputType_ =
+mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
+mapFieldType func errToErr inputType_ =
     case inputType_ of
         Repeatable tree ->
-            Repeatable (Tree.mapValues (map func valToVal errToErr) tree)
+            Repeatable (Tree.mapValues (map func errToErr) tree)
 
         Text ->
             Text

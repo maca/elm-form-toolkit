@@ -28,6 +28,7 @@ type alias Address =
 
 type alias CardInformation =
     { cardType : CardType
+    , cardName : String
     , cardNumber : String
     , cvc : String
     , expireMonth : Int

@@ -8,7 +8,6 @@ import FormToolkit.Value as Value
 import Json.Decode
 import Json.Encode
 import Support.ExampleInputs exposing (..)
-import Support.Interaction exposing (..)
 import Test exposing (..)
 import Time
 

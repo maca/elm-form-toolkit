@@ -8,6 +8,7 @@ module FormToolkit.Field exposing
     , Attribute
     , name, identifier, value, required, label, placeholder, hint
     , options, stringOptions, min, max, autogrow
+    , class, classList
     , noattr
     , copies, repeatableMin, repeatableMax
     , updateWithId, updateAttribute, updateAttributes
@@ -38,6 +39,7 @@ their attributes, update, and render them.
 @docs Attribute
 @docs name, identifier, value, required, label, placeholder, hint
 @docs options, stringOptions, min, max, autogrow
+@docs class, classList
 @docs noattr
 
 
@@ -69,7 +71,7 @@ import Internal.Field
     exposing
         ( Attributes
         , Field
-        , FieldType(..)
+        , FieldType
         , Msg(..)
         )
 import Internal.Parse
@@ -461,7 +463,13 @@ type Attribute id val
 -}
 name : String -> Attribute id val
 name str =
-    Attribute (\field -> { field | name = Just str })
+    Attribute
+        (\field ->
+            { field
+                | name = Just str
+                , classList = str :: field.classList
+            }
+        )
 
 
 {-| Sets the identifier to be referenced when decoding a specific field,
@@ -621,6 +629,20 @@ max (Value.Value val) =
 autogrow : Bool -> Attribute id val
 autogrow shouldAutogrow =
     Attribute (\field -> { field | autogrow = shouldAutogrow })
+
+
+{-| Apply a CSS class
+-}
+class : String -> Attribute id val
+class str =
+    Attribute (\field -> { field | classList = str :: field.classList })
+
+
+{-| Apply a conditional list of CSS classes
+-}
+classList : List ( String, Bool ) -> Attribute id val
+classList classes =
+    class <| String.join " " <| List.map Tuple.first <| List.filter Tuple.second classes
 
 
 {-| An attribute that does nothing.
@@ -804,33 +826,29 @@ with identifiers of different types.
 -}
 map : (a -> b) -> Field a -> Field b
 map func (Field field) =
-    Field
-        (Tree.mapValues
-            (Internal.Field.map func identity (mapError func identity))
-            field
-        )
+    Field (Tree.mapValues (Internal.Field.map func (mapError func)) field)
 
 
-mapError : (a -> b) -> (Value.Value -> Value.Value) -> Error a -> Error b
-mapError transformId transformVal error =
+mapError : (a -> b) -> Error a -> Error b
+mapError transformId error =
     case error of
         ValueTooLarge id params ->
             ValueTooLarge (Maybe.map transformId id)
-                { value = transformVal params.value
-                , max = transformVal params.max
+                { value = params.value
+                , max = params.max
                 }
 
         ValueTooSmall id params ->
             ValueTooSmall (Maybe.map transformId id)
-                { value = transformVal params.value
-                , min = transformVal params.min
+                { value = params.value
+                , min = params.min
                 }
 
         ValueNotInRange id params ->
             ValueNotInRange (Maybe.map transformId id)
-                { value = transformVal params.value
-                , min = transformVal params.min
-                , max = transformVal params.max
+                { value = params.value
+                , min = params.min
+                , max = params.max
                 }
 
         IsGroupNotInput id ->
@@ -845,7 +863,7 @@ mapError transformId transformVal error =
         ListError id params ->
             ListError (Maybe.map transformId id)
                 { index = params.index
-                , error = mapError transformId transformVal params.error
+                , error = mapError transformId params.error
                 }
 
         RepeatableHasNoName id ->
