@@ -92,8 +92,7 @@ view model =
     Html.div
         []
         [ Html.h1 [] [ Html.text "Customization" ]
-
-        -- , creditCard fieldsView
+        , creditCard fieldsView
         , Html.div
             [ Attrs.class "milligram" ]
             [ Html.form
