@@ -8,7 +8,7 @@
     border-radius: 20px;
 }
 
-.credit-card {
+.credit-card-container .credit-card {
     font-size: 2rem;
     margin: auto;
     width: 453px;
@@ -22,13 +22,13 @@
     position: relative;
 }
 
-.card-body {
+.credit-card-container .card-body {
     padding: 0.75rem 1.75rem;
     position: relative;
     height: 100%;
 }
 
-.card-chip {
+.credit-card-container .card-chip {
     margin-top: 17px;
     margin-left: -1px;
     height: 40px;
@@ -37,16 +37,16 @@
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 32'%3E%3Cdefs%3E%3ClinearGradient id='chipBg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23F4D03F;stop-opacity:1' /%3E%3Cstop offset='30%25' style='stop-color:%23E8C547;stop-opacity:1' /%3E%3Cstop offset='70%25' style='stop-color:%23D4AC0D;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23B7950B;stop-opacity:1' /%3E%3C/linearGradient%3E%3ClinearGradient id='goldGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23FFD700;stop-opacity:1' /%3E%3Cstop offset='25%25' style='stop-color:%23FFED4E;stop-opacity:1' /%3E%3Cstop offset='50%25' style='stop-color:%23F9CA24;stop-opacity:1' /%3E%3Cstop offset='75%25' style='stop-color:%23F0932B;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23D4AC0D;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='36' height='32' rx='3' ry='3' fill='url(%23chipBg)' stroke='%23453E09' stroke-width='0.8'/%3E%3Cpath fill='url(%23goldGrad)' stroke='%232E2605' stroke-width='0.5' d='M32,30.426H4c-1.337,0-2.425-1.089-2.425-2.426V4c0-1.337,1.088-2.425,2.425-2.425h28 c1.337,0,2.426,1.088,2.426,2.425v24C34.426,29.337,33.337,30.426,32,30.426z M18.425,29.574H32c0.868,0,1.574-0.706,1.574-1.574 v-2.574H29c-0.113,0-0.221-0.045-0.301-0.125l-3.875-3.875h-6.399V29.574z M2.425,25.426V28c0,0.868,0.707,1.574,1.575,1.574h13.575 v-8.148h-6.398l-3.875,3.875c-0.08,0.08-0.188,0.125-0.301,0.125C7.001,25.426,2.425,25.426,2.425,25.426z M29.176,24.574h4.398 v-8.149h-10.148v4.399L29.176,24.574z M2.425,24.574h4.398l3.751-3.75v-4.399H2.425V24.574z M11.425,20.574h13.149v-9.149h-13.149 C11.425,11.425,11.425,20.574,11.425,20.574z M25.426,15.575h8.148v-8.15h-4.398l-3.75,3.751 C25.426,11.176,25.426,15.575,25.426,15.575z M2.425,15.575h8.149v-4.398l-3.75-3.752H2.425V15.575z M18.425,10.575h6.399 L28.699,6.7c0.08-0.08,0.188-0.125,0.301-0.125h4.574V4c0-0.868-0.706-1.575-1.574-1.575H18.425V10.575z M11.176,10.575h6.398v-8.15 H4C3.132,2.425,2.425,3.132,2.425,4v2.575H7c0.113,0,0.221,0.044,0.301,0.125L11.176,10.575z'/%3E%3C/svg%3E") no-repeat center center fixed;
 }
 
-.card-number {
+.credit-card-container .card-number {
     font-weight: bold;
     letter-spacing: 3px;
 }
 
-.card-expiry-date {
+.credit-card-container .card-expiry-date {
     font-weight: bold;
 }
 
-.text-emboss {
+.credit-card-container .text-emboss {
     text-shadow: 
         0 -1px 0 rgba(255, 125, 125, 0.4),
         0 1px 0 rgba(0, 0, 0, 1),
@@ -55,7 +55,7 @@
     color: #eee;
 }
 
-.card-mastercard-logo {
+.credit-card-container .card-mastercard-logo {
     height: 85px;
     width: 95px;
     float: right;

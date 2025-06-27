@@ -63,6 +63,7 @@ type alias GroupView id msg =
     , fields : List (Html msg)
     , identifier : Maybe id
     , errors : List String
+    , class : String
     }
 
 
@@ -161,7 +162,7 @@ toHtml { field, path, attributes } =
                             Nothing ->
                                 Html.text ""
                 , path = path
-                , class = String.concat unwrappedField.classList
+                , class = String.join " " unwrappedField.classList
                 }
     in
     case unwrappedField.inputType of
@@ -228,7 +229,7 @@ labelToHtml label path input element =
 groupToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
 groupToHtml attributes path input =
     let
-        { identifier, label } =
+        { identifier, label, classList } =
             Tree.value input
     in
     attributes.groupView
@@ -239,6 +240,7 @@ groupToHtml attributes path input =
                     (\idx -> View attributes (path ++ [ idx ]) >> toHtml)
         , identifier = identifier
         , errors = visibleErrors input |> List.map attributes.errorToString
+        , class = String.join " " classList
         }
 
 
@@ -632,8 +634,9 @@ visibleErrors input =
 
 
 groupView : GroupView id msg -> Html msg
-groupView { fields, legendText, errors } =
-    Html.fieldset []
+groupView { fields, legendText, errors, class } =
+    Html.fieldset
+        [ Attributes.class class ]
         (List.concat
             [ (case legendText of
                 Just str ->

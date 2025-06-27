@@ -3,8 +3,8 @@ module FormToolkit.View exposing
     , partial
     , Attribute, class, classList, style
     , InputType(..)
-    , customizeError, customizeField
-    , customizeGroup, customizeRepeatableFields, customizeRepeatingFieldTemplate
+    , customizeErrors, customizeFields
+    , customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
     )
 
 {-|
@@ -27,8 +27,8 @@ module FormToolkit.View exposing
 ## Markup customization
 
 @docs InputType
-@docs customizeError, customizeField
-@docs customizeGroup, customizeRepeatableFields, customizeRepeatingFieldTemplate
+@docs customizeErrors, customizeFields
+@docs customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
 
 -}
 
@@ -151,7 +151,7 @@ field, or for fields of a certain type.
                 ]
             ]
             |> View.fromField (always ())
-            |> View.customizeError
+            |> View.customizeErrors
                 (\{ inputType, error } ->
                     let
                         toString =
@@ -184,11 +184,11 @@ field, or for fields of a certain type.
                 )
 
 -}
-customizeError :
+customizeErrors :
     ({ inputType : InputType, error : Error id } -> String)
     -> View id msg
     -> View id msg
-customizeError viewFunc (View ({ attributes, field } as view)) =
+customizeErrors viewFunc (View ({ attributes, field } as view)) =
     View
         { view
             | attributes =
@@ -221,7 +221,7 @@ The example bellow would render the input exactly as it normaly renders :P
     view =
         Field.text [ Field.label "Name" ]
             |> View.fromField (always ())
-            |> customizeField
+            |> customizeFields
                 (\{ isRequired, label, input, errors, hint } ->
                     Html.div
                         [ Attributes.class "field"
@@ -244,12 +244,13 @@ The example bellow would render the input exactly as it normaly renders :P
                 )
 
 -}
-customizeField :
+customizeFields :
     ({ isRequired : Bool
      , label : List (Attribute msg) -> Html msg
      , input : List (Attribute msg) -> Html msg
      , hint : List (Attribute msg) -> Html msg
      , errors : List String
+     , class : String
      , advanced :
         { identifier : Maybe id
         , inputType : InputType
@@ -271,7 +272,7 @@ customizeField :
     )
     -> View id msg
     -> View id msg
-customizeField viewFunc (View ({ attributes, field } as view)) =
+customizeFields viewFunc (View ({ attributes, field } as view)) =
     View
         { view
             | attributes =
@@ -286,8 +287,9 @@ customizeField viewFunc (View ({ attributes, field } as view)) =
                                 { isRequired = params.isRequired
                                 , label = toAttrs >> params.label
                                 , input = toAttrs >> params.input
-                                , hint = toAttrs >> params.input
-                                , errors = []
+                                , hint = toAttrs >> params.hint
+                                , errors = params.errors
+                                , class = String.join " " unwrappedField.classList
                                 , advanced =
                                     { identifier = unwrappedField.identifier
                                     , inputName = unwrappedField.name
@@ -336,17 +338,18 @@ customizeField viewFunc (View ({ attributes, field } as view)) =
                 )
 
 -}
-customizeGroup :
+customizeGroups :
     ({ legendText : Maybe String
      , fields : List (Html msg)
      , identifier : Maybe id
      , errors : List String
+     , class : String
      }
      -> Html msg
     )
     -> View id msg
     -> View id msg
-customizeGroup viewFunc (View ({ attributes } as view)) =
+customizeGroups viewFunc (View ({ attributes } as view)) =
     View { view | attributes = { attributes | groupView = viewFunc } }
 
 
@@ -354,7 +357,7 @@ customizeGroup viewFunc (View ({ attributes } as view)) =
 group of inputs and the and the button to add new inputs.
 
 To customize the template used to add a new input see
-[customizeRepeatingFieldTemplate](#customizeRepeatingFieldTemplate).
+[customizeRepeatingFieldTemplates](#customizeRepeatingFieldTemplates).
 
     view : View String val ()
     view =
@@ -387,6 +390,7 @@ customizeRepeatableFields :
      , fields : List (Html msg)
      , addFieldsButton : List (Attribute msg) -> Html msg
      , errors : List String
+     , class : String
      , advanced :
         { identifier : Maybe id
         , addFieldsButtonOnClick : Maybe msg
@@ -413,6 +417,7 @@ customizeRepeatableFields viewFunc (View ({ attributes, field } as view)) =
                                 , fields = params.fields
                                 , addFieldsButton = params.addFieldsButton << toAttrs
                                 , errors = params.errors
+                                , class = String.join " " unwrappedField.classList
                                 , advanced =
                                     { identifier = unwrappedField.identifier
                                     , addFieldsButtonOnClick = params.addFieldsButtonOnClick
@@ -448,7 +453,7 @@ To customize the group of inputs see
                 )
 
 -}
-customizeRepeatingFieldTemplate :
+customizeRepeatingFieldTemplates :
     ({ field : Html msg
      , removeFieldsButton : List (Attribute msg) -> Html msg
      , advanced :
@@ -462,7 +467,7 @@ customizeRepeatingFieldTemplate :
     )
     -> View id msg
     -> View id msg
-customizeRepeatingFieldTemplate viewFunc (View ({ attributes, field } as view)) =
+customizeRepeatingFieldTemplates viewFunc (View ({ attributes, field } as view)) =
     View
         { view
             | attributes =

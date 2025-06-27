@@ -1,7 +1,6 @@
 module Support.Shipment exposing
     ( Address
     , CardInformation
-    , CardType(..)
     , Recipient
     , Shipment
     )
@@ -21,14 +20,14 @@ type alias Address =
     , lastName : String
     , address : String
     , address2 : String
+    , postalCode : String
     , state : String
     , country : Country
     }
 
 
 type alias CardInformation =
-    { cardType : CardType
-    , cardName : String
+    { cardName : String
     , cardNumber : String
     , cvc : String
     , expireMonth : Int
@@ -40,9 +39,3 @@ type alias Recipient =
     { email : String
     , name : String
     }
-
-
-type CardType
-    = Visa
-    | AmericanExpress
-    | Discover

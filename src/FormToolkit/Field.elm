@@ -77,6 +77,7 @@ import Internal.Field
 import Internal.Parse
 import Internal.View
 import RoseTree.Tree as Tree
+import String.Extra
 
 
 {-| Represents a form field element, which can be an individual field or a group
@@ -463,13 +464,10 @@ type Attribute id val
 -}
 name : String -> Attribute id val
 name str =
-    Attribute
-        (\field ->
-            { field
-                | name = Just str
-                , classList = str :: field.classList
-            }
-        )
+    combineAttrs
+        -- NOT TESTED
+        (class (dasherize str))
+        (Attribute (\field -> { field | name = Just (dasherize str) }))
 
 
 {-| Sets the identifier to be referenced when decoding a specific field,
@@ -548,7 +546,10 @@ a group or repeatable fields group.
 -}
 label : String -> Attribute id val
 label str =
-    Attribute (\field -> { field | label = Just str })
+    combineAttrs
+        -- NOT TESTED
+        (class (dasherize str))
+        (Attribute (\field -> { field | label = Just str }))
 
 
 {-| Sets the placeholder text of a field.
@@ -635,14 +636,19 @@ autogrow shouldAutogrow =
 -}
 class : String -> Attribute id val
 class str =
-    Attribute (\field -> { field | classList = str :: field.classList })
+    Attribute
+        (\field ->
+            { field | classList = str :: field.classList }
+        )
 
 
 {-| Apply a conditional list of CSS classes
 -}
 classList : List ( String, Bool ) -> Attribute id val
-classList classes =
-    class <| String.join " " <| List.map Tuple.first <| List.filter Tuple.second classes
+classList =
+    List.filter Tuple.second
+        >> List.map (Tuple.first >> class)
+        >> List.foldl combineAttrs noattr
 
 
 {-| An attribute that does nothing.
@@ -650,6 +656,11 @@ classList classes =
 noattr : Attribute id val
 noattr =
     Attribute identity
+
+
+combineAttrs : Attribute id val -> Attribute id val -> Attribute id val
+combineAttrs (Attribute a) (Attribute b) =
+    Attribute (b >> a)
 
 
 {-| Sets the text for the add and remove buttons in a repeatable field.
@@ -877,3 +888,8 @@ mapError transformId error =
 
         ParseError id ->
             ParseError (Maybe.map transformId id)
+
+
+dasherize : String -> String
+dasherize =
+    String.Extra.decapitalize >> String.Extra.dasherize

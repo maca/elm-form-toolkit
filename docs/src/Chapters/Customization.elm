@@ -7,7 +7,7 @@ import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.View as View
 import Html exposing (Html)
-import Html.Attributes as Attr exposing (novalidate)
+import Html.Attributes as Attrs exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
 import Result
 import Support.Shipment
@@ -92,12 +92,13 @@ view model =
     Html.div
         []
         [ Html.h1 [] [ Html.text "Customization" ]
-        , creditCard fieldsView
+
+        -- , creditCard fieldsView
         , Html.div
-            [ Attr.class "milligram" ]
+            [ Attrs.class "milligram" ]
             [ Html.form
                 [ onSubmit FormSubmitted, novalidate True ]
-                [ View.toHtml fieldsView
+                [ fieldsView |> View.toHtml
                 , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
                 ]
             ]
@@ -108,27 +109,27 @@ creditCard : View.View ShipmentFields msg -> Html msg
 creditCard fieldsView =
     Html.div []
         [ Html.div
-            [ Attr.class "credit-card-container" ]
+            [ Attrs.class "credit-card-container" ]
             [ Html.div
-                [ Attr.class "credit-card floating" ]
-                [ Html.div [ Attr.class "card-thickness-layer" ] []
+                [ Attrs.class "credit-card floating" ]
+                [ Html.div [ Attrs.class "card-thickness-layer" ] []
                 , Html.div
-                    [ Attr.class "card-body" ]
-                    [ Html.div [ Attr.class "card-chip" ] []
+                    [ Attrs.class "card-body" ]
+                    [ Html.div [ Attrs.class "card-chip" ] []
                     , View.partial (CardFields CardInfo) fieldsView
                         |> Maybe.map View.toHtml
                         |> Maybe.withDefault (Html.text "")
                     , Html.div []
                         [ Html.div
-                            [ Attr.class "card-holder-name text-emboss" ]
+                            [ Attrs.class "card-holder-name text-emboss" ]
                             [ Html.text "JOHN DOE" ]
                         , Html.div
-                            [ Attr.class "card-number text-emboss" ]
+                            [ Attrs.class "card-number text-emboss" ]
                             [ Html.text "1234-5678-9012-3456" ]
                         , Html.div
-                            [ Attr.class "card-expiry-date text-emboss" ]
+                            [ Attrs.class "card-expiry-date text-emboss" ]
                             [ Html.text "12/20" ]
-                        , Html.div [ Attr.class "card-mastercard-logo" ] []
+                        , Html.div [ Attrs.class "card-mastercard-logo" ] []
                         ]
                     ]
                 ]
