@@ -679,7 +679,10 @@ inputView : FieldView msg -> Html msg
 inputView { isRequired, label, input, errors, hint, class } =
     Html.div
         [ Attributes.class "field"
-        , Attributes.classList [ ( "required", isRequired ) ]
+        , Attributes.classList
+            [ ( "required", isRequired )
+            , ( "with-errors", not (List.isEmpty errors) )
+            ]
         , Attributes.class class
         ]
         [ label defaultAttributes

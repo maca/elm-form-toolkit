@@ -16,6 +16,7 @@ import Support.ShipmentForm
         ( AddressFields(..)
         , CardFields(..)
         , ShipmentFields(..)
+        , creditCardView
         , shipmentFields
         , shipmentParser
         )
@@ -85,52 +86,34 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    let
-        fieldsView =
-            View.fromField FormChanged model.formFields
-    in
     Html.div
         []
         [ Html.h1 [] [ Html.text "Customization" ]
-        , creditCard fieldsView
+        , Html.div []
+            [ Html.div
+                [ Attrs.class "credit-card-container" ]
+                [ Html.div
+                    [ Attrs.class "credit-card floating" ]
+                    [ Html.div [ Attrs.class "card-thickness-layer" ] []
+                    , Html.div
+                        [ Attrs.class "card-body" ]
+                        [ Html.div [ Attrs.class "card-chip" ] []
+                        , creditCardView FormChanged model.formFields
+                        , Html.div []
+                            [ Html.div [ Attrs.class "card-mastercard-logo" ] []
+                            ]
+                        ]
+                    ]
+                ]
+            ]
         , Html.div
             [ Attrs.class "milligram" ]
             [ Html.form
-                [ onSubmit FormSubmitted, novalidate True ]
-                [ fieldsView |> View.toHtml
-                , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
+                [ onSubmit FormSubmitted
+                , novalidate True
                 ]
-            ]
-        ]
-
-
-creditCard : View.View ShipmentFields msg -> Html msg
-creditCard fieldsView =
-    Html.div []
-        [ Html.div
-            [ Attrs.class "credit-card-container" ]
-            [ Html.div
-                [ Attrs.class "credit-card floating" ]
-                [ Html.div [ Attrs.class "card-thickness-layer" ] []
-                , Html.div
-                    [ Attrs.class "card-body" ]
-                    [ Html.div [ Attrs.class "card-chip" ] []
-                    , View.partial (CardFields CardInfo) fieldsView
-                        |> Maybe.map View.toHtml
-                        |> Maybe.withDefault (Html.text "")
-                    , Html.div []
-                        [ Html.div
-                            [ Attrs.class "card-holder-name text-emboss" ]
-                            [ Html.text "JOHN DOE" ]
-                        , Html.div
-                            [ Attrs.class "card-number text-emboss" ]
-                            [ Html.text "1234-5678-9012-3456" ]
-                        , Html.div
-                            [ Attrs.class "card-expiry-date text-emboss" ]
-                            [ Html.text "12/20" ]
-                        , Html.div [ Attrs.class "card-mastercard-logo" ] []
-                        ]
-                    ]
+                [ View.fromField FormChanged model.formFields |> View.toHtml
+                , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
                 ]
             ]
         ]

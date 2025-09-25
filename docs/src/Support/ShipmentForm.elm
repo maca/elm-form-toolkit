@@ -4,6 +4,7 @@ module Support.ShipmentForm exposing
     , RecipientFields
     , ShipmentFields(..)
     , cardFields
+    , creditCardView
     , recipientsFields
     , shipmentFields
     , shipmentParser
@@ -14,6 +15,8 @@ import Countries
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
+import FormToolkit.View as View
+import Html exposing (Html)
 import Support.Shipment as Shipment
 
 
@@ -92,7 +95,9 @@ shippingInformationFields =
             , Field.name "shipping-address-2"
             ]
         , Field.group
-            [ Field.identifier LocalityGroup ]
+            [ Field.identifier LocalityGroup
+            , Field.class "locality"
+            ]
             [ Field.text
                 [ Field.label "Postal code"
                 , Field.required True
@@ -144,26 +149,19 @@ cardFields =
             ]
         , Field.group
             [ Field.class "card-params" ]
-            [ Field.group
-                [ Field.class "card-expiry" ]
-                [ Field.int
-                    [ Field.label "Expire Month"
-                    , Field.required True
-                    , Field.identifier ExpireMonth
-                    , Field.name "billing-expire-month"
-                    ]
-                , Field.int
-                    [ Field.label "Expire Year"
-                    , Field.required True
-                    , Field.identifier ExpireYear
-                    , Field.name "billing-expire-year"
-                    ]
+            [ Field.text
+                [ Field.label "Expiration"
+                , Field.required True
+                , Field.identifier ExpireMonth
+                , Field.name "billing-expire-month"
+                , Field.placeholder "MM/YY"
                 ]
             , Field.text
                 [ Field.label "CVC"
                 , Field.required True
                 , Field.identifier Cvc
                 , Field.name "billing-cvc"
+                , Field.placeholder "CVC"
                 ]
             ]
         ]
@@ -249,3 +247,19 @@ recipientsParser toId =
           , name = ""
           }
         ]
+
+
+creditCardView : (Field.Msg ShipmentFields -> msg) -> Field ShipmentFields -> Html msg
+creditCardView msg formFields =
+    formFields
+        |> Field.updateWithId (CardFields CardName)
+            (Field.updateAttribute (Field.placeholder "Name on card"))
+        |> Result.andThen
+            (Field.updateWithId (CardFields CardNumber)
+                (Field.updateAttribute (Field.placeholder "Card number"))
+            )
+        |> Result.map (View.fromField msg)
+        |> Result.toMaybe
+        |> Maybe.andThen (View.partial (CardFields CardInfo))
+        |> Maybe.map View.toHtml
+        |> Maybe.withDefault (Html.text "")
