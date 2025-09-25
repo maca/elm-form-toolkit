@@ -71,7 +71,7 @@ update msg model =
                     Field.update inputMsg model.formFields
 
                 result =
-                    Parse.parse teamDecoder formFields
+                    Parse.toResult (Parse.parse teamDecoder formFields)
             in
             ( { model
                 | formFields = formFields
@@ -85,6 +85,7 @@ update msg model =
             let
                 json =
                     Parse.parse Parse.json model.formFields
+                        |> Parse.toResult
                         |> Result.map (Json.Encode.encode 0)
             in
             ( { model

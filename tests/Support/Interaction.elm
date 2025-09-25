@@ -81,9 +81,12 @@ interact matcher event actions =
                         let
                             updated =
                                 FormToolkit.Field.update msg actions.field
+
+                            parseResult =
+                                Parse.parse actions.decoder updated
                         in
-                        ( updated
-                        , Parse.parse actions.decoder updated
+                        ( Parse.toUpdatedField parseResult
+                        , Parse.toResult parseResult
                         )
                     )
                 |> Result.mapError (CustomError Nothing)

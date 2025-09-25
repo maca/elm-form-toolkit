@@ -70,7 +70,7 @@ update msg model =
                     Field.update inputMsg model.formFields
 
                 result =
-                    Parse.parse shipmentParser formFields
+                    Parse.toResult (Parse.parse shipmentParser formFields)
             in
             ( { model
                 | formFields = formFields

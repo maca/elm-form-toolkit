@@ -1,6 +1,6 @@
 module Internal.Field exposing
     ( Field, Attributes, FieldType(..), Status(..)
-    , Msg(..), update, strToValue
+    , Msg(..), update, updateValue, strToValue
     , init, isBlank, map
     , updateAttributes
     , identifier, inputType, max, min, name, value
@@ -13,7 +13,7 @@ module Internal.Field exposing
 {-|
 
 @docs Field, Attributes, FieldType, Status
-@docs Msg, update, strToValue
+@docs Msg, update, updateValue, strToValue
 @docs init, isBlank, map
 @docs updateAttributes
 @docs identifier, inputType, max, min, name, value

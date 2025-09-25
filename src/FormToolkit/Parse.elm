@@ -1,28 +1,25 @@
 module FormToolkit.Parse exposing
-    ( Parser
-    , parse
+    ( Parser, parse
+    , ParserResult, toResult, toUpdatedField
     , field
     , string, int, float, bool, posix, maybe, list
     , value, json
     , succeed, fail
     , map, map2, map3, map4, map5, map6, map7, map8
     , andThen, andMap
+    , andUpdate
     )
 
 {-| Map the values of an input or group of inputs to any shape you want, if you
 know `Json.Decode` you know how to use this module ;)
 
-@docs Parser
+@docs Parser, parse
+@docs ParserResult, toResult, toUpdatedField
 
 
-# Parsing
+# Traversing and parsing
 
-@docs parse
 @docs field
-
-
-# Values
-
 @docs string, int, float, bool, posix, maybe, list
 @docs value, json
 @docs succeed, fail
@@ -32,6 +29,11 @@ know `Json.Decode` you know how to use this module ;)
 
 @docs map, map2, map3, map4, map5, map6, map7, map8
 @docs andThen, andMap
+
+
+# Input update and custom validations
+
+@docs andUpdate
 
 -}
 
@@ -48,6 +50,12 @@ error if the decoding fails.
 -}
 type Parser id a
     = Parser (Internal.Parse.Parser id a)
+
+
+{-| The result of applying a Parser to a Field
+-}
+type ParserResult id a
+    = ParserResult (Internal.Parse.ParserResult id a)
 
 
 {-| Parse for a field with the given identifier using a provided parser.
@@ -74,7 +82,9 @@ type Parser id a
                 ]
             ]
 
-    form |> parse (field FirstName string)
+    form
+        |> parse (field FirstName string)
+        |> toResult
     --> Ok "Brian"
 
 -}
@@ -90,6 +100,7 @@ field id (Parser parser) =
 
     Field.text [ Field.value (Value.string "A string") ]
         |> parse string
+        |> toResult
         --> Ok "A string"
 
 -}
@@ -105,6 +116,7 @@ string =
 
     Field.text [ Field.value (Value.int 10) ]
         |> parse int
+        |> toResult
         --> Ok 10
 
 -}
@@ -120,6 +132,7 @@ int =
 
     Field.text [ Field.value (Value.float 10.5) ]
         |> parse float
+        |> toResult
         --> Ok 10.5
 
 -}
@@ -135,6 +148,7 @@ float =
 
     Field.text [ Field.value (Value.bool True) ]
         |> parse bool
+        |> toResult
         --> Ok True
 
 -}
@@ -158,10 +172,12 @@ posix =
 
     Field.text [ Field.value (Value.string "A string") ]
         |> parse (maybe string)
+        |> toResult
         --> Ok (Just "A string")
 
     Field.text []
         |> parse (maybe string)
+        |> toResult
         --> Ok Nothing
 
 -}
@@ -183,6 +199,7 @@ maybe (Parser parser) =
             (Field.value (Value.string "banana") )
         ]
         |> parse (list string)
+        |> toResult
         --> Ok [ "mango", "banana" ]
 
 -}
@@ -198,6 +215,7 @@ list (Parser parser) =
 
     Field.text [ Field.value (Value.string "A string") ]
         |> parse value
+        |> toResult
         --> Ok (Value.string "A string")
 
 -}
@@ -237,6 +255,7 @@ Useful if you just want to forward the form values to a backend.
             ]
         ]
         |> parse json
+        |> toResult
         |> Result.map (Json.Encode.encode 0)
         --> Ok "{\"first-name\":\"Brian\",\"last-name\":\"Eno\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
@@ -271,6 +290,7 @@ decoding pipelines with [andMap](#andMap), or to chain parsers with
 
     Field.text [ Field.value (Value.string "special") ]
         |> parse specialParse
+        |> toResult
         --> Ok SpecialValue
 
 -}
@@ -284,6 +304,59 @@ succeed a =
 fail : String -> Parser id a
 fail err =
     custom (always (Err err))
+
+
+{-| This function can be used for performing custom validations, for
+formatting the input value, and for mapping the result of parsing the field.
+
+    import FormToolkit.Field as Field
+    import FormToolkit.Value as Value
+
+    removeVowels : String -> String
+    removeVowels =
+        String.replace "a" ""
+            >> String.replace "e" ""
+            >> String.replace "i" ""
+            >> String.replace "o" ""
+            >> String.replace "u" ""
+
+    -- Transform input display but keep original parse result
+    Field.text [ Field.value (Value.string "the quick fox jumps over the lazy dog") ]
+        |> parse
+            (string
+                |> andUpdate
+                    (\str ->
+                        { inputValue = Value.string (removeVowels str)
+                        , parseResult = Ok str  -- Keep original
+                        }
+                    )
+            )
+        |> toResult
+        --> Ok "the quick fox jumps over the lazy dog"
+        -- But input field displays: "th qck fx jmps vr th lzy dg"
+
+    -- Transform both input display and parse result
+    Field.text [ Field.value (Value.string "the quick fox jumps over the lazy dog") ]
+        |> parse
+            (string
+                |> andUpdate
+                    (\str ->
+                        { inputValue = Value.string (removeVowels str)
+                        , parseResult = Ok (removeVowels str)  -- Transform both
+                        }
+                    )
+            )
+        |> toResult
+        --> Ok "th qck fx jmps vr th lzy dg"
+        -- And input field displays: "th qck fx jmps vr th lzy dg"
+
+-}
+andUpdate :
+    (a -> { inputValue : Value.Value, parseResult : Result (Error id) a })
+    -> Parser id a
+    -> Parser id a
+andUpdate func (Parser parser) =
+    Parser (Internal.Parse.andUpdate func parser)
 
 
 {-| -}
@@ -318,6 +391,7 @@ parseValue func =
 
     Field.text [ Field.value (Value.string "red green blue") ]
         |> parse wordsParser
+        |> toResult
         --> Ok (["red", "green", "blue"])
 
 -}
@@ -367,7 +441,9 @@ andThen func (Parser parser) =
             |> andMap (field Age int)
 
 
-    form |> parse personParse
+    form
+        |> parse personParse
+        |> toResult
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -383,6 +459,7 @@ andMap a b =
 
     Field.text [ Field.value (Value.string "a string") ]
         |> parse (map String.toUpper string)
+        |> toResult
         --> Ok "A STRING"
 
 -}
@@ -411,6 +488,7 @@ map func (Parser parser) =
                 (field "FirstName" string)
                 (field "LastName" string)
             )
+        |> toResult
         --> Ok ( "Iris", "Hefets" )
 
 -}
@@ -454,7 +532,9 @@ map2 func (Parser a) (Parser b) =
                 ]
             ]
 
-    form |> parse personParse
+    form
+        |> parse personParse
+        |> toResult
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -549,12 +629,37 @@ map8 func a b c d e f g h =
         , Field.required True
         ]
         |> parse string
+        |> toResult
     --> Ok "A string"
 
 -}
-parse : Parser id a -> Field id -> Result (List (Error id)) a
+parse : Parser id a -> Field id -> ParserResult id a
 parse (Parser parser) (Field input) =
-    Internal.Parse.parse parser input
+    ParserResult (Internal.Parse.parse parser input)
+
+
+{-| Obtain an Elm result from a Parser run.
+-}
+toResult : ParserResult id a -> Result (List (Error id)) a
+toResult (ParserResult parseResult) =
+    case parseResult of
+        Internal.Parse.Success _ a ->
+            Ok a
+
+        Internal.Parse.Failure _ errors ->
+            Err errors
+
+
+{-| Get the updated fields after running a Parser and applying validations and transformations.
+-}
+toUpdatedField : ParserResult id a -> Field id
+toUpdatedField (ParserResult parseResult) =
+    case parseResult of
+        Internal.Parse.Success updatedField _ ->
+            Field updatedField
+
+        Internal.Parse.Failure updatedField _ ->
+            Field updatedField
 
 
 unwrap : Parser id b -> Internal.Parse.Parser id b

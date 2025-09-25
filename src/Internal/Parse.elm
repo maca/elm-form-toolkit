@@ -1,15 +1,15 @@
 module Internal.Parse exposing
-    ( Parser(..), Partial(..)
+    ( Parser(..), ParserResult(..)
     , field, list, json, custom, maybe
-    , map, map2, andThen
+    , map, map2, andThen, andUpdate
     , parseValue, parse, validate
     )
 
 {-|
 
-@docs Parser, Partial
+@docs Parser, ParserResult
 @docs field, list, json, custom, maybe
-@docs map, map2, andThen
+@docs map, map2, andThen, andUpdate
 @docs parseValue, parse, validate
 
 -}
@@ -29,13 +29,13 @@ type alias Field id =
     Internal.Field.Field id (Error id)
 
 
-type Partial id a
+type ParserResult id a
     = Failure (Field id) (List (Error id))
     | Success (Field id) a
 
 
 type Parser id a
-    = Parser (Field id -> Partial id a)
+    = Parser (Field id -> ParserResult id a)
 
 
 field : id -> Parser id a -> Parser id a
@@ -54,7 +54,7 @@ field id parser =
         )
 
 
-fieldHelp : id -> Parser id a -> Field id -> ( Maybe (Partial id a), List Int )
+fieldHelp : id -> Parser id a -> Field id -> ( Maybe (ParserResult id a), List Int )
 fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
@@ -206,6 +206,40 @@ custom func =
         )
 
 
+andUpdate :
+    (a -> { inputValue : Value.Value, parseResult : Result (Error id) a })
+    -> Parser id a
+    -> Parser id a
+andUpdate func (Parser parser) =
+    Parser
+        (\input ->
+            case parser input of
+                Success input2 a ->
+                    let
+                        functionResult =
+                            func a
+
+                        (Value.Value value) =
+                            functionResult.inputValue
+                    in
+                    functionResult.parseResult
+                        |> fromResult (Internal.Field.updateValue value input2)
+
+                Failure input2 errors ->
+                    Failure input2 errors
+        )
+
+
+fromResult : Field id -> Result (Error id) a -> ParserResult id a
+fromResult input parseResult =
+    case parseResult of
+        Ok a ->
+            Success input a
+
+        Err error ->
+            Failure input [ error ]
+
+
 parseValue : (Value.Value -> Maybe a) -> Parser id a
 parseValue func =
     parseHelp
@@ -242,7 +276,7 @@ parseHelp func =
         )
 
 
-failure : Field id -> Error id -> Partial id a
+failure : Field id -> Error id -> ParserResult id a
 failure input err =
     Failure (Internal.Field.setErrors [ err ] input) [ err ]
 
@@ -265,7 +299,7 @@ map func parser =
     Parser (mapHelp func parser)
 
 
-mapHelp : (a -> b) -> Parser id a -> Field id -> Partial id b
+mapHelp : (a -> b) -> Parser id a -> Field id -> ParserResult id b
 mapHelp func (Parser parser) input =
     case parser input of
         Success input2 a ->
@@ -298,14 +332,9 @@ map2 func a b =
         )
 
 
-parse : Parser id a -> Field id -> Result (List (Error id)) a
+parse : Parser id a -> Field id -> ParserResult id a
 parse parser input =
-    case apply (validateTree |> andThen (always parser)) input of
-        Success _ a ->
-            Ok a
-
-        Failure _ errors ->
-            Err errors
+    apply (validateTree |> andThen (always parser)) input
 
 
 validate : Field id -> Field id
@@ -332,7 +361,7 @@ validateTree =
 validateField :
     List (Field id -> Maybe (Error id))
     -> Field id
-    -> Partial id ()
+    -> ParserResult id ()
 validateField validators input =
     let
         updated =
@@ -355,7 +384,7 @@ validateField validators input =
             Failure updated errors
 
 
-apply : Parser id a -> Field id -> Partial id a
+apply : Parser id a -> Field id -> ParserResult id a
 apply (Parser parser) =
     parser
 

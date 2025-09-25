@@ -374,7 +374,9 @@ Relevant attributes are [repeatableMin](#repeatableMin),
                 )
             ]
 
-    emailsFields |> Parse.parse (Parse.list Parse.string)
+    emailsFields
+        |> Parse.parse (Parse.list Parse.string)
+        |> Parse.toResult
     --> Ok [ "email@example.com", "other-email@example.com" ]
 
 -}
@@ -458,6 +460,7 @@ type Attribute id val
             , value (Value.string "Chavela")
             ]
             |> Parse.parse Parse.json
+            |> Parse.toResult
             |> Result.map (Json.Encode.encode 0)
             --> Ok "{\"first-name\":\"Chavela\"}"
 
@@ -502,6 +505,7 @@ for added type safety.
     form
         |> Parse.parse
             (Parse.field FirstName Parse.string)
+        |> Parse.toResult
         --> Ok "Juan"
 
 -}
@@ -517,6 +521,7 @@ identifier id =
 
     text [ label "Name", value (Value.string "Chavela") ]
         |> Parse.parse Parse.string
+        |> Parse.toResult
         --> Ok "Chavela"
 
 -}
@@ -533,6 +538,7 @@ field error will be displayed.
 
     text [ label "First name" ]
         |> Parse.parse (Parse.maybe Parse.string)
+        |> Parse.toResult
         --> Ok Nothing
 
 -}
@@ -708,8 +714,10 @@ repeatableMax integer =
                 (value (Value.string "Updated"))
             )
         |> Result.andThen
-            (Parse.parse
-                (Parse.field "Field" Parse.string)
+            (\field ->
+                field
+                    |> Parse.parse (Parse.field "Field" Parse.string)
+                    |> Parse.toResult
             )
         --> Ok "Updated"
 
@@ -750,6 +758,7 @@ updateWithId id fn (Field field) =
         [ value (Value.string "Value") ]
         |> updateAttribute (value (Value.string "Updated"))
         |> Parse.parse Parse.string
+        |> Parse.toResult
         --> Ok "Updated"
 
 -}
@@ -776,6 +785,7 @@ updateAttribute attr =
                 ]
             ]
         |> Parse.parse Parse.string
+        |> Parse.toResult
         --> Ok "Chocolate"
 
 -}

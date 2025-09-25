@@ -2,13 +2,17 @@ module ParseTest exposing (suite)
 
 import Expect
 import FormToolkit.Error exposing (Error(..))
-import FormToolkit.Field as Input
+import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
+import Html.Attributes as Attrs
 import Json.Decode
 import Json.Encode
 import Support.ExampleInputs exposing (..)
+import Support.Interaction as Interaction
 import Test exposing (..)
+import Test.Html.Query as Query
+import Test.Html.Selector exposing (attribute)
 import Time
 
 
@@ -19,36 +23,43 @@ suite =
             [ test "decoding string" <|
                 \_ ->
                     Parse.parse Parse.string stringInput
+                        |> Parse.toResult
                         |> Expect.equal (Ok "A string")
             , test "decoding int" <|
                 \_ ->
                     Parse.parse Parse.int intInput
+                        |> Parse.toResult
                         |> Expect.equal (Ok 1)
             , test "decoding float" <|
                 \_ ->
                     Parse.parse Parse.float floatInput
+                        |> Parse.toResult
                         |> Expect.equal (Ok 1.1)
             , test "decoding bool" <|
                 \_ ->
                     Parse.parse Parse.bool boolInput
+                        |> Parse.toResult
                         |> Expect.equal (Ok True)
             , test "decoding posix" <|
                 \_ ->
                     Parse.parse Parse.posix posixInput
+                        |> Parse.toResult
                         |> Expect.equal (Ok (Time.millisToPosix 0))
             , test "decoding custom value with field with options" <|
                 \_ ->
-                    Input.select
-                        [ Input.value (Value.string "Español")
-                        , Input.stringOptions [ "Español", "English", "Deutsch" ]
+                    Field.select
+                        [ Field.value (Value.string "Español")
+                        , Field.stringOptions [ "Español", "English", "Deutsch" ]
                         ]
                         |> Parse.parse Parse.string
+                        |> Parse.toResult
                         |> Expect.equal (Ok "Español")
             , test "decoding field by id" <|
                 \_ ->
-                    Input.group [] [ stringInput ]
+                    Field.group [] [ stringInput ]
                         |> Parse.parse
                             (Parse.field StringField Parse.string)
+                        |> Parse.toResult
                         |> Expect.equal (Ok "A string")
             ]
         , describe "failure"
@@ -56,14 +67,16 @@ suite =
                 [ test "produces error" <|
                     \_ ->
                         Parse.parse Parse.int stringInput
+                            |> Parse.toResult
                             |> Expect.equal
                                 (Err [ ParseError (Just StringField) ])
                 ]
             , describe "on field decoding"
                 [ test "produces error" <|
                     \_ ->
-                        Input.group [] [ stringInput ]
+                        Field.group [] [ stringInput ]
                             |> Parse.parse (Parse.field StringField Parse.int)
+                            |> Parse.toResult
                             |> Expect.equal (Err [ ParseError (Just StringField) ])
                 ]
             ]
@@ -71,6 +84,7 @@ suite =
             [ test "string" <|
                 \_ ->
                     Parse.parse Parse.json stringInput
+                        |> Parse.toResult
                         |> Result.withDefault (Json.Encode.string "")
                         |> Json.Decode.decodeValue
                             (Json.Decode.field "string-field" Json.Decode.string)
@@ -78,13 +92,15 @@ suite =
             , test "group with no name" <|
                 \_ ->
                     Parse.parse Parse.json
-                        (Input.group [] [ stringInput, intInput ])
+                        (Field.group [] [ stringInput, intInput ])
+                        |> Parse.toResult
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue simpleJsonDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
             , test "group name" <|
                 \_ ->
                     Parse.parse Parse.json groupWithName
+                        |> Parse.toResult
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue groupWithNameDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
@@ -92,50 +108,52 @@ suite =
             -- , test "repeatable and group with name" <|
             --     \_ ->
             --         Parse.decode Parse.json
-            --             (Input.repeatable [ Input.name "repeatable" ]
+            --             (Field.repeatable [ Field.name "repeatable" ]
             --                 groupWithName
             --                 [ groupWithName
             --                 , groupWithName
             --                 ]
             --             )
-            --             |> Result.withDefault Json.Encode.null
+            --             |> Parse.toResult |> Result.withDefault Json.Encode.null
             --             |> Json.Parse.decodeValue
             --                 (Json.Decode.field "repeatable"
             --                     (Json.Decode.list groupWithNameDecoder)
             --                 )
-            --             |> Expect.equal
+            --             |> Parse.toResult |> Expect.equal
             --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
             -- , test "repeatable and group with noname" <|
             --     \_ ->
             --         Parse.decode Parse.json
-            --             (Input.repeatable [ Input.name "repeatable" ]
+            --             (Field.repeatable [ Field.name "repeatable" ]
             --                 groupWithNoName
             --                 [ groupWithNoName, groupWithNoName ]
             --             )
-            --             |> Result.withDefault Json.Encode.null
+            --             |> Parse.toResult |> Result.withDefault Json.Encode.null
             --             |> Json.Decode.decodeValue
             --                 (Json.Decode.field "repeatable"
             --                     (Json.Decode.list simpleJsonDecoder)
             --                 )
-            --             |> Expect.equal
+            --             |> Parse.toResult |> Expect.equal
             --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
             ]
         , describe "validates"
             [ test "presence" <|
                 \_ ->
                     Parse.parse (Parse.succeed ()) blankInput
+                        |> Parse.toResult
                         |> Expect.equal
                             (Err [ IsBlank (Just BlankField) ])
             , test "nested field not handled" <|
                 \_ ->
-                    Input.group [] [ blankInput ]
+                    Field.group [] [ blankInput ]
                         |> Parse.parse (Parse.succeed ())
+                        |> Parse.toResult
                         |> Expect.equal (Err [ IsBlank (Just BlankField) ])
             , test "errors are presented in correct order" <|
                 \_ ->
                     let
                         result =
-                            Input.group [] [ stringInput, intInput ]
+                            Field.group [] [ stringInput, intInput ]
                                 |> Parse.parse
                                     (Parse.succeed (\_ _ -> ())
                                         |> Parse.andMap
@@ -145,6 +163,7 @@ suite =
                                     )
                     in
                     result
+                        |> Parse.toResult
                         |> Expect.equal
                             (Err
                                 [ ParseError (Just StringField)
@@ -153,7 +172,7 @@ suite =
                             )
             , test "errors are not repeated" <|
                 \_ ->
-                    Input.group [] [ stringInput ]
+                    Field.group [] [ stringInput ]
                         |> Parse.parse
                             (Parse.succeed (\_ _ -> ())
                                 |> Parse.andMap
@@ -161,6 +180,7 @@ suite =
                                 |> Parse.andMap
                                     (Parse.field StringField Parse.float)
                             )
+                        |> Parse.toResult
                         |> Expect.equal
                             (Err [ ParseError (Just StringField) ])
 
@@ -169,22 +189,63 @@ suite =
             -- , test group decoding yields error (implemented)
             -- , describe "blank string" should be blank
             ]
+        , let
+            original =
+                "the quick fox jumps over the lazy dog"
 
-        -- , describe "format"
-        --     [ test "transforms string" <|
-        --         \_ ->
-        --             let
-        --                 { result } =
-        --                     stringInput
-        --                         |> Interaction.init (Parse.format removeVowels)
-        --                         |> fillInput "string-field"
-        --                             "the quick fox jumps over the lazy dog"
-        --                         |> fillInput "string-field"
-        --                             "the quick fox jumps over the lazy dog"
-        --             in
-        --             Expect.equal result
-        --                 (Ok "th qck fx jmps vr th lzy dg")
-        --     ]
+            expected =
+                "th qck fx jmps vr th lzy dg"
+          in
+          describe "update input"
+            [ test "updates a string without affecting parse results" <|
+                \_ ->
+                    let
+                        interaction =
+                            stringInput
+                                |> Interaction.init
+                                    (Parse.string
+                                        |> Parse.andUpdate
+                                            (\str ->
+                                                { inputValue = Value.string (removeVowels str)
+                                                , parseResult = Ok str
+                                                }
+                                            )
+                                    )
+                                |> Interaction.fillInput "string-field" original
+                    in
+                    interaction
+                        |> Expect.all
+                            [ .field
+                                >> Field.toHtml (always never)
+                                >> Query.fromHtml
+                                >> Query.has [ attribute (Attrs.attribute "value" expected) ]
+                            , .result >> Expect.equal (Ok original)
+                            ]
+            , test "updates a string affecting parse results" <|
+                \_ ->
+                    let
+                        interaction =
+                            stringInput
+                                |> Interaction.init
+                                    (Parse.string
+                                        |> Parse.andUpdate
+                                            (\str ->
+                                                { inputValue = Value.string (removeVowels str)
+                                                , parseResult = Ok (removeVowels str)
+                                                }
+                                            )
+                                    )
+                                |> Interaction.fillInput "string-field" original
+                    in
+                    interaction
+                        |> Expect.all
+                            [ .field
+                                >> Field.toHtml (always never)
+                                >> Query.fromHtml
+                                >> Query.has [ attribute (Attrs.attribute "value" expected) ]
+                            , .result >> Expect.equal (Ok expected)
+                            ]
+            ]
         ]
 
 
@@ -200,32 +261,10 @@ groupWithNameDecoder =
     Json.Decode.field "group" simpleJsonDecoder
 
 
-
--- format : (String -> String) -> Parser id val String
--- format func =
---     Parser
---         (\input ->
---             case
---                 Internal.Field.value input
---                     |> Internal.Value.toString
---             of
---                 Just str ->
---                     Success
---                         (Tree.updateValue
---                             (\attrs ->
---                                 { attrs | value = Internal.Value.Text (func str) }
---                             )
---                             input
---                         )
---                         ()
---                 Nothing ->
---                     Success input ()
---         )
---         |> andThen (\() -> string)
--- removeVowels : String -> String
--- removeVowels =
---     String.replace "a" ""
---         >> String.replace "e" ""
---         >> String.replace "i" ""
---         >> String.replace "o" ""
---         >> String.replace "u" ""
+removeVowels : String -> String
+removeVowels =
+    String.replace "a" ""
+        >> String.replace "e" ""
+        >> String.replace "i" ""
+        >> String.replace "o" ""
+        >> String.replace "u" ""

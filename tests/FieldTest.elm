@@ -34,11 +34,14 @@ suite =
                                 (Field.value (Value.string "Updated value"))
                             )
                         |> Result.andThen
-                            (Parse.parse
-                                (Parse.map2 Tuple.pair
-                                    (Parse.field "NestedField" Parse.string)
-                                    (Parse.field "NestedField2" Parse.string)
-                                )
+                            (\field ->
+                                Parse.parse
+                                    (Parse.map2 Tuple.pair
+                                        (Parse.field "NestedField" Parse.string)
+                                        (Parse.field "NestedField2" Parse.string)
+                                    )
+                                    field
+                                |> Parse.toResult
                             )
                         |> Expect.equal (Ok ( "Updated value", "Value2" ))
             , test "updating multiple attributes succeeds" <|
@@ -49,11 +52,14 @@ suite =
                                 [ Field.value (Value.string "Updated value") ]
                             )
                         |> Result.andThen
-                            (Parse.parse
-                                (Parse.map2 Tuple.pair
-                                    (Parse.field "NestedField" Parse.string)
-                                    (Parse.field "NestedField2" Parse.string)
-                                )
+                            (\field ->
+                                Parse.parse
+                                    (Parse.map2 Tuple.pair
+                                        (Parse.field "NestedField" Parse.string)
+                                        (Parse.field "NestedField2" Parse.string)
+                                    )
+                                    field
+                                |> Parse.toResult
                             )
                         |> Expect.equal (Ok ( "Updated value", "Value2" ))
             , test "it preserves identifier" <|
@@ -62,11 +68,14 @@ suite =
                         |> Field.updateWithId "NestedField"
                             (Field.updateAttribute (Field.identifier "OtherField"))
                         |> Result.andThen
-                            (Parse.parse
-                                (Parse.map2 Tuple.pair
-                                    (Parse.field "NestedField" Parse.string)
-                                    (Parse.field "NestedField2" Parse.string)
-                                )
+                            (\field ->
+                                Parse.parse
+                                    (Parse.map2 Tuple.pair
+                                        (Parse.field "NestedField" Parse.string)
+                                        (Parse.field "NestedField2" Parse.string)
+                                    )
+                                    field
+                                |> Parse.toResult
                             )
                         |> Expect.equal (Ok ( "Value", "Value2" ))
             , test "fails when no matching id" <|
