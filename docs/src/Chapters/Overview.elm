@@ -67,11 +67,8 @@ update msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                formFields =
-                    Field.update inputMsg model.formFields
-
-                result =
-                    Parse.toResult (Parse.parse teamDecoder formFields)
+                ( formFields, result ) =
+                    Parse.parseUpdate teamDecoder inputMsg model.formFields
             in
             ( { model
                 | formFields = formFields
@@ -85,7 +82,7 @@ update msg model =
             let
                 json =
                     Parse.parse Parse.json model.formFields
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Result.map (Json.Encode.encode 0)
             in
             ( { model

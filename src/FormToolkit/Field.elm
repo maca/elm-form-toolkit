@@ -12,6 +12,7 @@ module FormToolkit.Field exposing
     , noattr
     , copies, repeatableMin, repeatableMax
     , updateWithId, updateAttribute, updateAttributes
+    , updateValue, updateStringValue
     , errors
     , map
     )
@@ -51,6 +52,7 @@ their attributes, update, and render them.
 # Update attributes
 
 @docs updateWithId, updateAttribute, updateAttributes
+@docs updateValue, updateStringValue
 
 
 # Error
@@ -133,7 +135,7 @@ toHtml : (Msg id -> msg) -> Field id -> Html msg
 toHtml onChange (Field field) =
     Internal.View.init
         { events =
-            { onChange = \path val -> onChange (Msg (InputChanged path val))
+            { onChange = \path val cursorPos -> onChange (Msg (InputChanged path val cursorPos))
             , onFocus = onChange << Msg << InputFocused
             , onBlur = onChange << Msg << InputBlured
             , onAdd = onChange << Msg << InputsAdded
@@ -376,7 +378,7 @@ Relevant attributes are [repeatableMin](#repeatableMin),
 
     emailsFields
         |> Parse.parse (Parse.list Parse.string)
-        |> Parse.toResult
+        |> Tuple.second
     --> Ok [ "email@example.com", "other-email@example.com" ]
 
 -}
@@ -460,7 +462,7 @@ type Attribute id val
             , value (Value.string "Chavela")
             ]
             |> Parse.parse Parse.json
-            |> Parse.toResult
+            |> Tuple.second
             |> Result.map (Json.Encode.encode 0)
             --> Ok "{\"first-name\":\"Chavela\"}"
 
@@ -505,7 +507,7 @@ for added type safety.
     form
         |> Parse.parse
             (Parse.field FirstName Parse.string)
-        |> Parse.toResult
+        |> Tuple.second
         --> Ok "Juan"
 
 -}
@@ -521,7 +523,7 @@ identifier id =
 
     text [ label "Name", value (Value.string "Chavela") ]
         |> Parse.parse Parse.string
-        |> Parse.toResult
+        |> Tuple.second
         --> Ok "Chavela"
 
 -}
@@ -538,7 +540,7 @@ field error will be displayed.
 
     text [ label "First name" ]
         |> Parse.parse (Parse.maybe Parse.string)
-        |> Parse.toResult
+        |> Tuple.second
         --> Ok Nothing
 
 -}
@@ -717,7 +719,7 @@ repeatableMax integer =
             (\field ->
                 field
                     |> Parse.parse (Parse.field "Field" Parse.string)
-                    |> Parse.toResult
+                    |> Tuple.second
             )
         --> Ok "Updated"
 
@@ -758,7 +760,7 @@ updateWithId id fn (Field field) =
         [ value (Value.string "Value") ]
         |> updateAttribute (value (Value.string "Updated"))
         |> Parse.parse Parse.string
-        |> Parse.toResult
+        |> Tuple.second
         --> Ok "Updated"
 
 -}
@@ -785,7 +787,7 @@ updateAttribute attr =
                 ]
             ]
         |> Parse.parse Parse.string
-        |> Parse.toResult
+        |> Tuple.second
         --> Ok "Chocolate"
 
 -}
@@ -795,6 +797,20 @@ updateAttributes attrList (Field field) =
         (Internal.Field.updateAttributes (unwrapAttrs attrList) field
             |> Internal.Parse.validate
         )
+
+
+{-| Convienience function for updating the value of a Field.
+-}
+updateValue : Value.Value -> Field id -> Field id
+updateValue val =
+    updateAttributes [ value val ]
+
+
+{-| Convienience function for updating the value of a Field with a String.
+-}
+updateStringValue : String -> Field id -> Field id
+updateStringValue strVal =
+    updateValue (Value.string strVal)
 
 
 {-| Collects all errors from a field and its children.

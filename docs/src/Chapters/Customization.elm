@@ -10,16 +10,8 @@ import Html exposing (Html)
 import Html.Attributes as Attrs exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
 import Result
-import Support.Shipment
-import Support.ShipmentForm
-    exposing
-        ( AddressFields(..)
-        , CardFields(..)
-        , ShipmentFields(..)
-        , creditCardView
-        , shipmentFields
-        , shipmentParser
-        )
+import Support.CreditCardForm as CreditCardForm
+import Support.ShipmentForm as ShipmentForm
 import Task
 
 
@@ -44,19 +36,19 @@ chapter =
 
 
 type alias Model =
-    { formFields : Field ShipmentFields
-    , shipment : Maybe Support.Shipment.Shipment
+    { formFields : Field ShipmentForm.ShipmentFields
+    , shipment : Maybe ShipmentForm.Shipment
     }
 
 
 type Msg
-    = FormChanged (Field.Msg ShipmentFields)
+    = FormChanged (Field.Msg ShipmentForm.ShipmentFields)
     | FormSubmitted
 
 
 init : Model
 init =
-    { formFields = shipmentFields
+    { formFields = ShipmentForm.shipmentFields
     , shipment = Nothing
     }
 
@@ -66,14 +58,11 @@ update msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                formFields =
-                    Field.update inputMsg model.formFields
-
-                result =
-                    Parse.toResult (Parse.parse shipmentParser formFields)
+                ( fields, result ) =
+                    Parse.parseUpdate ShipmentForm.shipmentParser inputMsg model.formFields
             in
             ( { model
-                | formFields = formFields
+                | formFields = fields
                 , shipment = Result.toMaybe result
               }
             , Task.perform (ElmBook.Actions.logActionWithString "Result")
@@ -89,23 +78,24 @@ view model =
     Html.div
         []
         [ Html.h1 [] [ Html.text "Customization" ]
-        , Html.div []
-            [ Html.div
-                [ Attrs.class "credit-card-container" ]
-                [ Html.div
-                    [ Attrs.class "credit-card floating" ]
-                    [ Html.div [ Attrs.class "card-thickness-layer" ] []
-                    , Html.div
-                        [ Attrs.class "card-body" ]
-                        [ Html.div [ Attrs.class "card-chip" ] []
-                        , creditCardView FormChanged model.formFields
-                        , Html.div []
-                            [ Html.div [ Attrs.class "card-mastercard-logo" ] []
-                            ]
-                        ]
-                    ]
-                ]
-            ]
+
+        -- , Html.div []
+        --     [ Html.div
+        --         [ Attrs.class "credit-card-container" ]
+        --         [ Html.div
+        --             [ Attrs.class "credit-card floating" ]
+        --             [ Html.div [ Attrs.class "card-thickness-layer" ] []
+        --             , Html.div
+        --                 [ Attrs.class "card-body" ]
+        --                 [ Html.div [ Attrs.class "card-chip" ] []
+        --                 , CreditCardForm.creditCardView FormChanged model.formFields
+        --                 , Html.div []
+        --                     [ Html.div [ Attrs.class "card-mastercard-logo" ] []
+        --                     ]
+        --                 ]
+        --             ]
+        --         ]
+        --     ]
         , Html.div
             [ Attrs.class "milligram" ]
             [ Html.form

@@ -66,9 +66,9 @@ fromField onChange (Field field) =
         (Internal.View.init
             { events =
                 { onChange =
-                    \path value ->
+                    \path value cursorPos ->
                         onChange
-                            (Msg (Internal.Field.InputChanged path value))
+                            (Msg (Internal.Field.InputChanged path value cursorPos))
                 , onFocus = onChange << Msg << Internal.Field.InputFocused
                 , onBlur = onChange << Msg << Internal.Field.InputBlured
                 , onAdd = onChange << Msg << Internal.Field.InputsAdded
@@ -260,7 +260,7 @@ customizeFields :
         , inputMin : Value
         , inputMax : Value
         , inputOptions : List ( String, Value )
-        , inputOnChange : Value -> msg
+        , inputOnChange : Value -> Int -> msg
         , inputOnBlur : msg
         , inputOnFocus : msg
         , labelText : Maybe String

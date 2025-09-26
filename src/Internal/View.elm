@@ -34,7 +34,7 @@ type alias View id msg =
 
 
 type alias ViewAttributes id msg =
-    { onChange : List Int -> Internal.Value.Value -> msg
+    { onChange : List Int -> Internal.Value.Value -> Int -> msg
     , onFocus : List Int -> msg
     , onBlur : List Int -> msg
     , onAdd : List Int -> msg
@@ -88,7 +88,7 @@ type alias RepeatableFieldView msg =
 
 init :
     { events :
-        { onChange : List Int -> Internal.Value.Value -> msg
+        { onChange : List Int -> Internal.Value.Value -> Int -> msg
         , onFocus : List Int -> msg
         , onBlur : List Int -> msg
         , onAdd : List Int -> msg
@@ -350,9 +350,15 @@ inputToHtml attributes inputType path input htmlAttrs element =
                 (List.concat
                     [ htmlAttrs
                     , Attributes.type_ inputType
-                        :: valueAttribute Attributes.value unwrappedField.value
-                        :: Events.onInput
-                            (attributes.onChange path << Field.strToValue input)
+                        :: (Internal.Value.toString unwrappedField.value
+                                |> Maybe.withDefault ""
+                                |> Attributes.value
+                           )
+                        :: onInputWithCursor
+                            (\inputStr ->
+                                attributes.onChange path
+                                    (Field.inputStringToValue input inputStr)
+                            )
                         :: textInputHtmlAttributes attributes path input
                     , userProvidedAttributes element
                     ]
@@ -412,7 +418,11 @@ textAreaToHtml attributes path input element =
         ]
         (Html.textarea
             (List.concat
-                [ Events.onInput (attributes.onChange path << Field.strToValue input)
+                [ onInputWithCursor
+                    (\inputStr ->
+                        attributes.onChange path
+                            (Field.inputStringToValue input inputStr)
+                    )
                     :: Attributes.value valueStr
                     :: textInputHtmlAttributes attributes path input
                 , userProvidedAttributes element
@@ -452,7 +462,11 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
     Html.select
         (Attributes.id (inputId input path)
             :: Attributes.required unwappedField.isRequired
-            :: Events.onInput (onChange path << Field.strToValue input)
+            :: onInputWithCursor
+                (\inputStr ->
+                    onChange path
+                        (Field.inputStringToValue input inputStr)
+                )
             :: Events.onFocus (onFocus path)
             :: Events.onBlur (onBlur path)
             :: nameAttribute input
@@ -500,7 +514,11 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                             :: Attributes.required unwrappedField.isRequired
                             :: Attributes.value (String.fromInt index)
                             :: Attributes.type_ "radio"
-                            :: Events.onInput (onChange path << Field.strToValue input)
+                            :: onInputWithCursor
+                                (\inputStr ->
+                                    onChange path
+                                        (Field.inputStringToValue input inputStr)
+                                )
                             :: Events.onFocus (onFocus path)
                             :: Events.onBlur (onBlur path)
                             :: nameAttribute input
@@ -532,7 +550,12 @@ checkboxToHtml attributes path input element =
                         |> Maybe.map Attributes.checked
                         |> Maybe.withDefault (Attributes.class "")
                    )
-                :: Events.onCheck (Internal.Value.fromBool >> attributes.onChange path)
+                :: Events.onCheck
+                    (\checked ->
+                        attributes.onChange path
+                            (Internal.Value.fromBool checked)
+                            0
+                    )
                 :: textInputHtmlAttributes attributes path input
             , userProvidedAttributes element
             ]
@@ -607,10 +630,22 @@ datalistId input path =
 visibleErrors : Field id -> List (Error id)
 visibleErrors input =
     let
-        { errors, status, inputType } =
+        params =
             Tree.value input
+
+        errors =
+            params.errors
+                |> List.filter
+                    (\err ->
+                        case err of
+                            ParseError _ ->
+                                False
+
+                            _ ->
+                                True
+                    )
     in
-    case ( status, inputType ) of
+    case ( params.status, params.inputType ) of
         ( Touched, _ ) ->
             errors
 
@@ -757,3 +792,16 @@ ariaInvalidAttribute input =
 
     else
         Attributes.attribute "aria-invalid" "true"
+
+
+onInputWithCursor : (String -> Int -> msg) -> Html.Attribute msg
+onInputWithCursor tagger =
+    Events.on "input"
+        (Json.Decode.map2 tagger
+            (Json.Decode.at [ "target", "value" ] Json.Decode.string)
+            (Json.Decode.oneOf
+                [ Json.Decode.at [ "target", "selectionStart" ] Json.Decode.int
+                , Json.Decode.succeed 0
+                ]
+            )
+        )

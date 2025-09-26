@@ -23,27 +23,27 @@ suite =
             [ test "decoding string" <|
                 \_ ->
                     Parse.parse Parse.string stringInput
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Ok "A string")
             , test "decoding int" <|
                 \_ ->
                     Parse.parse Parse.int intInput
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Ok 1)
             , test "decoding float" <|
                 \_ ->
                     Parse.parse Parse.float floatInput
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Ok 1.1)
             , test "decoding bool" <|
                 \_ ->
                     Parse.parse Parse.bool boolInput
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Ok True)
             , test "decoding posix" <|
                 \_ ->
                     Parse.parse Parse.posix posixInput
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Ok (Time.millisToPosix 0))
             , test "decoding custom value with field with options" <|
                 \_ ->
@@ -52,14 +52,14 @@ suite =
                         , Field.stringOptions [ "Español", "English", "Deutsch" ]
                         ]
                         |> Parse.parse Parse.string
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Ok "Español")
             , test "decoding field by id" <|
                 \_ ->
                     Field.group [] [ stringInput ]
                         |> Parse.parse
                             (Parse.field StringField Parse.string)
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Ok "A string")
             ]
         , describe "failure"
@@ -67,7 +67,7 @@ suite =
                 [ test "produces error" <|
                     \_ ->
                         Parse.parse Parse.int stringInput
-                            |> Parse.toResult
+                            |> Tuple.second
                             |> Expect.equal
                                 (Err [ ParseError (Just StringField) ])
                 ]
@@ -76,7 +76,7 @@ suite =
                     \_ ->
                         Field.group [] [ stringInput ]
                             |> Parse.parse (Parse.field StringField Parse.int)
-                            |> Parse.toResult
+                            |> Tuple.second
                             |> Expect.equal (Err [ ParseError (Just StringField) ])
                 ]
             ]
@@ -84,7 +84,7 @@ suite =
             [ test "string" <|
                 \_ ->
                     Parse.parse Parse.json stringInput
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Result.withDefault (Json.Encode.string "")
                         |> Json.Decode.decodeValue
                             (Json.Decode.field "string-field" Json.Decode.string)
@@ -93,14 +93,14 @@ suite =
                 \_ ->
                     Parse.parse Parse.json
                         (Field.group [] [ stringInput, intInput ])
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue simpleJsonDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
             , test "group name" <|
                 \_ ->
                     Parse.parse Parse.json groupWithName
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue groupWithNameDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
@@ -114,12 +114,12 @@ suite =
             --                 , groupWithName
             --                 ]
             --             )
-            --             |> Parse.toResult |> Result.withDefault Json.Encode.null
+            --             |> Tuple.second |> Result.withDefault Json.Encode.null
             --             |> Json.Parse.decodeValue
             --                 (Json.Decode.field "repeatable"
             --                     (Json.Decode.list groupWithNameDecoder)
             --                 )
-            --             |> Parse.toResult |> Expect.equal
+            --             |> Tuple.second |> Expect.equal
             --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
             -- , test "repeatable and group with noname" <|
             --     \_ ->
@@ -128,26 +128,26 @@ suite =
             --                 groupWithNoName
             --                 [ groupWithNoName, groupWithNoName ]
             --             )
-            --             |> Parse.toResult |> Result.withDefault Json.Encode.null
+            --             |> Tuple.second |> Result.withDefault Json.Encode.null
             --             |> Json.Decode.decodeValue
             --                 (Json.Decode.field "repeatable"
             --                     (Json.Decode.list simpleJsonDecoder)
             --                 )
-            --             |> Parse.toResult |> Expect.equal
+            --             |> Tuple.second |> Expect.equal
             --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
             ]
         , describe "validates"
             [ test "presence" <|
                 \_ ->
                     Parse.parse (Parse.succeed ()) blankInput
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal
                             (Err [ IsBlank (Just BlankField) ])
             , test "nested field not handled" <|
                 \_ ->
                     Field.group [] [ blankInput ]
                         |> Parse.parse (Parse.succeed ())
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal (Err [ IsBlank (Just BlankField) ])
             , test "errors are presented in correct order" <|
                 \_ ->
@@ -163,7 +163,7 @@ suite =
                                     )
                     in
                     result
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal
                             (Err
                                 [ ParseError (Just StringField)
@@ -180,7 +180,7 @@ suite =
                                 |> Parse.andMap
                                     (Parse.field StringField Parse.float)
                             )
-                        |> Parse.toResult
+                        |> Tuple.second
                         |> Expect.equal
                             (Err [ ParseError (Just StringField) ])
 
@@ -205,8 +205,8 @@ suite =
                                 |> Interaction.init
                                     (Parse.string
                                         |> Parse.andUpdate
-                                            (\str ->
-                                                { inputValue = Value.string (removeVowels str)
+                                            (\field str ->
+                                                { field = Field.updateStringValue (removeVowels str) field
                                                 , parseResult = Ok str
                                                 }
                                             )
@@ -229,8 +229,8 @@ suite =
                                 |> Interaction.init
                                     (Parse.string
                                         |> Parse.andUpdate
-                                            (\str ->
-                                                { inputValue = Value.string (removeVowels str)
+                                            (\field str ->
+                                                { field = Field.updateStringValue (removeVowels str) field
                                                 , parseResult = Ok (removeVowels str)
                                                 }
                                             )

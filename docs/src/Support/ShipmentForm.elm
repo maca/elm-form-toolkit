@@ -1,10 +1,11 @@
 module Support.ShipmentForm exposing
-    ( AddressFields(..)
-    , CardFields(..)
+    ( Address
+    , AddressFields(..)
+    , Recipient
     , RecipientFields
+    , Shipment
     , ShipmentFields(..)
-    , cardFields
-    , creditCardView
+    , parse
     , recipientsFields
     , shipmentFields
     , shipmentParser
@@ -12,17 +13,42 @@ module Support.ShipmentForm exposing
     )
 
 import Countries
+import FormToolkit.Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import FormToolkit.View as View
 import Html exposing (Html)
-import Support.Shipment as Shipment
+import Support.CreditCardForm as CreditCardForm
+
+
+type alias Shipment =
+    { shipping : Address
+    , billing : CreditCardForm.CardInformation
+    , recipients : List Recipient
+    }
+
+
+type alias Address =
+    { firstName : String
+    , lastName : String
+    , address : String
+    , address2 : String
+    , postalCode : String
+    , state : String
+    , country : Countries.Country
+    }
+
+
+type alias Recipient =
+    { email : String
+    , name : String
+    }
 
 
 type ShipmentFields
     = AddressFields AddressFields
-    | CardFields CardFields
+    | CardFields CreditCardForm.CardFields
     | RecipientFields RecipientFields
 
 
@@ -30,7 +56,7 @@ type AddressFields
     = AddressNameGroup
     | AddressFirstName
     | AddressLastName
-    | Address
+    | AddressStreet
     | Address2
     | LocalityGroup
     | PostalCode
@@ -38,18 +64,14 @@ type AddressFields
     | AddressCountry
 
 
-type CardFields
-    = CardInfo
-    | CardName
-    | CardNumber
-    | Cvc
-    | ExpireMonth
-    | ExpireYear
-
-
 type RecipientFields
     = RecipientEmail
     | RecipientName
+
+
+parse : Field ShipmentFields -> ( Field ShipmentFields, Result (List (Error ShipmentFields)) Shipment )
+parse =
+    Parse.parse shipmentParser
 
 
 shipmentFields : Field ShipmentFields
@@ -57,7 +79,7 @@ shipmentFields =
     Field.group
         []
         [ Field.map AddressFields shippingInformationFields
-        , Field.map CardFields cardFields
+        , Field.map CardFields CreditCardForm.cardFields
         , Field.map RecipientFields recipientsFields
         ]
 
@@ -86,7 +108,7 @@ shippingInformationFields =
         , Field.text
             [ Field.label "Street Address"
             , Field.required True
-            , Field.identifier Address
+            , Field.identifier AddressStreet
             , Field.name "shipping-address"
             ]
         , Field.text
@@ -129,44 +151,6 @@ shippingInformationFields =
         ]
 
 
-cardFields : Field CardFields
-cardFields =
-    Field.group
-        [ Field.label "Card Information"
-        , Field.identifier CardInfo
-        ]
-        [ Field.text
-            [ Field.label "Name on Card"
-            , Field.required True
-            , Field.identifier CardName
-            , Field.name "billing-card-name"
-            ]
-        , Field.text
-            [ Field.label "Card Number"
-            , Field.required True
-            , Field.identifier CardNumber
-            , Field.name "billing-card-number"
-            ]
-        , Field.group
-            [ Field.class "card-params" ]
-            [ Field.text
-                [ Field.label "Expiration"
-                , Field.required True
-                , Field.identifier ExpireMonth
-                , Field.name "billing-expire-month"
-                , Field.placeholder "MM/YY"
-                ]
-            , Field.text
-                [ Field.label "CVC"
-                , Field.required True
-                , Field.identifier Cvc
-                , Field.name "billing-cvc"
-                , Field.placeholder "CVC"
-                ]
-            ]
-        ]
-
-
 recipientsFields : Field RecipientFields
 recipientsFields =
     Field.group
@@ -186,24 +170,37 @@ recipientsFields =
         ]
 
 
-shipmentParser : Parse.Parser ShipmentFields Shipment.Shipment
+shipmentParser : Parse.Parser ShipmentFields Shipment
 shipmentParser =
-    Parse.map3 Shipment.Shipment
+    Parse.map3 Shipment
         (addressParser AddressFields)
-        (cardInformationParser CardFields)
+        (CreditCardForm.cardInformationParser CardFields)
         (recipientsParser RecipientFields)
 
 
-addressParser : (AddressFields -> id) -> Parse.Parser id Shipment.Address
+shipmentValidator : (CreditCardForm.CardFields -> id) -> Parse.Parser id ()
+shipmentValidator toId =
+    let
+        field id =
+            Parse.field (toId id)
+    in
+    Parse.succeed (always ())
+        |> Parse.andMap
+            (field CreditCardForm.CardNumber CreditCardForm.creditCardNumberParser
+                |> Parse.andThen (always (Parse.succeed ()))
+            )
+
+
+addressParser : (AddressFields -> id) -> Parse.Parser id Address
 addressParser toId =
     let
         field id =
             Parse.field (toId id)
     in
-    Parse.succeed Shipment.Address
+    Parse.succeed Address
         |> Parse.andMap (field AddressFirstName Parse.string)
         |> Parse.andMap (field AddressLastName Parse.string)
-        |> Parse.andMap (field Address Parse.string)
+        |> Parse.andMap (field AddressStreet Parse.string)
         |> Parse.andMap (field Address2 Parse.string)
         |> Parse.andMap (field PostalCode Parse.string)
         |> Parse.andMap (field AddressState Parse.string)
@@ -226,40 +223,6 @@ countryParser toId =
         )
 
 
-cardInformationParser : (CardFields -> id) -> Parse.Parser id Shipment.CardInformation
-cardInformationParser toId =
-    let
-        field id =
-            Parse.field (toId id)
-    in
-    Parse.succeed Shipment.CardInformation
-        |> Parse.andMap (field CardName Parse.string)
-        |> Parse.andMap (field CardNumber Parse.string)
-        |> Parse.andMap (field Cvc Parse.string)
-        |> Parse.andMap (field ExpireMonth Parse.int)
-        |> Parse.andMap (field ExpireYear Parse.int)
-
-
-recipientsParser : (RecipientFields -> id) -> Parse.Parser id (List Shipment.Recipient)
+recipientsParser : (RecipientFields -> id) -> Parse.Parser id (List Recipient)
 recipientsParser toId =
-    Parse.succeed
-        [ { email = ""
-          , name = ""
-          }
-        ]
-
-
-creditCardView : (Field.Msg ShipmentFields -> msg) -> Field ShipmentFields -> Html msg
-creditCardView msg formFields =
-    formFields
-        |> Field.updateWithId (CardFields CardName)
-            (Field.updateAttribute (Field.placeholder "Name on card"))
-        |> Result.andThen
-            (Field.updateWithId (CardFields CardNumber)
-                (Field.updateAttribute (Field.placeholder "Card number"))
-            )
-        |> Result.map (View.fromField msg)
-        |> Result.toMaybe
-        |> Maybe.andThen (View.partial (CardFields CardInfo))
-        |> Maybe.map View.toHtml
-        |> Maybe.withDefault (Html.text "")
+    Parse.succeed [ { email = "", name = "" } ]

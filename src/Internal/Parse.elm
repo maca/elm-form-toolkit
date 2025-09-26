@@ -15,7 +15,7 @@ module Internal.Parse exposing
 -}
 
 import Dict
-import FormToolkit.Error exposing (Error(..))
+import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Value
@@ -99,10 +99,7 @@ list parser =
         )
 
 
-listHelp :
-    Parser id a
-    -> Field id
-    -> ( List (Field id), Result (List (Error id)) (List a) )
+listHelp : Parser id a -> Field id -> ( List (Field id), Result (List (Error id)) (List a) )
 listHelp parser =
     Tree.children
         >> List.foldr
@@ -207,7 +204,7 @@ custom func =
 
 
 andUpdate :
-    (a -> { inputValue : Value.Value, parseResult : Result (Error id) a })
+    (Field id -> a -> { field : Field id, parseResult : Result String a })
     -> Parser id a
     -> Parser id a
 andUpdate func (Parser parser) =
@@ -216,28 +213,23 @@ andUpdate func (Parser parser) =
             case parser input of
                 Success input2 a ->
                     let
-                        functionResult =
-                            func a
-
-                        (Value.Value value) =
-                            functionResult.inputValue
+                        result =
+                            func input2 a
                     in
-                    functionResult.parseResult
-                        |> fromResult (Internal.Field.updateValue value input2)
+                    case result.parseResult of
+                        Ok a1 ->
+                            Success result.field a1
+
+                        Err error ->
+                            Failure result.field
+                                [ Error.CustomError
+                                    (Internal.Field.identifier result.field)
+                                    error
+                                ]
 
                 Failure input2 errors ->
                     Failure input2 errors
         )
-
-
-fromResult : Field id -> Result (Error id) a -> ParserResult id a
-fromResult input parseResult =
-    case parseResult of
-        Ok a ->
-            Success input a
-
-        Err error ->
-            Failure input [ error ]
 
 
 parseValue : (Value.Value -> Maybe a) -> Parser id a
@@ -312,39 +304,62 @@ mapHelp func (Parser parser) input =
 map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
 map2 func a b =
     Parser
-        (\input ->
-            case apply a input of
-                Success input2 res ->
-                    case apply b input2 of
-                        Success input3 res2 ->
-                            Success input3 (func res res2)
+        (\tree ->
+            case apply a tree of
+                Success tree2 res ->
+                    case apply b tree2 of
+                        Success tree3 res2 ->
+                            Success tree3 (func res res2)
 
-                        Failure input3 errors ->
-                            Failure input3 errors
+                        Failure tree3 errors ->
+                            Failure tree3 errors
 
                 Failure tree2 errors ->
                     case apply b tree2 of
-                        Success input3 _ ->
-                            Failure input3 errors
+                        Success tree3 _ ->
+                            Failure tree3 errors
 
-                        Failure input3 errors2 ->
-                            Failure input3 (List.Extra.unique (errors2 ++ errors))
+                        Failure tree3 errors2 ->
+                            Failure tree3 (List.Extra.unique (errors2 ++ errors))
         )
 
 
-parse : Parser id a -> Field id -> ParserResult id a
+
+-- parse : Parser id a -> Field id -> ParserResult id a
+
+
+parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
 parse parser input =
-    apply (validateTree |> andThen (always parser)) input
+    let
+        result =
+            apply (map2 (always identity) validateTree parser) input
+    in
+    ( parseResultToField result, parseResultToResult result )
 
 
 validate : Field id -> Field id
-validate input =
-    case apply validateTree input of
-        Success input2 _ ->
-            input2
+validate =
+    apply validateTree >> parseResultToField
 
-        Failure input2 _ ->
-            input2
+
+parseResultToField : ParserResult id a -> Field id
+parseResultToField parseResult =
+    case parseResult of
+        Success updatedField _ ->
+            updatedField
+
+        Failure updatedField _ ->
+            updatedField
+
+
+parseResultToResult : ParserResult id a -> Result (List (Error id)) a
+parseResultToResult parseResult =
+    case parseResult of
+        Success _ a ->
+            Ok a
+
+        Failure _ errors ->
+            Err errors
 
 
 validateTree : Parser id ()

@@ -1,6 +1,5 @@
 module FormToolkit.Parse exposing
-    ( Parser, parse
-    , ParserResult, toResult, toUpdatedField
+    ( Parser, parse, parseUpdate
     , field
     , string, int, float, bool, posix, maybe, list
     , value, json
@@ -13,8 +12,7 @@ module FormToolkit.Parse exposing
 {-| Map the values of an input or group of inputs to any shape you want, if you
 know `Json.Decode` you know how to use this module ;)
 
-@docs Parser, parse
-@docs ParserResult, toResult, toUpdatedField
+@docs Parser, parse, parseUpdate
 
 
 # Traversing and parsing
@@ -38,8 +36,9 @@ know `Json.Decode` you know how to use this module ;)
 -}
 
 import FormToolkit.Error exposing (Error)
-import FormToolkit.Field exposing (Field(..))
+import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
+import Internal.Field
 import Internal.Parse
 import Json.Decode
 import Time
@@ -50,12 +49,6 @@ error if the decoding fails.
 -}
 type Parser id a
     = Parser (Internal.Parse.Parser id a)
-
-
-{-| The result of applying a Parser to a Field
--}
-type ParserResult id a
-    = ParserResult (Internal.Parse.ParserResult id a)
 
 
 {-| Parse for a field with the given identifier using a provided parser.
@@ -84,7 +77,7 @@ type ParserResult id a
 
     form
         |> parse (field FirstName string)
-        |> toResult
+        |> Tuple.second
     --> Ok "Brian"
 
 -}
@@ -100,7 +93,7 @@ field id (Parser parser) =
 
     Field.text [ Field.value (Value.string "A string") ]
         |> parse string
-        |> toResult
+        |> Tuple.second
         --> Ok "A string"
 
 -}
@@ -116,7 +109,7 @@ string =
 
     Field.text [ Field.value (Value.int 10) ]
         |> parse int
-        |> toResult
+        |> Tuple.second
         --> Ok 10
 
 -}
@@ -132,7 +125,7 @@ int =
 
     Field.text [ Field.value (Value.float 10.5) ]
         |> parse float
-        |> toResult
+        |> Tuple.second
         --> Ok 10.5
 
 -}
@@ -148,7 +141,7 @@ float =
 
     Field.text [ Field.value (Value.bool True) ]
         |> parse bool
-        |> toResult
+        |> Tuple.second
         --> Ok True
 
 -}
@@ -172,12 +165,12 @@ posix =
 
     Field.text [ Field.value (Value.string "A string") ]
         |> parse (maybe string)
-        |> toResult
+        |> Tuple.second
         --> Ok (Just "A string")
 
     Field.text []
         |> parse (maybe string)
-        |> toResult
+        |> Tuple.second
         --> Ok Nothing
 
 -}
@@ -199,7 +192,7 @@ maybe (Parser parser) =
             (Field.value (Value.string "banana") )
         ]
         |> parse (list string)
-        |> toResult
+        |> Tuple.second
         --> Ok [ "mango", "banana" ]
 
 -}
@@ -215,7 +208,7 @@ list (Parser parser) =
 
     Field.text [ Field.value (Value.string "A string") ]
         |> parse value
-        |> toResult
+        |> Tuple.second
         --> Ok (Value.string "A string")
 
 -}
@@ -255,7 +248,7 @@ Useful if you just want to forward the form values to a backend.
             ]
         ]
         |> parse json
-        |> toResult
+        |> Tuple.second
         |> Result.map (Json.Encode.encode 0)
         --> Ok "{\"first-name\":\"Brian\",\"last-name\":\"Eno\",\"fruits\":[{\"fruit\":\"mango\"},{\"fruit\":\"banana\"}]}"
 
@@ -290,7 +283,7 @@ decoding pipelines with [andMap](#andMap), or to chain parsers with
 
     Field.text [ Field.value (Value.string "special") ]
         |> parse specialParse
-        |> toResult
+        |> Tuple.second
         --> Ok SpecialValue
 
 -}
@@ -331,7 +324,7 @@ formatting the input value, and for mapping the result of parsing the field.
                         }
                     )
             )
-        |> toResult
+        |> Tuple.second
         --> Ok "the quick fox jumps over the lazy dog"
         -- But input field displays: "th qck fx jmps vr th lzy dg"
 
@@ -346,17 +339,45 @@ formatting the input value, and for mapping the result of parsing the field.
                         }
                     )
             )
-        |> toResult
+        |> Tuple.second
+        --> Ok "th qck fx jmps vr th lzy dg"
+        -- And input field displays: "th qck fx jmps vr th lzy dg"
+
+    -- Validate a field
+    Field.text [ Field.value (Value.string "the quick fox jumps over the lazy dog") ]
+        |> parse
+            (string
+                |> andUpdate
+                    (\str ->
+                        { inputValue = Value.string (removeVowels str)
+                        , parseResult = Ok (removeVowels str)  -- Transform both
+                        }
+                    )
+            )
+        |> Tuple.second
         --> Ok "th qck fx jmps vr th lzy dg"
         -- And input field displays: "th qck fx jmps vr th lzy dg"
 
 -}
 andUpdate :
-    (a -> { inputValue : Value.Value, parseResult : Result (Error id) a })
+    (Field id -> a -> { field : Field id, parseResult : Result String a })
     -> Parser id a
     -> Parser id a
 andUpdate func (Parser parser) =
-    Parser (Internal.Parse.andUpdate func parser)
+    Parser
+        (Internal.Parse.andUpdate
+            (\pristineField a ->
+                let
+                    result =
+                        func (Field pristineField) a
+
+                    (Field modifiedField) =
+                        result.field
+                in
+                { field = modifiedField, parseResult = result.parseResult }
+            )
+            parser
+        )
 
 
 {-| -}
@@ -391,7 +412,7 @@ parseValue func =
 
     Field.text [ Field.value (Value.string "red green blue") ]
         |> parse wordsParser
-        |> toResult
+        |> Tuple.second
         --> Ok (["red", "green", "blue"])
 
 -}
@@ -443,7 +464,7 @@ andThen func (Parser parser) =
 
     form
         |> parse personParse
-        |> toResult
+        |> Tuple.second
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -459,7 +480,7 @@ andMap a b =
 
     Field.text [ Field.value (Value.string "a string") ]
         |> parse (map String.toUpper string)
-        |> toResult
+        |> Tuple.second
         --> Ok "A STRING"
 
 -}
@@ -488,7 +509,7 @@ map func (Parser parser) =
                 (field "FirstName" string)
                 (field "LastName" string)
             )
-        |> toResult
+        |> Tuple.second
         --> Ok ( "Iris", "Hefets" )
 
 -}
@@ -534,7 +555,7 @@ map2 func (Parser a) (Parser b) =
 
     form
         |> parse personParse
-        |> toResult
+        |> Tuple.second
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
 -}
@@ -618,8 +639,8 @@ map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
-{-| Parses an input using the given parser without applying field validations
-(required, min, max...).
+{-| Parses an input and updates the tree- in case the parser
+produces validation errors or it updates the input value.
 
     import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
@@ -629,37 +650,33 @@ map8 func a b c d e f g h =
         , Field.required True
         ]
         |> parse string
-        |> toResult
+        |> Tuple.second
     --> Ok "A string"
 
 -}
-parse : Parser id a -> Field id -> ParserResult id a
+parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
 parse (Parser parser) (Field input) =
-    ParserResult (Internal.Parse.parse parser input)
+    Internal.Parse.parse parser input
+        |> Tuple.mapFirst Field
 
 
-{-| Obtain an Elm result from a Parser run.
+{-| Updates an input with a message and parses it.
+
+    import FormToolkit.Field as Field exposing (Field)
+    import FormToolkit.Value as Value
+
+    Field.text
+        [ Field.value (Value.string "A string")
+        , Field.required True
+        ]
+        |> parse string
+        |> Tuple.second
+    --> Ok "A string"
+
 -}
-toResult : ParserResult id a -> Result (List (Error id)) a
-toResult (ParserResult parseResult) =
-    case parseResult of
-        Internal.Parse.Success _ a ->
-            Ok a
-
-        Internal.Parse.Failure _ errors ->
-            Err errors
-
-
-{-| Get the updated fields after running a Parser and applying validations and transformations.
--}
-toUpdatedField : ParserResult id a -> Field id
-toUpdatedField (ParserResult parseResult) =
-    case parseResult of
-        Internal.Parse.Success updatedField _ ->
-            Field updatedField
-
-        Internal.Parse.Failure updatedField _ ->
-            Field updatedField
+parseUpdate : Parser id a -> Msg id -> Field id -> ( Field id, Result (List (Error id)) a )
+parseUpdate parser (Field.Msg msg) (Field input) =
+    Internal.Field.update msg input |> Field |> parse parser
 
 
 unwrap : Parser id b -> Internal.Parse.Parser id b
