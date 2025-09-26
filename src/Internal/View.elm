@@ -19,6 +19,7 @@ import Html.Events as Events
 import Internal.Field as Field exposing (Field, Status(..))
 import Internal.Value
 import Json.Decode
+import Json.Encode
 import RoseTree.Tree as Tree
 
 
@@ -34,7 +35,7 @@ type alias View id msg =
 
 
 type alias ViewAttributes id msg =
-    { onChange : List Int -> Internal.Value.Value -> Int -> msg
+    { onChange : List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
     , onFocus : List Int -> msg
     , onBlur : List Int -> msg
     , onAdd : List Int -> msg
@@ -88,7 +89,7 @@ type alias RepeatableFieldView msg =
 
 init :
     { events :
-        { onChange : List Int -> Internal.Value.Value -> Int -> msg
+        { onChange : List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
         , onFocus : List Int -> msg
         , onBlur : List Int -> msg
         , onAdd : List Int -> msg
@@ -354,7 +355,7 @@ inputToHtml attributes inputType path input htmlAttrs element =
                                 |> Maybe.withDefault ""
                                 |> Attributes.value
                            )
-                        :: onInputWithCursor
+                        :: onInputWithSelection
                             (\inputStr ->
                                 attributes.onChange path
                                     (Field.inputStringToValue input inputStr)
@@ -418,7 +419,7 @@ textAreaToHtml attributes path input element =
         ]
         (Html.textarea
             (List.concat
-                [ onInputWithCursor
+                [ onInputWithSelection
                     (\inputStr ->
                         attributes.onChange path
                             (Field.inputStringToValue input inputStr)
@@ -462,7 +463,7 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
     Html.select
         (Attributes.id (inputId input path)
             :: Attributes.required unwappedField.isRequired
-            :: onInputWithCursor
+            :: onInputWithSelection
                 (\inputStr ->
                     onChange path
                         (Field.inputStringToValue input inputStr)
@@ -514,7 +515,7 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                             :: Attributes.required unwrappedField.isRequired
                             :: Attributes.value (String.fromInt index)
                             :: Attributes.type_ "radio"
-                            :: onInputWithCursor
+                            :: onInputWithSelection
                                 (\inputStr ->
                                     onChange path
                                         (Field.inputStringToValue input inputStr)
@@ -554,7 +555,7 @@ checkboxToHtml attributes path input element =
                     (\checked ->
                         attributes.onChange path
                             (Internal.Value.fromBool checked)
-                            0
+                            { selectionStart = 0, selectionEnd = 0 }
                     )
                 :: textInputHtmlAttributes attributes path input
             , userProvidedAttributes element
@@ -596,6 +597,8 @@ textInputHtmlAttributes attributes path input =
           , nameAttribute input
           , valueAttribute Attributes.min (Field.min input)
           , valueAttribute Attributes.max (Field.max input)
+          , selectionStartAttribute (Tree.value input).selectionStart
+          , selectionEndAttribute (Tree.value input).selectionEnd
           , ariaDescribedByAttribute input path
           , ariaInvalidAttribute input
           ]
@@ -794,14 +797,31 @@ ariaInvalidAttribute input =
         Attributes.attribute "aria-invalid" "true"
 
 
-onInputWithCursor : (String -> Int -> msg) -> Html.Attribute msg
-onInputWithCursor tagger =
+selectionStartAttribute : Int -> Html.Attribute msg
+selectionStartAttribute position =
+    Attributes.property "selectionStart" (Json.Encode.int position)
+
+
+selectionEndAttribute : Int -> Html.Attribute msg
+selectionEndAttribute position =
+    Attributes.property "selectionEnd" (Json.Encode.int position)
+
+
+onInputWithSelection : (String -> { selectionStart : Int, selectionEnd : Int } -> msg) -> Html.Attribute msg
+onInputWithSelection tagger =
     Events.on "input"
         (Json.Decode.map2 tagger
             (Json.Decode.at [ "target", "value" ] Json.Decode.string)
-            (Json.Decode.oneOf
-                [ Json.Decode.at [ "target", "selectionStart" ] Json.Decode.int
-                , Json.Decode.succeed 0
-                ]
+            (Json.Decode.map2 (\start end -> { selectionStart = start, selectionEnd = end })
+                (Json.Decode.oneOf
+                    [ Json.Decode.at [ "target", "selectionStart" ] Json.Decode.int
+                    , Json.Decode.succeed 0
+                    ]
+                )
+                (Json.Decode.oneOf
+                    [ Json.Decode.at [ "target", "selectionEnd" ] Json.Decode.int
+                    , Json.Decode.succeed 0
+                    ]
+                )
             )
         )

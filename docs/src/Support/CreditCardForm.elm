@@ -87,11 +87,30 @@ cardInformationParser toId =
 creditCardNumberParser : Parse.Parser id String
 creditCardNumberParser =
     Parse.string
-        |> Parse.map formatCardNumber
         |> Parse.andUpdate
-            (\field number ->
-                { field = Field.updateStringValue number field
-                , parseResult = Ok number
+            (\field rawInput ->
+                let
+                    { selectionStart } =
+                        Field.toProperties field
+
+                    cursorPosition =
+                        rawInput
+                            |> String.left selectionStart
+                            |> cleanCardNumber
+                            |> String.length
+
+                    formattedNumber =
+                        formatCardNumber rawInput
+
+                    newCursorPosition =
+                        countCharsUpTo Char.isDigit cursorPosition formattedNumber
+                in
+                { field =
+                    field
+                        |> Field.updateStringValue formattedNumber
+                        |> Field.updateAttribute (Field.selectionStart newCursorPosition)
+                        |> Field.updateAttribute (Field.selectionEnd newCursorPosition)
+                , parseResult = Ok formattedNumber
                 }
             )
 
@@ -120,6 +139,25 @@ cleanCardNumber =
     String.toList
         >> List.filter Char.isDigit
         >> String.fromList
+
+
+countCharsUpTo : (Char -> Bool) -> Int -> String -> Int
+countCharsUpTo predicate cursorPosition formattedString =
+    formattedString
+        |> String.toList
+        |> List.foldl
+            (\char ( pos, charCount ) ->
+                if charCount >= cursorPosition then
+                    ( pos, charCount )
+
+                else if predicate char then
+                    ( pos + 1, charCount + 1 )
+
+                else
+                    ( pos + 1, charCount )
+            )
+            ( 0, 0 )
+        |> Tuple.first
 
 
 creditCardView : (Field.Msg CardFields -> msg) -> Field CardFields -> Html msg

@@ -2,7 +2,6 @@ module FormToolkit.View exposing
     ( View, fromField, toHtml
     , partial
     , Attribute, class, classList, style
-    , InputType(..)
     , customizeErrors, customizeFields
     , customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
     )
@@ -26,14 +25,13 @@ module FormToolkit.View exposing
 
 ## Markup customization
 
-@docs InputType
 @docs customizeErrors, customizeFields
 @docs customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
 
 -}
 
 import FormToolkit.Error exposing (Error)
-import FormToolkit.Field exposing (Field(..), Msg(..))
+import FormToolkit.Field as Field exposing (Field(..), Msg(..))
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
 import Internal.Field
@@ -167,7 +165,7 @@ field, or for fields of a certain type.
                         ( _, ValueNotInRange _ data ) ->
                             "Make it in between " ++ toString data.min ++ " and " ++ toString data.max
 
-                        ( Select, IsBlank _ ) ->
+                        ( Field.Select, IsBlank _ ) ->
                             "Make up your mind"
 
                         ( _, IsBlank (Just Name) ) ->
@@ -185,7 +183,7 @@ field, or for fields of a certain type.
 
 -}
 customizeErrors :
-    ({ inputType : InputType, error : Error id } -> String)
+    ({ inputType : Field.InputType, error : Error id } -> String)
     -> View id msg
     -> View id msg
 customizeErrors viewFunc (View ({ attributes, field } as view)) =
@@ -195,12 +193,8 @@ customizeErrors viewFunc (View ({ attributes, field } as view)) =
                 { attributes
                     | errorToString =
                         \error ->
-                            let
-                                unwrappedField =
-                                    Tree.value field
-                            in
                             viewFunc
-                                { inputType = fieldTypeToInputType unwrappedField.inputType
+                                { inputType = (Field.toProperties (Field field)).inputType
                                 , error = error
                                 }
                 }
@@ -212,7 +206,7 @@ customizeErrors viewFunc (View ({ attributes, field } as view)) =
 `label` and `input` are functions that take a list of
 [Attribute](#Attribute)s.
 
-Use `advanced` parameters for a greater level of customization of the field.
+Use `params` for a greater level of customization of the field.
 It is possible to target specific fields by `InputType`, or `identifier`.
 
 The example bellow would render the input exactly as it normaly renders :P
@@ -222,7 +216,7 @@ The example bellow would render the input exactly as it normaly renders :P
         Field.text [ Field.label "Name" ]
             |> View.fromField (always ())
             |> customizeFields
-                (\{ isRequired, label, input, errors, hint } ->
+                (\{ isRequired, label, fieldHtml, errors, hint } ->
                     Html.div
                         [ Attributes.class "field"
                         , Attributes.classList [ ( "required", isRequired ) ]
@@ -232,7 +226,7 @@ The example bellow would render the input exactly as it normaly renders :P
                         , Html.div
                             [ Attributes.class "input-wrapper" ]
                             [ -- ↓ same here, label `for` already references the input
-                              input []
+                              fieldHtml []
                             ]
                         , case errors of
                             err :: _ ->
@@ -247,25 +241,15 @@ The example bellow would render the input exactly as it normaly renders :P
 customizeFields :
     ({ isRequired : Bool
      , label : List (Attribute msg) -> Html msg
-     , input : List (Attribute msg) -> Html msg
+     , fieldHtml : List (Attribute msg) -> Html msg
      , hint : List (Attribute msg) -> Html msg
      , errors : List String
      , class : String
-     , advanced :
-        { identifier : Maybe id
-        , inputType : InputType
-        , inputName : Maybe String
-        , inputPlaceholder : Maybe String
-        , inputValue : Value
-        , inputMin : Value
-        , inputMax : Value
-        , inputOptions : List ( String, Value )
-        , inputOnChange : Value -> Int -> msg
+     , input : Field.Properties id
+     , events :
+        { inputOnChange : Value -> { selectionStart : Int, selectionEnd : Int } -> msg
         , inputOnBlur : msg
         , inputOnFocus : msg
-        , labelText : Maybe String
-        , hintText : Maybe String
-        , idString : String
         }
      }
      -> Html msg
@@ -286,27 +270,23 @@ customizeFields viewFunc (View ({ attributes, field } as view)) =
                             viewFunc
                                 { isRequired = params.isRequired
                                 , label = toAttrs >> params.label
-                                , input = toAttrs >> params.input
+                                , fieldHtml = toAttrs >> params.input
                                 , hint = toAttrs >> params.hint
                                 , errors = params.errors
                                 , class = String.join " " unwrappedField.classList
-                                , advanced =
-                                    { identifier = unwrappedField.identifier
-                                    , inputName = unwrappedField.name
-                                    , inputType = fieldTypeToInputType unwrappedField.inputType
-                                    , inputPlaceholder = unwrappedField.placeholder
-                                    , inputValue = Value unwrappedField.value
-                                    , inputMin = Value unwrappedField.min
-                                    , inputMax = Value unwrappedField.max
-                                    , inputOptions =
-                                        List.map (Tuple.mapSecond Value) unwrappedField.options
-                                    , inputOnChange =
+                                , input =
+                                    let
+                                        baseProperties =
+                                            Field.toProperties (Field field)
+                                    in
+                                    { baseProperties
+                                        | idString = Internal.View.inputId field params.path
+                                    }
+                                , events =
+                                    { inputOnChange =
                                         \(Value val) -> attributes.onChange params.path val
                                     , inputOnBlur = attributes.onBlur params.path
                                     , inputOnFocus = attributes.onFocus params.path
-                                    , labelText = unwrappedField.label
-                                    , hintText = unwrappedField.hint
-                                    , idString = Internal.View.inputId field params.path
                                     }
                                 }
                 }
@@ -391,7 +371,7 @@ customizeRepeatableFields :
      , addFieldsButton : List (Attribute msg) -> Html msg
      , errors : List String
      , class : String
-     , advanced :
+     , params :
         { identifier : Maybe id
         , addFieldsButtonOnClick : Maybe msg
         , addFieldsButtonCopy : String
@@ -418,7 +398,7 @@ customizeRepeatableFields viewFunc (View ({ attributes, field } as view)) =
                                 , addFieldsButton = params.addFieldsButton << toAttrs
                                 , errors = params.errors
                                 , class = String.join " " unwrappedField.classList
-                                , advanced =
+                                , params =
                                     { identifier = unwrappedField.identifier
                                     , addFieldsButtonOnClick = params.addFieldsButtonOnClick
                                     , addFieldsButtonCopy = unwrappedField.addFieldsButtonCopy
@@ -456,7 +436,7 @@ To customize the group of inputs see
 customizeRepeatingFieldTemplates :
     ({ field : Html msg
      , removeFieldsButton : List (Attribute msg) -> Html msg
-     , advanced :
+     , params :
         { identifier : Maybe id
         , index : Int
         , removeFieldsButtonOnClick : Maybe msg
@@ -477,7 +457,7 @@ customizeRepeatingFieldTemplates viewFunc (View ({ attributes, field } as view))
                             viewFunc
                                 { field = params.field
                                 , removeFieldsButton = params.removeFieldsButton << toAttrs
-                                , advanced =
+                                , params =
                                     { identifier = Tree.value field |> .identifier
                                     , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
                                     , index = params.index
@@ -518,65 +498,3 @@ classList classTuple =
 style : String -> String -> Attribute msg
 style key val =
     Attribute (\attrs -> { attrs | styles = ( key, val ) :: attrs.styles })
-
-
-{-| -}
-type InputType
-    = Text
-    | TextArea
-    | Email
-    | Password
-    | StrictAutocomplete
-    | Integer
-    | Float
-    | Month
-    | Date
-    | Select
-    | Radio
-    | Checkbox
-
-
-fieldTypeToInputType : Internal.Field.FieldType id err -> InputType
-fieldTypeToInputType inputType =
-    case inputType of
-        Internal.Field.Text ->
-            Text
-
-        Internal.Field.TextArea ->
-            TextArea
-
-        Internal.Field.Password ->
-            Password
-
-        Internal.Field.StrictAutocomplete ->
-            StrictAutocomplete
-
-        Internal.Field.Email ->
-            Email
-
-        Internal.Field.Integer ->
-            Integer
-
-        Internal.Field.Float ->
-            Float
-
-        Internal.Field.Month ->
-            Month
-
-        Internal.Field.Date ->
-            Date
-
-        Internal.Field.Select ->
-            Select
-
-        Internal.Field.Radio ->
-            Radio
-
-        Internal.Field.Checkbox ->
-            Checkbox
-
-        Internal.Field.Repeatable _ ->
-            Text
-
-        Internal.Field.Group ->
-            Text

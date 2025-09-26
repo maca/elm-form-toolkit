@@ -6,10 +6,11 @@ module FormToolkit.Field exposing
     , select, radio, checkbox
     , group, repeatable
     , Attribute
-    , name, identifier, value, required, label, placeholder, hint
+    , name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
     , options, stringOptions, min, max, autogrow
     , class, classList
     , noattr
+    , InputType(..), Properties, toProperties
     , copies, repeatableMin, repeatableMax
     , updateWithId, updateAttribute, updateAttributes
     , updateValue, updateStringValue
@@ -38,10 +39,15 @@ their attributes, update, and render them.
 # Attributes
 
 @docs Attribute
-@docs name, identifier, value, required, label, placeholder, hint
+@docs name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
 @docs options, stringOptions, min, max, autogrow
 @docs class, classList
 @docs noattr
+
+
+# Properties
+
+@docs InputType, Properties, toProperties
 
 
 # Groups
@@ -67,7 +73,7 @@ their attributes, update, and render them.
 -}
 
 import FormToolkit.Error exposing (Error(..))
-import FormToolkit.Value as Value
+import FormToolkit.Value as Value exposing (Value)
 import Html exposing (Html)
 import Internal.Field
     exposing
@@ -574,6 +580,20 @@ hint str =
     Attribute (\field -> { field | hint = Just str })
 
 
+{-| Sets the cursor start position for a field.
+-}
+selectionStart : Int -> Attribute id val
+selectionStart pos =
+    Attribute (\field -> { field | selectionStart = pos })
+
+
+{-| Sets the cursor end position for a field.
+-}
+selectionEnd : Int -> Attribute id val
+selectionEnd pos =
+    Attribute (\field -> { field | selectionEnd = pos })
+
+
 {-| Sets the options for a [select](#select), [radio](#radio) button, or
 `datalist` for a [text](#text) field or [strictAutocomplete](#strictAutocomplete)
 to provide autocomplete suggestions.
@@ -657,6 +677,114 @@ classList =
     List.filter Tuple.second
         >> List.map (Tuple.first >> class)
         >> List.foldl combineAttrs noattr
+
+
+{-| Represents the type of input field.
+-}
+type InputType
+    = Text
+    | TextArea
+    | Email
+    | Password
+    | StrictAutocomplete
+    | Integer
+    | Float
+    | Month
+    | Date
+    | Select
+    | Radio
+    | Checkbox
+
+
+{-| Contains the properties and attributes of a field.
+-}
+type alias Properties id =
+    { identifier : Maybe id
+    , inputType : InputType
+    , inputName : Maybe String
+    , inputPlaceholder : Maybe String
+    , inputValue : Value
+    , inputMin : Value
+    , inputMax : Value
+    , inputOptions : List ( String, Value )
+    , selectionStart : Int
+    , selectionEnd : Int
+    , labelText : Maybe String
+    , hintText : Maybe String
+    , idString : String
+    , isRequired : Bool
+    }
+
+
+{-| Extracts properties from a field for custom rendering.
+-}
+toProperties : Field id -> Properties id
+toProperties (Field field) =
+    let
+        unwrappedField =
+            Tree.value field
+    in
+    { identifier = unwrappedField.identifier
+    , inputType = fieldTypeToInputType unwrappedField.inputType
+    , inputName = unwrappedField.name
+    , inputPlaceholder = unwrappedField.placeholder
+    , inputValue = Value.Value unwrappedField.value
+    , inputMin = Value.Value unwrappedField.min
+    , inputMax = Value.Value unwrappedField.max
+    , inputOptions = List.map (Tuple.mapSecond Value.Value) unwrappedField.options
+    , labelText = unwrappedField.label
+    , hintText = unwrappedField.hint
+    , idString = ""
+    , selectionStart = unwrappedField.selectionStart
+    , selectionEnd = unwrappedField.selectionEnd
+    , isRequired = unwrappedField.isRequired
+    }
+
+
+fieldTypeToInputType : Internal.Field.FieldType id err -> InputType
+fieldTypeToInputType inputType =
+    case inputType of
+        Internal.Field.Text ->
+            Text
+
+        Internal.Field.TextArea ->
+            TextArea
+
+        Internal.Field.Password ->
+            Password
+
+        Internal.Field.StrictAutocomplete ->
+            StrictAutocomplete
+
+        Internal.Field.Email ->
+            Email
+
+        Internal.Field.Integer ->
+            Integer
+
+        Internal.Field.Float ->
+            Float
+
+        Internal.Field.Month ->
+            Month
+
+        Internal.Field.Date ->
+            Date
+
+        Internal.Field.Select ->
+            Select
+
+        Internal.Field.Radio ->
+            Radio
+
+        Internal.Field.Checkbox ->
+            Checkbox
+
+        Internal.Field.Repeatable _ ->
+            Text
+
+        Internal.Field.Group ->
+            Text
 
 
 {-| An attribute that does nothing.
