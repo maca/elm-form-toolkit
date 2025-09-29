@@ -581,6 +581,10 @@ valueAttribute f inputValue =
 
 textInputHtmlAttributes : ViewAttributes id msg -> List Int -> Field id -> List (Html.Attribute msg)
 textInputHtmlAttributes attributes path input =
+    let
+        node =
+            Tree.value input
+    in
     List.concat
         [ if Field.isAutocompleteable input then
             [ Attributes.autocomplete True
@@ -597,11 +601,16 @@ textInputHtmlAttributes attributes path input =
           , nameAttribute input
           , valueAttribute Attributes.min (Field.min input)
           , valueAttribute Attributes.max (Field.max input)
-          , selectionStartAttribute (Tree.value input).selectionStart
-          , selectionEndAttribute (Tree.value input).selectionEnd
           , ariaDescribedByAttribute input path
           , ariaInvalidAttribute input
           ]
+        , if List.member node.inputType [ Field.Text, Field.TextArea ] then
+            [ selectionStartAttribute node.selectionStart
+            , selectionEndAttribute node.selectionEnd
+            ]
+
+          else
+            []
         ]
 
 

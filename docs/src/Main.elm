@@ -2,6 +2,7 @@ module Main exposing (main)
 
 import Chapters.Customization as Customization
 import Chapters.FormattingAndValidation as FormattingAndValidation
+import Chapters.GettingStarted as GettingStarted
 import Chapters.Overview as Overview
 import ElmBook exposing (Book, book)
 import ElmBook.Chapter as Chapter
@@ -9,7 +10,8 @@ import ElmBook.StatefulOptions as StatefulOptions
 
 
 type alias Model =
-    { overview : Overview.Model
+    { gettingStarted : GettingStarted.Model
+    , overview : Overview.Model
     , formattingAndValidation : FormattingAndValidation.Model
     , customization : Customization.Model
     }
@@ -17,7 +19,8 @@ type alias Model =
 
 init : Model
 init =
-    { overview = Overview.init
+    { gettingStarted = GettingStarted.init
+    , overview = Overview.init
     , formattingAndValidation = FormattingAndValidation.init
     , customization = Customization.init
     }
@@ -39,7 +42,8 @@ main =
                 ]
               )
             , ( "Usage"
-              , [ Overview.chapter
+              , [ GettingStarted.chapter
+                , Overview.chapter
                 , FormattingAndValidation.chapter
                 , Customization.chapter
                 ]

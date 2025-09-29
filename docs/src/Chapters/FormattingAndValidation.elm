@@ -14,7 +14,10 @@ import Support.CreditCardForm as CreditCardForm
 import Task
 
 
-chapter : Chapter { x | formattingAndValidation : Model }
+
+-- chapter : Chapter { x | formattingAndValidation : Model }
+
+
 chapter =
     Chapter.chapter "Formatting and Validation"
         |> Chapter.withStatefulComponent
