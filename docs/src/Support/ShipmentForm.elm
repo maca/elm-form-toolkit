@@ -19,12 +19,10 @@ import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import FormToolkit.View as View
 import Html exposing (Html)
-import Support.CreditCardForm as CreditCardForm
 
 
 type alias Shipment =
     { shipping : Address
-    , billing : CreditCardForm.CardInformation
     , recipients : List Recipient
     }
 
@@ -48,7 +46,6 @@ type alias Recipient =
 
 type ShipmentFields
     = AddressFields AddressFields
-    | CardFields CreditCardForm.CardFields
     | RecipientFields RecipientFields
 
 
@@ -79,7 +76,6 @@ shipmentFields =
     Field.group
         []
         [ Field.map AddressFields shippingInformationFields
-        , Field.map CardFields CreditCardForm.cardFields
         , Field.map RecipientFields recipientsFields
         ]
 
@@ -172,44 +168,26 @@ recipientsFields =
 
 shipmentParser : Parse.Parser ShipmentFields Shipment
 shipmentParser =
-    Parse.map3 Shipment
-        (addressParser AddressFields)
-        (CreditCardForm.cardInformationParser CardFields)
-        (recipientsParser RecipientFields)
+    Parse.map2 Shipment
+        shipmentAddressParser
+        shipmentRecipientsParser
 
 
-shipmentValidator : (CreditCardForm.CardFields -> id) -> Parse.Parser id ()
-shipmentValidator toId =
-    let
-        field id =
-            Parse.field (toId id)
-    in
-    Parse.succeed (always ())
-        |> Parse.andMap
-            (field CreditCardForm.CardNumber CreditCardForm.creditCardNumberParser
-                |> Parse.andThen (always (Parse.succeed ()))
-            )
-
-
-addressParser : (AddressFields -> id) -> Parse.Parser id Address
-addressParser toId =
-    let
-        field id =
-            Parse.field (toId id)
-    in
+shipmentAddressParser : Parse.Parser ShipmentFields Address
+shipmentAddressParser =
     Parse.succeed Address
-        |> Parse.andMap (field AddressFirstName Parse.string)
-        |> Parse.andMap (field AddressLastName Parse.string)
-        |> Parse.andMap (field AddressStreet Parse.string)
-        |> Parse.andMap (field Address2 Parse.string)
-        |> Parse.andMap (field PostalCode Parse.string)
-        |> Parse.andMap (field AddressState Parse.string)
-        |> Parse.andMap (countryParser toId)
+        |> Parse.andMap (Parse.field (AddressFields AddressFirstName) Parse.string)
+        |> Parse.andMap (Parse.field (AddressFields AddressLastName) Parse.string)
+        |> Parse.andMap (Parse.field (AddressFields AddressStreet) Parse.string)
+        |> Parse.andMap (Parse.field (AddressFields Address2) Parse.string)
+        |> Parse.andMap (Parse.field (AddressFields PostalCode) Parse.string)
+        |> Parse.andMap (Parse.field (AddressFields AddressState) Parse.string)
+        |> Parse.andMap shipmentCountryParser
 
 
-countryParser : (AddressFields -> id) -> Parse.Parser id Countries.Country
-countryParser toId =
-    Parse.field (toId AddressCountry)
+shipmentCountryParser : Parse.Parser ShipmentFields Countries.Country
+shipmentCountryParser =
+    Parse.field (AddressFields AddressCountry)
         (Parse.string
             |> Parse.andThen
                 (\countryStr ->
@@ -223,6 +201,8 @@ countryParser toId =
         )
 
 
-recipientsParser : (RecipientFields -> id) -> Parse.Parser id (List Recipient)
-recipientsParser toId =
+shipmentRecipientsParser : Parse.Parser ShipmentFields (List Recipient)
+shipmentRecipientsParser =
     Parse.succeed [ { email = "", name = "" } ]
+
+

@@ -10,10 +10,10 @@ module FormToolkit.Field exposing
     , options, stringOptions, min, max, autogrow
     , class, classList
     , noattr
-    , InputType(..), Properties, toProperties
     , copies, repeatableMin, repeatableMax
     , updateWithId, updateAttribute, updateAttributes
     , updateValue, updateStringValue
+    , InputType(..), Properties, toProperties
     , errors
     , map
     )
@@ -45,11 +45,6 @@ their attributes, update, and render them.
 @docs noattr
 
 
-# Properties
-
-@docs InputType, Properties, toProperties
-
-
 # Groups
 
 @docs copies, repeatableMin, repeatableMax
@@ -59,6 +54,13 @@ their attributes, update, and render them.
 
 @docs updateWithId, updateAttribute, updateAttributes
 @docs updateValue, updateStringValue
+
+
+# Properties
+
+Read a Field properties
+
+@docs InputType, Properties, toProperties
 
 
 # Error

@@ -70,18 +70,14 @@ cardFields =
         ]
 
 
-cardInformationParser : (CardFields -> id) -> Parse.Parser id CardInformation
-cardInformationParser toId =
-    let
-        field id =
-            Parse.field (toId id)
-    in
+cardInformationParser : Parse.Parser CardFields CardInformation
+cardInformationParser =
     Parse.succeed CardInformation
-        |> Parse.andMap (field CardName Parse.string)
-        |> Parse.andMap (field CardNumber creditCardNumberParser)
-        |> Parse.andMap (field Cvc Parse.string)
-        |> Parse.andMap (field ExpireMonth Parse.int)
-        |> Parse.andMap (field ExpireYear Parse.int)
+        |> Parse.andMap (Parse.field CardName Parse.string)
+        |> Parse.andMap (Parse.field CardNumber creditCardNumberParser)
+        |> Parse.andMap (Parse.field Cvc Parse.string)
+        |> Parse.andMap (Parse.field ExpireMonth Parse.int)
+        |> Parse.andMap (Parse.field ExpireYear Parse.int)
 
 
 creditCardNumberParser : Parse.Parser id String

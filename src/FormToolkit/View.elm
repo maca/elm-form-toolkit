@@ -245,7 +245,7 @@ customizeFields :
      , hint : List (Attribute msg) -> Html msg
      , errors : List String
      , class : String
-     , input : Field.Properties id
+     , fieldProperties : Field.Properties id
      , events :
         { inputOnChange : Value -> { selectionStart : Int, selectionEnd : Int } -> msg
         , inputOnBlur : msg
@@ -274,7 +274,7 @@ customizeFields viewFunc (View ({ attributes, field } as view)) =
                                 , hint = toAttrs >> params.hint
                                 , errors = params.errors
                                 , class = String.join " " unwrappedField.classList
-                                , input =
+                                , fieldProperties =
                                     let
                                         baseProperties =
                                             Field.toProperties (Field field)

@@ -60,7 +60,7 @@ update msg model =
                 ( formFields, result ) =
                     model.formFields
                         |> Parse.parseUpdate
-                            (CreditCardForm.cardInformationParser identity)
+                            CreditCardForm.cardInformationParser
                             inputMsg
             in
             ( { model
