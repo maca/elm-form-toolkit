@@ -3,13 +3,7 @@ module Chapters.FormattingAndValidation exposing (Model, Msg, chapter, init)
 import ElmBook
 import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
-import FormToolkit.Field as Field exposing (Field)
-import FormToolkit.Parse as Parse
-import FormToolkit.View as View
-import Html exposing (Html)
-import Html.Attributes as Attrs exposing (novalidate)
-import Html.Events exposing (onClick, onSubmit)
-import Result
+import Html
 import Support.CreditCardForm as CreditCardForm
 import Task
 

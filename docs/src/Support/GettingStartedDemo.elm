@@ -1,4 +1,4 @@
-module Support.GettingStartedDemo exposing (Model, Msg, init, update, userForm, view)
+module Support.GettingStartedDemo exposing (Model, Msg, init, update, view)
 
 import Browser
 import FormToolkit.Error as Error exposing (Error)
@@ -7,7 +7,6 @@ import FormToolkit.Parse as Parse
 import Html exposing (Html)
 import Html.Attributes as Attr exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
-import Result
 
 
 

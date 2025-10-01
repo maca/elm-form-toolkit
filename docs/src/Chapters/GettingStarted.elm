@@ -3,12 +3,7 @@ module Chapters.GettingStarted exposing (Model, Msg, chapter, init)
 import ElmBook
 import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
-import FormToolkit.Field as Field exposing (Field)
-import FormToolkit.Parse as Parse
-import Html exposing (Html)
-import Html.Attributes as Attr exposing (novalidate)
-import Html.Events exposing (onClick, onSubmit)
-import Result
+import Html
 import Support.GettingStartedDemo as Demo
 import Task
 
@@ -61,7 +56,7 @@ chapter =
               )
             ]
         |> Chapter.render
-            (String.join ""
+            (String.concat
                 [ introMarkdown
                 , stepOneMarkdown
                 , stepTwoMarkdown

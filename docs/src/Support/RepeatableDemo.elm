@@ -1,10 +1,8 @@
 module Support.RepeatableDemo exposing (Model, Msg, init, update, view)
 
-import Browser
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
-import FormToolkit.Value as Value
 import Html exposing (Html)
 import Html.Attributes as Attr
 import Html.Events exposing (onClick, onSubmit)
@@ -167,10 +165,10 @@ view model =
             ]
         , if model.submitted then
             case model.result of
-                Ok repeatableData ->
+                Ok _ ->
                     success [ Html.text "Form submitted successfully!" ]
 
-                Err errors ->
+                Err _ ->
                     failure [ Html.text "There are validation errors" ]
 
           else

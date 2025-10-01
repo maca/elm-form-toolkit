@@ -1,15 +1,11 @@
-module Support.CreditCardForm exposing (Model, Msg, creditCardForm, init, update, view)
+module Support.CreditCardForm exposing (Model, Msg, init, update, view)
 
-import Browser
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
-import FormToolkit.Value as Value
-import FormToolkit.View as View
 import Html exposing (Html)
 import Html.Attributes as Attr exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
-import Result
 
 
 

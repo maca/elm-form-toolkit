@@ -6,7 +6,7 @@ import ElmBook.Chapter as Chapter exposing (Chapter)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
-import Html exposing (Html)
+import Html
 import Html.Attributes as Attr
 import Support.RepeatableDemo as RepeatableDemo
 import Task
@@ -516,7 +516,7 @@ chapter =
               )
             ]
         |> Chapter.render
-            (String.join ""
+            (String.concat
                 [ inputTypesMarkdown
                 , repeatableFieldsMarkdown
                 , repeatableAdvancedMarkdown

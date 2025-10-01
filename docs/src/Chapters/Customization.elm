@@ -10,7 +10,6 @@ import Html exposing (Html)
 import Html.Attributes as Attrs exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
 import Result
-import Support.CreditCardForm as CreditCardForm
 import Support.ShipmentForm as ShipmentForm
 import Task
 

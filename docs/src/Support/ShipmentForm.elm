@@ -5,20 +5,14 @@ module Support.ShipmentForm exposing
     , RecipientFields
     , Shipment
     , ShipmentFields(..)
-    , parse
-    , recipientsFields
     , shipmentFields
     , shipmentParser
-    , shippingInformationFields
     )
 
 import Countries
-import FormToolkit.Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
-import FormToolkit.View as View
-import Html exposing (Html)
 
 
 type alias Shipment =
@@ -64,11 +58,6 @@ type AddressFields
 type RecipientFields
     = RecipientEmail
     | RecipientName
-
-
-parse : Field ShipmentFields -> ( Field ShipmentFields, Result (List (Error ShipmentFields)) Shipment )
-parse =
-    Parse.parse shipmentParser
 
 
 shipmentFields : Field ShipmentFields
@@ -204,5 +193,3 @@ shipmentCountryParser =
 shipmentRecipientsParser : Parse.Parser ShipmentFields (List Recipient)
 shipmentRecipientsParser =
     Parse.succeed [ { email = "", name = "" } ]
-
-
