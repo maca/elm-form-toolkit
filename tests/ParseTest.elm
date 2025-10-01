@@ -104,37 +104,36 @@ suite =
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue groupWithNameDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
-
-            -- , test "repeatable and group with name" <|
-            --     \_ ->
-            --         Parse.decode Parse.json
-            --             (Field.repeatable [ Field.name "repeatable" ]
-            --                 groupWithName
-            --                 [ groupWithName
-            --                 , groupWithName
-            --                 ]
-            --             )
-            --             |> Tuple.second |> Result.withDefault Json.Encode.null
-            --             |> Json.Parse.decodeValue
-            --                 (Json.Decode.field "repeatable"
-            --                     (Json.Decode.list groupWithNameDecoder)
-            --                 )
-            --             |> Tuple.second |> Expect.equal
-            --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
-            -- , test "repeatable and group with noname" <|
-            --     \_ ->
-            --         Parse.decode Parse.json
-            --             (Field.repeatable [ Field.name "repeatable" ]
-            --                 groupWithNoName
-            --                 [ groupWithNoName, groupWithNoName ]
-            --             )
-            --             |> Tuple.second |> Result.withDefault Json.Encode.null
-            --             |> Json.Decode.decodeValue
-            --                 (Json.Decode.field "repeatable"
-            --                     (Json.Decode.list simpleJsonDecoder)
-            --                 )
-            --             |> Tuple.second |> Expect.equal
-            --                 (Ok [ ( "A string", 1 ), ( "A string", 1 ) ])
+            , test "repeatable and group with name" <|
+                \_ ->
+                    Parse.parse Parse.json
+                        (Field.repeatable [ Field.name "repeatable" ]
+                            groupWithName
+                            []
+                        )
+                        |> Tuple.second
+                        |> Result.withDefault Json.Encode.null
+                        |> Json.Decode.decodeValue
+                            (Json.Decode.field "repeatable"
+                                (Json.Decode.list groupWithNameDecoder)
+                            )
+                        |> Expect.equal
+                            (Ok [ ( "A string", 1 ) ])
+            , test "repeatable and group with noname" <|
+                \_ ->
+                    Parse.parse Parse.json
+                        (Field.repeatable [ Field.name "repeatable" ]
+                            (Field.group [] [ stringInput, intInput ])
+                            []
+                        )
+                        |> Tuple.second
+                        |> Result.withDefault Json.Encode.null
+                        |> Json.Decode.decodeValue
+                            (Json.Decode.field "repeatable"
+                                (Json.Decode.list simpleJsonDecoder)
+                            )
+                        |> Expect.equal
+                            (Ok [ ( "A string", 1 ) ])
             ]
         , describe "validates"
             [ test "presence" <|
@@ -186,14 +185,15 @@ suite =
             , test "email validation only applies to email fields" <|
                 \_ ->
                     let
-                        invalidEmail = "not-an-email"
-                        
+                        invalidEmail =
+                            "not-an-email"
+
                         textField =
                             Field.text
                                 [ Field.identifier StringField
                                 , Field.value (Value.string invalidEmail)
                                 ]
-                                
+
                         emailField =
                             Field.email
                                 [ Field.identifier StringField
@@ -211,12 +211,14 @@ suite =
                             Parse.parse Parse.string emailField
                                 |> Tuple.second
                                 |> Expect.equal (Err [ EmailInvalid (Just StringField) ])
-                        ] ()
+                        ]
+                        ()
             , test "valid email passes validation" <|
                 \_ ->
                     let
-                        validEmail = "test@example.com"
-                        
+                        validEmail =
+                            "test@example.com"
+
                         emailField =
                             Field.email
                                 [ Field.identifier StringField
@@ -236,17 +238,21 @@ suite =
                                         [ Field.identifier StringField
                                         , Field.value (Value.string email)
                                         ]
-                                        
+
                                 result =
                                     Parse.parse Parse.string emailField
                                         |> Tuple.second
                             in
                             if shouldPass then
                                 result |> Expect.equal (Ok email)
+
                             else
                                 case result of
-                                    Err [ EmailInvalid (Just StringField) ] -> Expect.pass
-                                    _ -> Expect.fail ("Expected EmailInvalid for invalid email: " ++ email)
+                                    Err [ EmailInvalid (Just StringField) ] ->
+                                        Expect.pass
+
+                                    _ ->
+                                        Expect.fail ("Expected EmailInvalid for invalid email: " ++ email)
                     in
                     Expect.all
                         [ \_ -> testEmail "valid@example.com" True
@@ -256,7 +262,8 @@ suite =
                         , \_ -> testEmail "@domain.com" False
                         , \_ -> testEmail "user@" False
                         , \_ -> testEmail "user@@domain.com" False
-                        ] ()
+                        ]
+                        ()
             , test "empty email field validation" <|
                 \_ ->
                     let
