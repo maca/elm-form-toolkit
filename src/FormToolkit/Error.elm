@@ -28,6 +28,7 @@ type Error id
     | IsGroupNotInput (Maybe id)
     | NoOptionsProvided (Maybe id)
     | ParseError (Maybe id)
+    | EmailInvalid (Maybe id)
 
 
 {-| -}
@@ -58,6 +59,9 @@ toEnglish error =
 
         CustomError _ message ->
             message
+
+        EmailInvalid _ ->
+            "Please enter a valid email address"
 
         _ ->
             "Couldn't parse"
@@ -100,4 +104,7 @@ toFieldId error =
             maybeId
 
         ParseError maybeId ->
+            maybeId
+
+        EmailInvalid maybeId ->
             maybeId

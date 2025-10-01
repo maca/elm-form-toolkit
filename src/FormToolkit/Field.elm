@@ -1053,6 +1053,9 @@ mapError transformId error =
         ParseError id ->
             ParseError (Maybe.map transformId id)
 
+        EmailInvalid id ->
+            EmailInvalid (Maybe.map transformId id)
+
 
 dasherize : String -> String
 dasherize =

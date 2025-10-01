@@ -22,6 +22,7 @@ import Internal.Value
 import Json.Decode
 import Json.Encode
 import List.Extra
+import Regex
 import RoseTree.Tree as Tree
 
 
@@ -369,6 +370,7 @@ validateTree =
             [ checkRequired
             , checkInRange
             , checkOptionsProvided
+            , checkEmail
             ]
         )
 
@@ -483,3 +485,34 @@ checkOptionsProvided input =
 
         _ ->
             Nothing
+
+
+checkEmail : Field id -> Maybe (Error id)
+checkEmail input =
+    case Internal.Field.inputType input of
+        Internal.Field.Email ->
+            Internal.Value.toString (Internal.Field.value input)
+                |> Maybe.andThen
+                    (\value ->
+                        if isValidEmail value then
+                            Nothing
+
+                        else
+                            Just (EmailInvalid (Internal.Field.identifier input))
+                    )
+
+        _ ->
+            Nothing
+
+
+isValidEmail : String -> Bool
+isValidEmail email =
+    let
+        -- Standard HTML5 email validation pattern used by browsers
+        pattern =
+            "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"
+
+        regex =
+            Maybe.withDefault Regex.never (Regex.fromString pattern)
+    in
+    Regex.contains regex email

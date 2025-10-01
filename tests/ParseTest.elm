@@ -1,7 +1,7 @@
 module ParseTest exposing (suite)
 
 import Expect
-import FormToolkit.Error exposing (Error(..))
+import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
@@ -183,6 +183,98 @@ suite =
                         |> Tuple.second
                         |> Expect.equal
                             (Err [ ParseError (Just StringField) ])
+            , test "email validation only applies to email fields" <|
+                \_ ->
+                    let
+                        invalidEmail = "not-an-email"
+                        
+                        textField =
+                            Field.text
+                                [ Field.identifier StringField
+                                , Field.value (Value.string invalidEmail)
+                                ]
+                                
+                        emailField =
+                            Field.email
+                                [ Field.identifier StringField
+                                , Field.value (Value.string invalidEmail)
+                                ]
+                    in
+                    Expect.all
+                        [ \_ ->
+                            -- Text field should NOT validate email format
+                            Parse.parse Parse.string textField
+                                |> Tuple.second
+                                |> Expect.equal (Ok invalidEmail)
+                        , \_ ->
+                            -- Email field SHOULD validate email format
+                            Parse.parse Parse.string emailField
+                                |> Tuple.second
+                                |> Expect.equal (Err [ EmailInvalid (Just StringField) ])
+                        ] ()
+            , test "valid email passes validation" <|
+                \_ ->
+                    let
+                        validEmail = "test@example.com"
+                        
+                        emailField =
+                            Field.email
+                                [ Field.identifier StringField
+                                , Field.value (Value.string validEmail)
+                                ]
+                    in
+                    Parse.parse Parse.string emailField
+                        |> Tuple.second
+                        |> Expect.equal (Ok validEmail)
+            , test "email validation edge cases" <|
+                \_ ->
+                    let
+                        testEmail email shouldPass =
+                            let
+                                emailField =
+                                    Field.email
+                                        [ Field.identifier StringField
+                                        , Field.value (Value.string email)
+                                        ]
+                                        
+                                result =
+                                    Parse.parse Parse.string emailField
+                                        |> Tuple.second
+                            in
+                            if shouldPass then
+                                result |> Expect.equal (Ok email)
+                            else
+                                case result of
+                                    Err [ EmailInvalid (Just StringField) ] -> Expect.pass
+                                    _ -> Expect.fail ("Expected EmailInvalid for invalid email: " ++ email)
+                    in
+                    Expect.all
+                        [ \_ -> testEmail "valid@example.com" True
+                        , \_ -> testEmail "user.name@domain.com" True
+                        , \_ -> testEmail "user+tag@example.co.uk" True
+                        , \_ -> testEmail "invalid-email" False
+                        , \_ -> testEmail "@domain.com" False
+                        , \_ -> testEmail "user@" False
+                        , \_ -> testEmail "user@@domain.com" False
+                        ] ()
+            , test "empty email field validation" <|
+                \_ ->
+                    let
+                        emptyEmailField =
+                            Field.email
+                                [ Field.identifier StringField
+                                , Field.required True
+                                ]
+                    in
+                    -- Empty required email field should fail with both ParseError and IsBlank
+                    Parse.parse Parse.string emptyEmailField
+                        |> Tuple.second
+                        |> Expect.equal (Err [ ParseError (Just StringField), IsBlank (Just StringField) ])
+            , test "EmailInvalid error has correct English translation" <|
+                \_ ->
+                    EmailInvalid (Just StringField)
+                        |> Error.toEnglish
+                        |> Expect.equal "Please enter a valid email address"
 
             -- , describe "and errors are presented in the correct order" []
             -- , test errors are not repeated after multiple updates
