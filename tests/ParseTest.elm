@@ -261,6 +261,7 @@ suite =
                         , \_ -> testEmail "invalid-email" False
                         , \_ -> testEmail "@domain.com" False
                         , \_ -> testEmail "user@" False
+                        , \_ -> testEmail "user@example" False
                         , \_ -> testEmail "user@@domain.com" False
                         ]
                         ()
