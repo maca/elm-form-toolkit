@@ -1,7 +1,7 @@
 module Chapters.GettingStarted exposing (Model, Msg, chapter, init)
 
 import ElmBook
-import ElmBook.Actions exposing (mapUpdate, updateStateWithCmdWith)
+import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
@@ -29,13 +29,13 @@ init =
 update : Msg -> Model -> ( Model, Cmd (ElmBook.Msg state) )
 update msg model =
     case msg of
-        DemoUpdated inputMsg ->
+        DemoUpdated demoMsg ->
             let
                 demo =
-                    Demo.update inputMsg model.demo
+                    Demo.update demoMsg model.demo
             in
             ( { model | demo = demo }
-            , Task.perform (ElmBook.Actions.logActionWithString "Result")
+            , Task.perform (Actions.logActionWithString "Result")
                 (Task.succeed (Debug.toString demo.result))
             )
 
@@ -44,12 +44,12 @@ chapter : Chapter { x | gettingStarted : Model }
 chapter =
     Chapter.chapter "Getting Started"
         |> Chapter.withStatefulComponentList
-            [ ( "demo"
-              , \s ->
-                    s.gettingStarted.demo
+            [ ( "Demo"
+              , \book ->
+                    book.gettingStarted.demo
                         |> Demo.view
                         |> Html.map
-                            (updateStateWithCmdWith
+                            (Actions.updateStateWithCmdWith
                                 (\msg state ->
                                     update (DemoUpdated msg) state.gettingStarted
                                         |> Tuple.mapFirst
@@ -79,68 +79,75 @@ chapter =
 introMarkdown : String
 introMarkdown =
     """
-# Welcome to elm-form-toolkit!
+# Welcome to form-toolkit!
 
-elm-form-toolkit is a comprehensive package for building, parsing, validating, and rendering forms in Elm. It provides a declarative API similar to Elm's Html for building complex forms with validation, custom types, and flexible rendering.
+form-toolkit is a comprehensive package for building, parsing, validating, and
+rendering forms in Elm for building complex forms with validation, parsing to
+any shape, and flexible rendering.
+
 
 ## Key Features:
 
-- **Declarative form building** with an Html-like API
-- **Built-in validation** with custom validation support  
-- **Parse form data to custom types** using a Json.Decode-like interface
-- **Flexible rendering** with customization options
-- **Support for complex forms** with repeatable fields
+- Declarative and opinionated form building with an Elm-Html-like API
+- Built-in validation with custom validation support  
+- Parse form data to custom types using a Json.Decode-like interface
+- Flexible rendering with customization options
+- Support for complex forms with repeatable fields
 
-Let's build a simple user registration form step by step to see how elm-form-toolkit works!
+Let's build a simple name form step by step to see how form-toolkit works!
 """
 
 
 stepOneMarkdown : String
 stepOneMarkdown =
     """
-## Step 1: Declare a Form
+## Step 1: Declaring a Form
 
-First, let's declare a simple form with two fields: name and email. We start by defining field identifiers and then create the form structure.
+First, let's declare a simple form with two fields: first name and last name. We start by
+defining field identifiers and then create the form structure.
+
 
 ```elm
 -- Define field identifiers
 type UserFormFields
-    = UserName
-    | UserEmail
+    = FirstName
+    | LastName
 
 -- Declare the form
 userForm : Field UserFormFields
 userForm =
     Field.group []
         [ Field.text
-            [ Field.label "Name"
+            [ Field.label "First Name"
             , Field.required True
-            , Field.identifier UserName
-            , Field.name "user-name"
+            , Field.identifier FirstName
             ]
-        , Field.email
-            [ Field.label "Email"
+        , Field.text
+            [ Field.label "Last Name"
             , Field.required True
-            , Field.identifier UserEmail
-            , Field.name "user-email"
+            , Field.identifier LastName
             ]
         ]
 ```
 
-The form is built using `Field.group` to contain multiple fields, and each field has:
+Each field has:
 - **label**: Display text for the field
-- **required**: Validation rule
+- **required**: Validate the presence of input value.
 - **identifier**: Used for parsing (connects to your custom type)
-- **name**: HTML name attribute for the input
+
+
 """
 
 
 stepTwoMarkdown : String
 stepTwoMarkdown =
     """
-## Step 2: Set up the Model
+## Step 2: Setting up the Model
 
-The form state should be kept in your model. This includes the form fields themselves, submission status, and the parsed result.
+The form should be kept in your model, this keeps track of inputs and values,
+and validation errors, nothing else, so it's safe to keep in the model.
+
+
 
 ```elm
 type alias Model =
@@ -150,8 +157,8 @@ type alias Model =
     }
 
 type alias User =
-    { name : String
-    , email : String
+    { firstName : String
+    , lastName : String
     }
 
 init : Model
@@ -162,7 +169,6 @@ init =
     }
 ```
 
-**Important**: The `formFields` hold the current state of all form inputs, including their values, validation states, and error messages. The `user` field will contain the parsed result when the form is valid.
 """
 
 
@@ -171,7 +177,9 @@ stepThreeMarkdown =
     """
 ## Step 3: Handle Updates
 
-Form updates are handled using `Parse.parseUpdate` along with a parser. Define your Msg type and update function:
+Form updates are handled using `Parse.parseUpdate` along with a parser.
+Define your Msg type and update function:
+
 
 ```elm
 type Msg
@@ -181,10 +189,10 @@ type Msg
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        FormChanged inputMsg ->
+        FormChanged fieldMsg ->
             let
                 ( formFields, result ) =
-                    Parse.parseUpdate userParser inputMsg model.formFields
+                    Parse.parseUpdate userParser fieldMsg model.formFields
             in
             { model
                 | formFields = formFields
@@ -198,14 +206,14 @@ update msg model =
 userParser : Parse.Parser UserFormFields User
 userParser =
     Parse.map2 User
-        (Parse.field UserName Parse.string)
-        (Parse.field UserEmail Parse.string)
+        (Parse.field FirstName Parse.string)
+        (Parse.field LastName Parse.string)
 ```
 
 **Key points:**
 - `Parse.parseUpdate` handles both updating the form state AND parsing the current form data
-- The parser uses a **Json.Decode-like API** to extract and validate field values
-- Field identifiers (`UserName`, `UserEmail`) connect your form fields to the parser
+- Field identifiers `FirstName` and `LastName` are used to reference fields while parsing,
+similar as using `field` when using `Json.Decode`
 """
 
 
@@ -214,7 +222,7 @@ stepFourMarkdown =
     """
 ## Step 4: Render the Form
 
-Rendering the form is simple - use `Field.toHtml` with your Msg constructor:
+Use `Field.toHtml` with your `Msg` constructor:
 
 ```elm
 view : Model -> Html Msg
@@ -242,7 +250,7 @@ The first argument is a function that wraps `Field.Msg` in your app's `Msg` type
 completeExampleMarkdown : String
 completeExampleMarkdown =
     """
-## Complete Browser.sandbox Example
+## Complete Example
 
 Here's the complete working example that you can copy and use:
 
@@ -262,13 +270,13 @@ type alias Model =
     , user : Maybe User
     }
 
-type UserFormFields = UserName | UserEmail
+type UserFormFields = FirstName | LastName
 
 type Msg
     = FormChanged (Field.Msg UserFormFields)
     | FormSubmitted
 
-type alias User = { name : String, email : String }
+type alias User = { firstName : String, lastName : String }
 
 init : Model
 init =
@@ -278,19 +286,19 @@ userForm : Field UserFormFields
 userForm =
     Field.group []
         [ Field.text
-            [ Field.label "Name", Field.required True
-            , Field.identifier UserName, Field.name "user-name" ]
-        , Field.email
-            [ Field.label "Email", Field.required True
-            , Field.identifier UserEmail, Field.name "user-email" ]
+            [ Field.label "First Name", Field.required True
+            , Field.identifier FirstName, Field.name "first-name" ]
+        , Field.text
+            [ Field.label "Last Name", Field.required True
+            , Field.identifier LastName, Field.name "last-name" ]
         ]
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        FormChanged inputMsg ->
+        FormChanged fieldMsg ->
             let ( formFields, result ) =
-                    Parse.parseUpdate userParser inputMsg model.formFields
+                    Parse.parseUpdate userParser fieldMsg model.formFields
             in { model | formFields = formFields, user = Result.toMaybe result }
         
         FormSubmitted ->
@@ -299,8 +307,8 @@ update msg model =
 userParser : Parse.Parser UserFormFields User
 userParser =
     Parse.map2 User
-        (Parse.field UserName Parse.string)
-        (Parse.field UserEmail Parse.string)
+        (Parse.field FirstName Parse.string)
+        (Parse.field LastName Parse.string)
 
 view : Model -> Html Msg
 view model =
@@ -310,5 +318,5 @@ view model =
         ]
 ```
 
-<component with-label="demo"/>
+<component with-label="Demo"/>
 """

@@ -1,17 +1,31 @@
-module Support.CreditCardForm exposing
-    ( CardFields(..)
-    , CardInformation
-    , cardFields
-    , cardInformationParser
-    , creditCardNumberParser
-    , creditCardView
-    )
+module Support.CreditCardForm exposing (Model, Msg, creditCardForm, init, update, view)
 
+import Browser
+import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import FormToolkit.View as View
 import Html exposing (Html)
+import Html.Attributes as Attr exposing (novalidate)
+import Html.Events exposing (onClick, onSubmit)
+import Result
+
+
+
+-- TYPES
+
+
+type alias Model =
+    { formFields : Field CardFields
+    , submitted : Bool
+    , result : Result (List (Error CardFields)) CardInformation
+    }
+
+
+type Msg
+    = FormChanged (Field.Msg CardFields)
+    | FormSubmitted
 
 
 type CardFields
@@ -32,8 +46,45 @@ type alias CardInformation =
     }
 
 
-cardFields : Field CardFields
-cardFields =
+
+-- INIT
+
+
+init : Model
+init =
+    { formFields = creditCardForm
+    , submitted = False
+    , result = Err [ Error.CustomError Nothing "Waiting for input" ]
+    }
+
+
+
+-- UPDATE
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        FormChanged inputMsg ->
+            let
+                ( formFields, result ) =
+                    Parse.parseUpdate cardInformationParser inputMsg model.formFields
+            in
+            { formFields = formFields
+            , result = result
+            , submitted = False
+            }
+
+        FormSubmitted ->
+            { model | submitted = True }
+
+
+
+-- FORM DEFINITION
+
+
+creditCardForm : Field CardFields
+creditCardForm =
     Field.group
         [ Field.label "Card Information"
         , Field.identifier CardInfo
@@ -51,7 +102,8 @@ cardFields =
             , Field.name "billing-card-number"
             ]
         , Field.group
-            [ Field.class "card-params" ]
+            [ Field.class "card-params"
+            ]
             [ Field.text
                 [ Field.label "Expiration"
                 , Field.required True
@@ -156,17 +208,65 @@ countCharsUpTo predicate cursorPosition formattedString =
         |> Tuple.first
 
 
-creditCardView : (Field.Msg CardFields -> msg) -> Field CardFields -> Html msg
-creditCardView msg formFields =
-    formFields
-        |> Field.updateWithId CardName
-            (Field.updateAttribute (Field.placeholder "Name on card"))
-        |> Result.andThen
-            (Field.updateWithId CardNumber
-                (Field.updateAttribute (Field.placeholder "Card number"))
-            )
-        |> Result.map (View.fromField msg)
-        |> Result.toMaybe
-        |> Maybe.andThen (View.partial CardInfo)
-        |> Maybe.map View.toHtml
-        |> Maybe.withDefault (Html.text "")
+
+-- VIEW FOR DEMO COMPONENT
+
+
+view : Model -> Html Msg
+view model =
+    Html.div
+        [ Attr.class "milligram"
+        , Attr.style "margin-top" "20px"
+        , Attr.style "padding" "20px"
+        , Attr.style "border" "1px solid #d1d1d1"
+        , Attr.style "border-radius" "4px"
+        ]
+        [ Html.h4 [] [ Html.text "Try the Credit Card Form" ]
+        , Html.form
+            [ onSubmit FormSubmitted, novalidate True ]
+            [ Field.toHtml FormChanged model.formFields
+            , Html.button
+                [ onClick FormSubmitted
+                , Attr.style "margin-top" "1rem"
+                ]
+                [ Html.text "Submit" ]
+            ]
+        , if model.submitted then
+            case model.result of
+                Ok cardInfo ->
+                    success
+                        [ Html.div
+                            []
+                            [ Html.text "Credit card information submitted successfully!" ]
+                        , Html.div
+                            []
+                            [ Html.text
+                                ("Card: " ++ cardInfo.cardName ++ " - " ++ cardInfo.cardNumber)
+                            ]
+                        ]
+
+                Err _ ->
+                    failure
+                        [ Html.text "There are some errors in the form" ]
+
+          else
+            Html.text ""
+        ]
+
+
+success =
+    Html.div
+        [ Attr.style "margin-top" "1rem"
+        , Attr.style "padding" "1rem"
+        , Attr.style "background" "#e8f5e8"
+        , Attr.style "border-radius" "4px"
+        ]
+
+
+failure =
+    Html.div
+        [ Attr.style "margin-top" "1rem"
+        , Attr.style "padding" "1rem"
+        , Attr.style "background" "#fde8e8"
+        , Attr.style "border-radius" "4px"
+        ]

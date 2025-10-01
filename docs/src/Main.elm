@@ -1,6 +1,7 @@
 module Main exposing (main)
 
 import Chapters.Customization as Customization
+import Chapters.FieldReference as FieldReference
 import Chapters.FormattingAndValidation as FormattingAndValidation
 import Chapters.GettingStarted as GettingStarted
 import Chapters.Overview as Overview
@@ -12,6 +13,7 @@ import ElmBook.StatefulOptions as StatefulOptions
 type alias Model =
     { gettingStarted : GettingStarted.Model
     , overview : Overview.Model
+    , fieldReference : FieldReference.Model
     , formattingAndValidation : FormattingAndValidation.Model
     , customization : Customization.Model
     }
@@ -21,6 +23,7 @@ init : Model
 init =
     { gettingStarted = GettingStarted.init
     , overview = Overview.init
+    , fieldReference = FieldReference.init
     , formattingAndValidation = FormattingAndValidation.init
     , customization = Customization.init
     }
@@ -33,19 +36,19 @@ main =
             [ StatefulOptions.initialState init
             ]
         |> ElmBook.withChapterGroups
-            [ ( ""
-              , [ Overview.chapter
-                , Chapter.chapterLink
+            [ ( "Usage"
+              , [ GettingStarted.chapter
+                , Overview.chapter
+                , FieldReference.chapter
+                , FormattingAndValidation.chapter
+                , Customization.chapter
+                ]
+              )
+            , ( "Reference"
+              , [ Chapter.chapterLink
                     { title = "Api"
                     , url = "https://example.com"
                     }
-                ]
-              )
-            , ( "Usage"
-              , [ GettingStarted.chapter
-                , Overview.chapter
-                , FormattingAndValidation.chapter
-                , Customization.chapter
                 ]
               )
             ]

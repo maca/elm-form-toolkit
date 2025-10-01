@@ -42,6 +42,7 @@ type alias ViewAttributes id msg =
     , onRemove : List Int -> msg
     , errorToString : Error id -> String
     , fieldView : FieldView msg -> Html msg
+    , checkboxFieldView : FieldView msg -> Html msg
     , groupView : GroupView id msg -> Html msg
     , repeatableFieldsGroupView : RepeatableFieldsGroupView msg -> Html msg
     , repeatableFieldView : RepeatableFieldView msg -> Html msg
@@ -107,7 +108,8 @@ init { events, path, field } =
         , onAdd = events.onAdd
         , onRemove = events.onRemove
         , errorToString = FormToolkit.Error.toEnglish
-        , fieldView = inputView
+        , fieldView = fieldView
+        , checkboxFieldView = checkboxFieldView
         , groupView = groupView
         , repeatableFieldsGroupView = repeatableFieldsGroupView
         , repeatableFieldView = repeatableFieldView
@@ -209,7 +211,7 @@ toHtml { field, path, attributes } =
             wrapInput (radioToHtml attributes path field)
 
         Field.Checkbox ->
-            wrapInput (checkboxToHtml attributes path field)
+            checkboxToHtml attributes path field
 
 
 labelToHtml : Maybe String -> List Int -> Field id -> (UserAttributes -> Html msg)
@@ -219,7 +221,12 @@ labelToHtml label path input element =
             Html.label
                 (Attributes.for (inputId input path)
                     :: Attributes.id (labelId input path)
-                    :: userProvidedAttributes element
+                    :: (if (Tree.value input).inputType == Field.Checkbox then
+                            Attributes.class "label-inline" :: userProvidedAttributes element
+
+                        else
+                            userProvidedAttributes element
+                       )
                 )
                 [ Html.text str ]
 
@@ -528,7 +535,9 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                         )
                         []
                     , Html.label
-                        [ Attributes.for (radioOptionId input (path ++ [ index ])) ]
+                        [ Attributes.for (radioOptionId input (path ++ [ index ]))
+                        , Attributes.class "label-inline"
+                        ]
                         [ Html.text optionText ]
                     ]
             )
@@ -540,28 +549,55 @@ checkboxToHtml :
     ViewAttributes id msg
     -> List Int
     -> Field id
-    -> (UserAttributes -> Html msg)
-checkboxToHtml attributes path input element =
-    Html.input
-        (List.concat
-            [ Attributes.type_ "checkbox"
-                :: (Tree.value input
-                        |> .value
-                        |> Internal.Value.toBool
-                        |> Maybe.map Attributes.checked
-                        |> Maybe.withDefault (Attributes.class "")
-                   )
-                :: Events.onCheck
-                    (\checked ->
-                        attributes.onChange path
-                            (Internal.Value.fromBool checked)
-                            { selectionStart = 0, selectionEnd = 0 }
-                    )
-                :: textInputHtmlAttributes attributes path input
-            , userProvidedAttributes element
-            ]
-        )
-        []
+    -> Html msg
+checkboxToHtml attributes path field =
+    let
+        unwrappedField =
+            Tree.value field
+
+        inputHtml : UserAttributes -> Html msg
+        inputHtml element =
+            Html.input
+                (List.concat
+                    [ Attributes.type_ "checkbox"
+                        :: (unwrappedField.value
+                                |> Internal.Value.toBool
+                                |> Maybe.map Attributes.checked
+                                |> Maybe.withDefault (Attributes.class "")
+                           )
+                        :: Events.onCheck
+                            (\checked ->
+                                attributes.onChange path
+                                    (Internal.Value.fromBool checked)
+                                    { selectionStart = 0, selectionEnd = 0 }
+                            )
+                        :: textInputHtmlAttributes attributes path field
+                    , userProvidedAttributes element
+                    ]
+                )
+                []
+    in
+    attributes.checkboxFieldView
+        { isRequired = unwrappedField.isRequired
+        , label = labelToHtml unwrappedField.label path field
+        , input = inputHtml
+        , errors = visibleErrors field |> List.map attributes.errorToString
+        , hint =
+            \attrList ->
+                case unwrappedField.hint of
+                    Just hintText ->
+                        Html.div
+                            (Attributes.class "hint"
+                                :: Attributes.id (hintId field path)
+                                :: userProvidedAttributes attrList
+                            )
+                            [ Html.text hintText ]
+
+                    Nothing ->
+                        Html.text ""
+        , path = path
+        , class = String.join " " unwrappedField.classList
+        }
 
 
 valueAttribute :
@@ -722,8 +758,8 @@ repeatableFieldView { field, removeFieldsButton } =
         ]
 
 
-inputView : FieldView msg -> Html msg
-inputView { isRequired, label, input, errors, hint, class } =
+fieldView : FieldView msg -> Html msg
+fieldView { isRequired, label, input, errors, hint, class } =
     Html.div
         [ Attributes.class "field"
         , Attributes.classList
@@ -736,6 +772,30 @@ inputView { isRequired, label, input, errors, hint, class } =
         , Html.div
             [ Attributes.class "input-wrapper" ]
             [ input defaultAttributes ]
+        , case errors of
+            [] ->
+                hint defaultAttributes
+
+            _ ->
+                viewErrors errors
+        ]
+
+
+checkboxFieldView : FieldView msg -> Html msg
+checkboxFieldView { isRequired, label, input, errors, hint, class } =
+    Html.div
+        [ Attributes.class "field"
+        , Attributes.classList
+            [ ( "required", isRequired )
+            , ( "with-errors", not (List.isEmpty errors) )
+            ]
+        , Attributes.class class
+        ]
+        [ Html.div
+            [ Attributes.class "input-wrapper" ]
+            [ input defaultAttributes
+            , label defaultAttributes
+            ]
         , case errors of
             [] ->
                 hint defaultAttributes

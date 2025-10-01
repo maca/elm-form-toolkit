@@ -1,0 +1,23 @@
+/*
+Errno::ENOENT: No such file or directory @ rb_sysopen - static/styles.scss
+
+Backtrace:
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/plugin/compiler.rb:454:in `read'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/plugin/compiler.rb:454:in `update_stylesheet'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/plugin/compiler.rb:215:in `block in update_stylesheets'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/plugin/compiler.rb:209:in `each'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/plugin/compiler.rb:209:in `update_stylesheets'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/plugin/compiler.rb:294:in `watch'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/plugin.rb:109:in `method_missing'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/exec/sass_scss.rb:358:in `watch_or_update'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/exec/sass_scss.rb:51:in `process_result'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/exec/base.rb:50:in `parse'
+/nix/store/fgjfnhds2fi5k6v6m7qv2c8yqqv196rh-ruby3.3-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/lib/sass/exec/base.rb:18:in `parse!'
+/nix/store/a183f00vpf1l7im9gyic6yphgszk0jp8-sass-3.7.4/lib/ruby/gems/3.3.0/gems/sass-3.7.4/bin/sass:13:in `<top (required)>'
+/etc/profiles/per-user/maca/bin/sass:35:in `load'
+/etc/profiles/per-user/maca/bin/sass:35:in `<main>'
+*/
+body:before {
+  white-space: pre;
+  font-family: monospace;
+  content: "Errno::ENOENT: No such file or directory @ rb_sysopen - static/styles.scss"; }

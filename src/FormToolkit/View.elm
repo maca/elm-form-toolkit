@@ -257,38 +257,42 @@ customizeFields :
     -> View id msg
     -> View id msg
 customizeFields viewFunc (View ({ attributes, field } as view)) =
+    let
+        fieldView =
+            \params ->
+                let
+                    unwrappedField =
+                        Tree.value field
+                in
+                viewFunc
+                    { isRequired = params.isRequired
+                    , label = toAttrs >> params.label
+                    , fieldHtml = toAttrs >> params.input
+                    , hint = toAttrs >> params.hint
+                    , errors = params.errors
+                    , class = String.join " " unwrappedField.classList
+                    , fieldProperties =
+                        let
+                            baseProperties =
+                                Field.toProperties (Field field)
+                        in
+                        { baseProperties
+                            | idString = Internal.View.inputId field params.path
+                        }
+                    , events =
+                        { inputOnChange =
+                            \(Value val) -> attributes.onChange params.path val
+                        , inputOnBlur = attributes.onBlur params.path
+                        , inputOnFocus = attributes.onFocus params.path
+                        }
+                    }
+    in
     View
         { view
             | attributes =
                 { attributes
-                    | fieldView =
-                        \params ->
-                            let
-                                unwrappedField =
-                                    Tree.value field
-                            in
-                            viewFunc
-                                { isRequired = params.isRequired
-                                , label = toAttrs >> params.label
-                                , fieldHtml = toAttrs >> params.input
-                                , hint = toAttrs >> params.hint
-                                , errors = params.errors
-                                , class = String.join " " unwrappedField.classList
-                                , fieldProperties =
-                                    let
-                                        baseProperties =
-                                            Field.toProperties (Field field)
-                                    in
-                                    { baseProperties
-                                        | idString = Internal.View.inputId field params.path
-                                    }
-                                , events =
-                                    { inputOnChange =
-                                        \(Value val) -> attributes.onChange params.path val
-                                    , inputOnBlur = attributes.onBlur params.path
-                                    , inputOnFocus = attributes.onFocus params.path
-                                    }
-                                }
+                    | fieldView = fieldView
+                    , checkboxFieldView = fieldView
                 }
         }
 

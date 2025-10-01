@@ -75,12 +75,14 @@
 }
 
 
+
 .milligram {
     .address-name { @extend .form-row; }
     .locality { @extend .form-row; }
     .card-params { @extend .form-row; }
     .card-expiry { @extend .form-row; }
     .field { @extend .standard-field; }
+    .contact-fields {  @extend .form-row; }
 }
 
 

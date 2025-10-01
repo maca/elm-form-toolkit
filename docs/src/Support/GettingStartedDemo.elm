@@ -1,4 +1,4 @@
-module Support.GettingStartedDemo exposing (Model, Msg, init, update, view)
+module Support.GettingStartedDemo exposing (Model, Msg, init, update, userForm, view)
 
 import Browser
 import FormToolkit.Error as Error exposing (Error)
@@ -22,8 +22,8 @@ type alias Model =
 
 
 type UserFormFields
-    = UserName
-    | UserEmail
+    = FirstName
+    | LastName
 
 
 type Msg
@@ -32,8 +32,8 @@ type Msg
 
 
 type alias User =
-    { name : String
-    , email : String
+    { firstName : String
+    , lastName : String
     }
 
 
@@ -78,16 +78,16 @@ userForm : Field UserFormFields
 userForm =
     Field.group []
         [ Field.text
-            [ Field.label "Name"
+            [ Field.label "First Name"
             , Field.required True
-            , Field.identifier UserName
-            , Field.name "user-name"
+            , Field.identifier FirstName
+            , Field.name "first-name"
             ]
-        , Field.email
-            [ Field.label "Email"
+        , Field.text
+            [ Field.label "Last Name"
             , Field.required True
-            , Field.identifier UserEmail
-            , Field.name "user-email"
+            , Field.identifier LastName
+            , Field.name "last-name"
             ]
         ]
 
@@ -99,8 +99,8 @@ userForm =
 userParser : Parse.Parser UserFormFields User
 userParser =
     Parse.map2 User
-        (Parse.field UserName Parse.string)
-        (Parse.field UserEmail Parse.string)
+        (Parse.field FirstName Parse.string)
+        (Parse.field LastName Parse.string)
 
 
 
@@ -136,7 +136,7 @@ view model =
                         , Html.div
                             []
                             [ Html.text
-                                ("Parsed User: " ++ user.name ++ " (" ++ user.email ++ ")")
+                                ("Parsed User: " ++ user.firstName ++ " " ++ user.lastName)
                             ]
                         ]
 
