@@ -191,11 +191,11 @@ toHtml { field, path, attributes } =
             wrapInput (textAreaToHtml attributes path field)
 
         Field.Integer ->
-            inputToHtml attributes "number" path field [ Attributes.step "1" ]
+            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
                 |> wrapInput
 
         Field.Float ->
-            inputToHtml attributes "number" path field [ Attributes.step "1" ]
+            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
                 |> wrapInput
 
         Field.Date ->

@@ -3,7 +3,7 @@ module Internal.Field exposing
     , Msg(..), update
     , init, isBlank, map
     , updateAttributes
-    , identifier, inputType, max, min, name, value
+    , identifier, inputType, max, min, step, name, value
     , label, hint, placeholder, options
     , isGroup, isRequired, isAutocompleteable
     , errors, setErrors
@@ -16,7 +16,7 @@ module Internal.Field exposing
 @docs Msg, update
 @docs init, isBlank, map
 @docs updateAttributes
-@docs identifier, inputType, max, min, name, value
+@docs identifier, inputType, max, min, step, name, value
 @docs label, hint, placeholder, options
 @docs isGroup, isRequired, isAutocompleteable
 @docs errors, setErrors
@@ -64,6 +64,7 @@ type alias Attributes id err =
     , hint : Maybe String
     , min : Value
     , max : Value
+    , step : Value
     , autogrow : Bool
     , options : List ( String, Value )
     , identifier : Maybe id
@@ -94,6 +95,7 @@ init inputType_ =
         , value = Internal.Value.blank
         , min = Internal.Value.blank
         , max = Internal.Value.blank
+        , step = Internal.Value.blank
         , autogrow = False
         , isRequired = False
         , options = []
@@ -277,6 +279,11 @@ max input =
     Tree.value input |> .max
 
 
+step : Field id err -> Value
+step input =
+    Tree.value input |> .step
+
+
 options : Field id err -> List ( String, Value )
 options input =
     Tree.value input |> .options
@@ -346,6 +353,7 @@ map func errToErr input =
     , hint = input.hint
     , min = input.min
     , max = input.max
+    , step = input.step
     , autogrow = input.autogrow
     , options = input.options
     , identifier = Maybe.map func input.identifier

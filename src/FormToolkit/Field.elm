@@ -7,7 +7,7 @@ module FormToolkit.Field exposing
     , group, repeatable
     , Attribute
     , name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
-    , options, stringOptions, min, max, autogrow
+    , options, stringOptions, min, max, step, autogrow
     , class, classList
     , noattr
     , copies, repeatableMin, repeatableMax
@@ -40,7 +40,7 @@ their attributes, update, and render them.
 
 @docs Attribute
 @docs name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
-@docs options, stringOptions, min, max, autogrow
+@docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
 @docs noattr
 
@@ -653,6 +653,14 @@ min (Value.Value val) =
 max : Value.Value -> Attribute id val
 max (Value.Value val) =
     Attribute (\field -> { field | max = val })
+
+
+{-| Sets the step value for numeric field inputs (`int` and `float`).
+The step value specifies the increment when using the input's up/down arrows.
+-}
+step : Value.Value -> Attribute id val
+step (Value.Value val) =
+    Attribute (\field -> { field | step = val })
 
 
 {-| Makes a `textarea` autogrow.
