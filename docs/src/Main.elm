@@ -4,6 +4,7 @@ import Chapters.Customization as Customization
 import Chapters.Fields as Fields
 import Chapters.FormattingAndValidation as FormattingAndValidation
 import Chapters.GettingStarted as GettingStarted
+import Chapters.Internationalization as Internationalization
 import Chapters.Parsing as Parsing
 import ElmBook exposing (Book, book)
 import ElmBook.Chapter as Chapter
@@ -16,6 +17,7 @@ type alias Model =
     , parsing : Parsing.Model
     , formattingAndValidation : FormattingAndValidation.Model
     , customization : Customization.Model
+    , internationalization : Internationalization.Model
     }
 
 
@@ -26,6 +28,7 @@ init =
     , parsing = Parsing.init
     , formattingAndValidation = FormattingAndValidation.init
     , customization = Customization.init
+    , internationalization = Internationalization.init
     }
 
 
@@ -42,6 +45,7 @@ main =
                 , Parsing.chapter
                 , FormattingAndValidation.chapter
                 , Customization.chapter
+                , Internationalization.chapter
                 ]
               )
             , ( "Reference"

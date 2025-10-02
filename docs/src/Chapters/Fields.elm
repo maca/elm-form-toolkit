@@ -51,7 +51,6 @@ type Msg
     | CheckboxChanged (Field.Msg ())
     | GroupChanged (Field.Msg String)
     | RepeatableChanged (Field.Msg String)
-    | RepeatableWithDefaultsChanged (Field.Msg String)
 
 
 init : Model
@@ -234,7 +233,7 @@ repeatableField =
         , Field.repeatableMax 5
         , Field.copies
             { addFieldsButton = "Add Contact"
-            , removeFieldsButton = "Remove Contact"
+            , removeFieldsButton = "Remove"
             }
         ]
         (Field.group
@@ -265,7 +264,7 @@ repeatableFieldWithDefaults =
         , Field.repeatableMax 5
         , Field.copies
             { addFieldsButton = "Add Contact"
-            , removeFieldsButton = "Remove Contact"
+            , removeFieldsButton = "Remove"
             }
         ]
         (Field.group
@@ -463,16 +462,6 @@ update msg book =
                     , Task.perform (Actions.logActionWithString "Result")
                         (Task.succeed (Debug.toString result))
                     )
-
-                RepeatableWithDefaultsChanged fieldMsg ->
-                    let
-                        ( updatedField, result ) =
-                            Parse.parseUpdate (Parse.list contactParser) fieldMsg model.repeatableWithDefaults
-                    in
-                    ( { model | repeatableWithDefaults = updatedField }
-                    , Task.perform (Actions.logActionWithString "Result")
-                        (Task.succeed (Debug.toString result))
-                    )
     in
     ( { book | fields = newModel }, cmd )
 
@@ -605,7 +594,7 @@ chapter =
               , \book ->
                     Html.div [ Attr.class "milligram" ]
                         [ book.fields.repeatableWithDefaults
-                            |> Field.toHtml RepeatableWithDefaultsChanged
+                            |> Field.toHtml RepeatableChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
@@ -888,7 +877,7 @@ repeatableField =
         , Field.repeatableMax 5
         , Field.copies
             { addFieldsButton = "Add Contact"
-            , removeFieldsButton = "Remove Contact"
+            , removeFieldsButton = "Remove"
             }
         ]
         (Field.group
@@ -928,7 +917,7 @@ repeatableFieldWithDefaults =
         , Field.repeatableMax 5
         , Field.copies
             { addFieldsButton = "Add Contact"
-            , removeFieldsButton = "Remove Contact"
+            , removeFieldsButton = "Remove"
             }
         ]
         (Field.group
