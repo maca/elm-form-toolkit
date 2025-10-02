@@ -31,6 +31,7 @@ type alias Model =
     , checkbox : Field ()
     , group : Field String
     , repeatable : Field String
+    , repeatableWithDefaults : Field String
     }
 
 
@@ -50,6 +51,7 @@ type Msg
     | CheckboxChanged (Field.Msg ())
     | GroupChanged (Field.Msg String)
     | RepeatableChanged (Field.Msg String)
+    | RepeatableWithDefaultsChanged (Field.Msg String)
 
 
 init : Model
@@ -69,6 +71,7 @@ init =
     , checkbox = checkboxField
     , group = groupField
     , repeatable = repeatableField
+    , repeatableWithDefaults = repeatableFieldWithDefaults
     }
 
 
@@ -240,26 +243,67 @@ repeatableField =
                 [ Field.label "Name"
                 , Field.placeholder "Enter contact name"
                 , Field.required True
-                , Field.identifier "name"
-                , Field.name "name"
+                , Field.identifier "name-field"
                 ]
             , Field.email
                 [ Field.label "Email"
                 , Field.placeholder "contact@email.com"
                 , Field.required True
-                , Field.identifier "email"
-                , Field.name "email"
+                , Field.identifier "email-field"
                 ]
             ]
         )
         []
 
 
+repeatableFieldWithDefaults : Field String
+repeatableFieldWithDefaults =
+    Field.repeatable
+        [ Field.label "Contact Information"
+        , Field.name "contacts"
+        , Field.repeatableMin 2
+        , Field.repeatableMax 5
+        , Field.copies
+            { addFieldsButton = "Add Contact"
+            , removeFieldsButton = "Remove Contact"
+            }
+        ]
+        (Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Name"
+                , Field.placeholder "Enter contact name"
+                , Field.required True
+                , Field.identifier "name-field"
+                ]
+            , Field.email
+                [ Field.label "Email"
+                , Field.placeholder "contact@email.com"
+                , Field.required True
+                , Field.identifier "email-field"
+                ]
+            ]
+        )
+        [ Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 1")
+            )
+        , Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 2")
+            )
+        , Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 3")
+            )
+        ]
+
+
 contactParser : Parse.Parser String { name : String, email : String }
 contactParser =
     Parse.map2 (\name email -> { name = name, email = email })
-        (Parse.field "name" Parse.string)
-        (Parse.field "email" Parse.string)
+        (Parse.field "name-field" Parse.string)
+        (Parse.field "email-field" Parse.string)
 
 
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )
@@ -419,6 +463,16 @@ update msg book =
                     , Task.perform (Actions.logActionWithString "Result")
                         (Task.succeed (Debug.toString result))
                     )
+
+                RepeatableWithDefaultsChanged fieldMsg ->
+                    let
+                        ( updatedField, result ) =
+                            Parse.parseUpdate (Parse.list contactParser) fieldMsg model.repeatableWithDefaults
+                    in
+                    ( { model | repeatableWithDefaults = updatedField }
+                    , Task.perform (Actions.logActionWithString "Result")
+                        (Task.succeed (Debug.toString result))
+                    )
     in
     ( { book | fields = newModel }, cmd )
 
@@ -547,13 +601,17 @@ chapter =
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
+            , ( "Repeatable With Defaults"
+              , \book ->
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.fields.repeatableWithDefaults
+                            |> Field.toHtml RepeatableWithDefaultsChanged
+                        ]
+                        |> Html.map (Actions.updateStateWithCmdWith update)
+              )
             ]
         |> Chapter.render
-            (String.concat
-                [ inputTypesMarkdown
-                , repeatableFieldsMarkdown
-                ]
-            )
+            inputTypesMarkdown
 
 
 
@@ -786,6 +844,9 @@ checkboxField =
 
 <component with-label="Checkbox"/>
 
+
+## Groupping Fields
+
 ### Group
 
 Group multiple related fields together with shared validation and styling. Use `Field.label` to set the legend text for the group.
@@ -812,12 +873,7 @@ groupField =
 ```
 
 <component with-label="Group"/>
-"""
 
-
-repeatableFieldsMarkdown : String
-repeatableFieldsMarkdown =
-    """
 ### Repeatable
 
 Create repeatable field groups that allow users to dynamically add and remove field instances. Use `Field.repeatableMin` and `Field.repeatableMax` to set limits, and `Field.copies` to customize button text.
@@ -857,4 +913,54 @@ repeatableField =
 ```
 
 <component with-label="Repeatable"/>
+
+### Repeatable With Defaults
+
+Repeatable fields can be initialized with default values by passing a list of functions that set field values. The minimum number of fields enforces a lower bound - fields cannot be removed below this count. If more defaults are provided than the minimum, extra fields are added but remain removable.
+
+```elm
+repeatableFieldWithDefaults : Field String
+repeatableFieldWithDefaults =
+    Field.repeatable
+        [ Field.label "Contact Information"
+        , Field.name "contacts"
+        , Field.repeatableMin 2   
+        , Field.repeatableMax 5
+        , Field.copies
+            { addFieldsButton = "Add Contact"
+            , removeFieldsButton = "Remove Contact"
+            }
+        ]
+        (Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Name"
+                , Field.placeholder "Enter contact name"
+                , Field.required True
+                , Field.identifier "name-field"
+                ]
+            , Field.email
+                [ Field.label "Email"
+                , Field.placeholder "contact@email.com"
+                , Field.required True
+                , Field.identifier "email-field"
+                ]
+            ]
+        )
+        [ Field.updateWithId "name-field"  -- Default values for initialization
+            (Field.updateValue
+                (Value.string "Default contact 1")
+            )
+        , Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 2")
+            )
+        , Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 3")
+            )
+        ]
+```
+
+<component with-label="Repeatable With Defaults"/>
 """

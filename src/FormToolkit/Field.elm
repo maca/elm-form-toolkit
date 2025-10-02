@@ -378,10 +378,12 @@ Relevant attributes are [repeatableMin](#repeatableMin),
                 (value
                     (Value.string "email@example.com")
                 )
+                >> Ok
             , updateAttribute
                 (value
                     (Value.string "other-email@example.com")
                 )
+                >> Ok
             ]
 
     emailsFields
@@ -393,7 +395,7 @@ Relevant attributes are [repeatableMin](#repeatableMin),
 repeatable :
     List (Attribute id val)
     -> Field id
-    -> List (Field id -> Field id)
+    -> List (Field id -> Result (List (Error id)) (Field id))
     -> Field id
 repeatable attributes (Field template) updates =
     let
@@ -406,11 +408,15 @@ repeatable attributes (Field template) updates =
                 [ updates
                     |> List.map
                         (\fn ->
-                            let
-                                (Field fields) =
-                                    fn (Field template)
-                            in
-                            fields
+                            case
+                                fn (Field template)
+                                    |> Result.map (\(Field fields) -> fields)
+                            of
+                                Ok field ->
+                                    field
+
+                                Err err ->
+                                    Internal.Field.error err
                         )
                 , List.repeat
                     (params.repeatableMin - List.length updates)
@@ -796,6 +802,9 @@ fieldTypeToInputType inputType =
         Internal.Field.Group ->
             Text
 
+        Internal.Field.Error _ ->
+            Text
+
 
 {-| An attribute that does nothing.
 -}
@@ -838,7 +847,9 @@ repeatableMax integer =
     Attribute (\field -> { field | repeatableMax = Just integer })
 
 
-{-| Updates a field corresponding to [identifier](#identifier).
+{-| Traverses the field tree updating a descendant field matching the
+[identifier](#identifier), if the descendant is not found it will produce an
+error.
 
     import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value

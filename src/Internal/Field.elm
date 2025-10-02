@@ -8,6 +8,7 @@ module Internal.Field exposing
     , isGroup, isRequired, isAutocompleteable
     , errors, setErrors
     , inputIdString, inputStringToValue
+    , error
     )
 
 {-|
@@ -21,6 +22,7 @@ module Internal.Field exposing
 @docs isGroup, isRequired, isAutocompleteable
 @docs errors, setErrors
 @docs inputIdString, inputStringToValue
+@docs error
 
 -}
 
@@ -52,6 +54,7 @@ type FieldType id err
     | Checkbox
     | Group
     | Repeatable (Field id err)
+    | Error (List err)
 
 
 type alias Attributes id err =
@@ -333,11 +336,11 @@ errors tree =
 
 
 setErrors : List err -> Field id err -> Field id err
-setErrors error =
+setErrors errorList =
     Tree.updateValue
         (\input ->
             { input
-                | errors = List.Extra.unique (error ++ input.errors)
+                | errors = List.Extra.unique (errorList ++ input.errors)
             }
         )
 
@@ -374,6 +377,9 @@ mapFieldType func errToErr inputType_ =
     case inputType_ of
         Repeatable tree ->
             Repeatable (Tree.mapValues (map func errToErr) tree)
+
+        Error errorList ->
+            Error (List.map errToErr errorList)
 
         Text ->
             Text
@@ -467,6 +473,9 @@ inputTypeToString type_ =
         Group ->
             "group"
 
+        Error _ ->
+            "error"
+
 
 inputStringToValue : Field id err -> String -> Value
 inputStringToValue input str =
@@ -529,3 +538,11 @@ inputStringToValue input str =
 
         Repeatable _ ->
             Internal.Value.blank
+
+        Error _ ->
+            Internal.Value.blank
+
+
+error : List err -> Field id err
+error errorList =
+    Tree.leaf (init (Error errorList) [])

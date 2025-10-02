@@ -213,6 +213,9 @@ toHtml { field, path, attributes } =
         Field.Checkbox ->
             checkboxToHtml attributes path field
 
+        Field.Error errorList ->
+            viewErrors (List.map attributes.errorToString errorList)
+
 
 labelToHtml : Maybe String -> List Int -> Field id -> (UserAttributes -> Html msg)
 labelToHtml label path input element =
@@ -273,7 +276,7 @@ repeatableToHtml attributes path input =
                     attributes.onRemove childPath
 
                 removeFieldsButtonCopy =
-                    Tree.value child |> .removeFieldsButtonCopy
+                    unwrappedField.removeFieldsButtonCopy
 
                 removeFieldButtonEnabled =
                     childrenCount > unwrappedField.repeatableMin

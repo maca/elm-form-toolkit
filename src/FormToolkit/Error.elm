@@ -63,6 +63,9 @@ toEnglish error =
         EmailInvalid _ ->
             "Please enter a valid email address"
 
+        InputNotFound _ ->
+            "Couldn't find an input with the given identifier"
+
         _ ->
             "Couldn't parse"
 

@@ -88,4 +88,20 @@ suite =
                         |> Result.toMaybe
                         |> Expect.equal Nothing
             ]
+        , describe "repeatable with defaults"
+            [ test "uses all defaults when more than min but less than max" <|
+                \_ ->
+                    Field.repeatable
+                        [ Field.repeatableMin 2
+                        , Field.repeatableMax 5
+                        ]
+                        (Field.text [ Field.identifier "field" ])
+                        [ \field -> Ok (Field.updateValue (Value.string "default1") field)
+                        , \field -> Ok (Field.updateValue (Value.string "default2") field)
+                        , \field -> Ok (Field.updateValue (Value.string "default3") field)
+                        ]
+                        |> Parse.parse (Parse.list Parse.string)
+                        |> Tuple.second
+                        |> Expect.equal (Ok [ "default1", "default2", "default3" ])
+            ]
         ]
