@@ -82,7 +82,20 @@
     .card-params { @extend .form-row; }
     .card-expiry { @extend .form-row; }
     .field { @extend .standard-field; }
-    .contact-fields {  @extend .form-row; }
+    .inline-fields {  @extend .form-row; }
+    .group-repeat {
+        display: flex;
+        border-bottom: dotted 1px gray;
+        padding-top: 1rem;
+
+        &:last-child {
+            border: none;
+        }
+
+        button {
+            margin-top: 30px;
+        }
+    }
 }
 
 

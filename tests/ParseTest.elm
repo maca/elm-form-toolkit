@@ -202,12 +202,10 @@ suite =
                     in
                     Expect.all
                         [ \_ ->
-                            -- Text field should NOT validate email format
                             Parse.parse Parse.string textField
                                 |> Tuple.second
                                 |> Expect.equal (Ok invalidEmail)
                         , \_ ->
-                            -- Email field SHOULD validate email format
                             Parse.parse Parse.string emailField
                                 |> Tuple.second
                                 |> Expect.equal (Err [ EmailInvalid (Just StringField) ])

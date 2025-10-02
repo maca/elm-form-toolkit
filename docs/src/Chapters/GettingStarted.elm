@@ -256,8 +256,14 @@ import FormToolkit.Parse as Parse
 import Html exposing (Html)
 import Html.Events exposing (onClick, onSubmit)
 
+
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.sandbox
+        { init = init
+        , update = update
+        , view = view
+        }
+
 
 type alias Model =
     { formFields : Field UserFormFields
@@ -265,39 +271,63 @@ type alias Model =
     , user : Maybe User
     }
 
-type UserFormFields = FirstName | LastName
+
+type UserFormFields
+    = FirstName
+    | LastName
+
 
 type Msg
     = FormChanged (Field.Msg UserFormFields)
     | FormSubmitted
 
-type alias User = { firstName : String, lastName : String }
+
+type alias User =
+    { firstName : String, lastName : String }
+
 
 init : Model
 init =
-    { formFields = userForm, submitted = False, user = Nothing }
+    { formFields = userForm
+    , submitted = False
+    , user = Nothing
+    }
+
 
 userForm : Field UserFormFields
 userForm =
     Field.group []
         [ Field.text
-            [ Field.label "First Name", Field.required True
-            , Field.identifier FirstName, Field.name "first-name" ]
+            [ Field.label "First Name"
+            , Field.required True
+            , Field.identifier FirstName
+            , Field.name "first-name"
+            ]
         , Field.text
-            [ Field.label "Last Name", Field.required True
-            , Field.identifier LastName, Field.name "last-name" ]
+            [ Field.label "Last Name"
+            , Field.required True
+            , Field.identifier LastName
+            , Field.name "last-name"
+            ]
         ]
+
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
         FormChanged fieldMsg ->
-            let ( formFields, result ) =
+            let
+                ( formFields, result ) =
                     Parse.parseUpdate userParser fieldMsg model.formFields
-            in { model | formFields = formFields, user = Result.toMaybe result }
-        
+            in
+            { model
+                | formFields = formFields
+                , user = Result.toMaybe result
+            }
+
         FormSubmitted ->
             { model | submitted = True }
+
 
 userParser : Parse.Parser UserFormFields User
 userParser =
@@ -305,11 +335,15 @@ userParser =
         (Parse.field FirstName Parse.string)
         (Parse.field LastName Parse.string)
 
+
 view : Model -> Html Msg
 view model =
-    Html.form [ onSubmit FormSubmitted ]
+    Html.form
+        [ onSubmit FormSubmitted ]
         [ Field.toHtml FormChanged model.formFields
-        , Html.button [ onClick FormSubmitted ] [ Html.text "Submit" ]
+        , Html.button
+            [ onClick FormSubmitted ]
+            [ Html.text "Submit" ]
         ]
 ```
 

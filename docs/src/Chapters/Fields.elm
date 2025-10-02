@@ -1,4 +1,4 @@
-module Chapters.FieldReference exposing (Model, Msg, chapter, init)
+module Chapters.Fields exposing (Model, Msg, chapter, init)
 
 import ElmBook
 import ElmBook.Actions as Actions
@@ -8,12 +8,11 @@ import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Html
 import Html.Attributes as Attr
-import Support.RepeatableDemo as RepeatableDemo
 import Task
 
 
 type alias Book book =
-    { book | fieldReference : Model }
+    { book | fields : Model }
 
 
 type alias Model =
@@ -31,7 +30,7 @@ type alias Model =
     , radio : Field ()
     , checkbox : Field ()
     , group : Field String
-    , repeatableDemo : RepeatableDemo.Model
+    , repeatable : Field String
     }
 
 
@@ -50,7 +49,7 @@ type Msg
     | RadioChanged (Field.Msg ())
     | CheckboxChanged (Field.Msg ())
     | GroupChanged (Field.Msg String)
-    | RepeatableDemoUpdated RepeatableDemo.Msg
+    | RepeatableChanged (Field.Msg String)
 
 
 init : Model
@@ -69,7 +68,7 @@ init =
     , radio = radioField
     , checkbox = checkboxField
     , group = groupField
-    , repeatableDemo = RepeatableDemo.init
+    , repeatable = repeatableField
     }
 
 
@@ -207,9 +206,7 @@ checkboxField =
 groupField : Field String
 groupField =
     Field.group
-        [ Field.label "Contact Information"
-        , Field.class "contact-fields"
-        ]
+        [ Field.label "Contact Information" ]
         [ Field.text
             [ Field.label "Name"
             , Field.placeholder "Enter your name"
@@ -225,11 +222,51 @@ groupField =
         ]
 
 
+repeatableField : Field String
+repeatableField =
+    Field.repeatable
+        [ Field.label "Contact Information"
+        , Field.name "contacts"
+        , Field.repeatableMin 1
+        , Field.repeatableMax 5
+        , Field.copies
+            { addFieldsButton = "Add Contact"
+            , removeFieldsButton = "Remove Contact"
+            }
+        ]
+        (Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Name"
+                , Field.placeholder "Enter contact name"
+                , Field.required True
+                , Field.identifier "name"
+                , Field.name "name"
+                ]
+            , Field.email
+                [ Field.label "Email"
+                , Field.placeholder "contact@email.com"
+                , Field.required True
+                , Field.identifier "email"
+                , Field.name "email"
+                ]
+            ]
+        )
+        []
+
+
+contactParser : Parse.Parser String { name : String, email : String }
+contactParser =
+    Parse.map2 (\name email -> { name = name, email = email })
+        (Parse.field "name" Parse.string)
+        (Parse.field "email" Parse.string)
+
+
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )
 update msg book =
     let
         model =
-            book.fieldReference
+            book.fields
 
         ( newModel, cmd ) =
             case msg of
@@ -366,40 +403,34 @@ update msg book =
                 GroupChanged fieldMsg ->
                     let
                         ( updatedField, result ) =
-                            Parse.parseUpdate
-                                (Parse.map2 (\name email -> { name = name, email = email })
-                                    (Parse.field "name" Parse.string)
-                                    (Parse.field "email" Parse.string)
-                                )
-                                fieldMsg
-                                model.group
+                            Parse.parseUpdate contactParser fieldMsg model.group
                     in
                     ( { model | group = updatedField }
                     , Task.perform (Actions.logActionWithString "Result")
                         (Task.succeed (Debug.toString result))
                     )
 
-                RepeatableDemoUpdated repeatableMsg ->
+                RepeatableChanged fieldMsg ->
                     let
-                        repeatableDemo =
-                            RepeatableDemo.update repeatableMsg model.repeatableDemo
+                        ( updatedField, result ) =
+                            Parse.parseUpdate (Parse.list contactParser) fieldMsg model.repeatable
                     in
-                    ( { model | repeatableDemo = repeatableDemo }
+                    ( { model | repeatable = updatedField }
                     , Task.perform (Actions.logActionWithString "Result")
-                        (Task.succeed (Debug.toString repeatableDemo.result))
+                        (Task.succeed (Debug.toString result))
                     )
     in
-    ( { book | fieldReference = newModel }, cmd )
+    ( { book | fields = newModel }, cmd )
 
 
 chapter : Chapter (Book book)
 chapter =
-    Chapter.chapter "Field Reference"
+    Chapter.chapter "Fields"
         |> Chapter.withStatefulComponentList
             [ ( "Text"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.text
+                        [ book.fields.text
                             |> Field.toHtml TextChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -407,7 +438,7 @@ chapter =
             , ( "Textarea"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.textarea
+                        [ book.fields.textarea
                             |> Field.toHtml TextareaChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -415,7 +446,7 @@ chapter =
             , ( "Email"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.email
+                        [ book.fields.email
                             |> Field.toHtml EmailChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -423,7 +454,7 @@ chapter =
             , ( "Password"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.password
+                        [ book.fields.password
                             |> Field.toHtml PasswordChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -431,7 +462,7 @@ chapter =
             , ( "Text with suggestions"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.autocompleteText
+                        [ book.fields.autocompleteText
                             |> Field.toHtml AutocompleteTextChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -439,7 +470,7 @@ chapter =
             , ( "Autocomplete"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.autocomplete
+                        [ book.fields.autocomplete
                             |> Field.toHtml AutocompleteChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -447,7 +478,7 @@ chapter =
             , ( "Int"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.int
+                        [ book.fields.int
                             |> Field.toHtml IntChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -455,7 +486,7 @@ chapter =
             , ( "Float"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.float
+                        [ book.fields.float
                             |> Field.toHtml FloatChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -463,7 +494,7 @@ chapter =
             , ( "Date"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.date
+                        [ book.fields.date
                             |> Field.toHtml DateChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -471,7 +502,7 @@ chapter =
             , ( "Month"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.month
+                        [ book.fields.month
                             |> Field.toHtml MonthChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -479,7 +510,7 @@ chapter =
             , ( "Select"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.select
+                        [ book.fields.select
                             |> Field.toHtml SelectChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -487,7 +518,7 @@ chapter =
             , ( "Radio"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.radio
+                        [ book.fields.radio
                             |> Field.toHtml RadioChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -495,7 +526,7 @@ chapter =
             , ( "Checkbox"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.checkbox
+                        [ book.fields.checkbox
                             |> Field.toHtml CheckboxChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
@@ -503,23 +534,24 @@ chapter =
             , ( "Group"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.fieldReference.group
+                        [ book.fields.group
                             |> Field.toHtml GroupChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
-            , ( "Repeatable Demo"
+            , ( "Repeatable"
               , \book ->
-                    book.fieldReference.repeatableDemo
-                        |> RepeatableDemo.view
-                        |> Html.map (Actions.updateStateWithCmdWith (update << RepeatableDemoUpdated))
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.fields.repeatable
+                            |> Field.toHtml RepeatableChanged
+                        ]
+                        |> Html.map (Actions.updateStateWithCmdWith update)
               )
             ]
         |> Chapter.render
             (String.concat
                 [ inputTypesMarkdown
                 , repeatableFieldsMarkdown
-                , repeatableAdvancedMarkdown
                 ]
             )
 
@@ -763,7 +795,6 @@ groupField : Field String
 groupField =
     Field.group
         [ Field.label "Contact Information"
-        , Field.class "contact-fields"
         ]
         [ Field.text
             [ Field.label "Name"
@@ -787,55 +818,43 @@ groupField =
 repeatableFieldsMarkdown : String
 repeatableFieldsMarkdown =
     """
-## Repeatable Fields
+### Repeatable
 
-Repeatable fields allow users to dynamically add and remove field instances, perfect for collecting lists of data like multiple addresses, phone numbers, or any collection-based input.
-
-<component with-label="Repeatable Demo"/>
-
-### Key Features:
-
-- **Dynamic Addition/Removal**: Users can add or remove field instances
-- **Validation**: Each instance is validated independently
-- **Minimum/Maximum Limits**: Control how many instances are allowed
-- **Default Values**: Pre-populate with initial data
-"""
-
-
-repeatableAdvancedMarkdown : String
-repeatableAdvancedMarkdown =
-    """
-### Repeatable Configuration Options
-
-The `repeatable` function provides several configuration options:
-
-- **`repeatableMin`**: Minimum number of instances (default: 0)
-- **`repeatableMax`**: Maximum number of instances (default: unlimited)
-- **`copies`**: Initial number of empty instances to display
-
-### Setting Default Values
-
-You can provide default values for repeatable fields by using `updateAttribute` with a list of initial values. This is particularly useful when editing existing data:
+Create repeatable field groups that allow users to dynamically add and remove field instances. Use `Field.repeatableMin` and `Field.repeatableMax` to set limits, and `Field.copies` to customize button text.
 
 ```elm
--- Example: Pre-populate with existing phone numbers
-phoneNumbersField =
-    Field.repeatable []
-        phoneNumberField
-        |> Field.updateAttribute 
-            [ "555-0123"
-            , "555-0456" 
+repeatableField : Field String
+repeatableField =
+    Field.repeatable
+        [ Field.label "Contact Information"
+        , Field.name "contacts"
+        , Field.repeatableMin 1
+        , Field.repeatableMax 5
+        , Field.copies
+            { addFieldsButton = "Add Contact"
+            , removeFieldsButton = "Remove Contact"
+            }
+        ]
+        (Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Name"
+                , Field.placeholder "Enter contact name"
+                , Field.required True
+                , Field.identifier "name"
+                , Field.name "name"
+                ]
+            , Field.email
+                [ Field.label "Email"
+                , Field.placeholder "contact@email.com"
+                , Field.required True
+                , Field.identifier "email"
+                , Field.name "email"
+                ]
             ]
+        )
+        []
 ```
 
-The `updateAttribute` function accepts a list where each item becomes the initial value for a repeatable instance. This allows you to load existing data seamlessly into the form.
-
-### Use Cases
-
-Repeatable fields are ideal for:
-- **Contact Information**: Multiple phone numbers, addresses, emails
-- **Skills/Tags**: Dynamic lists of user skills or tags
-- **Line Items**: Shopping cart items, invoice lines
-- **Family Members**: Collecting information about multiple people
-- **Social Links**: Multiple social media profiles
+<component with-label="Repeatable"/>
 """

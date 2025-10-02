@@ -1,10 +1,10 @@
 module Main exposing (main)
 
 import Chapters.Customization as Customization
-import Chapters.FieldReference as FieldReference
+import Chapters.Fields as Fields
 import Chapters.FormattingAndValidation as FormattingAndValidation
 import Chapters.GettingStarted as GettingStarted
-import Chapters.Overview as Overview
+import Chapters.Parsing as Parsing
 import ElmBook exposing (Book, book)
 import ElmBook.Chapter as Chapter
 import ElmBook.StatefulOptions as StatefulOptions
@@ -12,8 +12,8 @@ import ElmBook.StatefulOptions as StatefulOptions
 
 type alias Model =
     { gettingStarted : GettingStarted.Model
-    , overview : Overview.Model
-    , fieldReference : FieldReference.Model
+    , fields : Fields.Model
+    , parsing : Parsing.Model
     , formattingAndValidation : FormattingAndValidation.Model
     , customization : Customization.Model
     }
@@ -22,8 +22,8 @@ type alias Model =
 init : Model
 init =
     { gettingStarted = GettingStarted.init
-    , overview = Overview.init
-    , fieldReference = FieldReference.init
+    , fields = Fields.init
+    , parsing = Parsing.init
     , formattingAndValidation = FormattingAndValidation.init
     , customization = Customization.init
     }
@@ -38,8 +38,8 @@ main =
         |> ElmBook.withChapterGroups
             [ ( "Usage"
               , [ GettingStarted.chapter
-                , Overview.chapter
-                , FieldReference.chapter
+                , Fields.chapter
+                , Parsing.chapter
                 , FormattingAndValidation.chapter
                 , Customization.chapter
                 ]

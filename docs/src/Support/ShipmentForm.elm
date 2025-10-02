@@ -1,18 +1,25 @@
-module Support.ShipmentForm exposing
-    ( Address
-    , AddressFields(..)
-    , Recipient
-    , RecipientFields
-    , Shipment
-    , ShipmentFields(..)
-    , shipmentFields
-    , shipmentParser
-    )
+module Support.ShipmentForm exposing (Model, Msg, init, update, view)
 
+import Browser
 import Countries
+import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
+import Html exposing (Html)
+import Html.Attributes as Attr exposing (novalidate)
+import Html.Events exposing (onClick, onSubmit)
+
+
+
+-- TYPES
+
+
+type alias Model =
+    { formFields : Field ShipmentFields
+    , submitted : Bool
+    , result : Result (List (Error ShipmentFields)) Shipment
+    }
 
 
 type alias Shipment =
@@ -39,11 +46,6 @@ type alias Recipient =
 
 
 type ShipmentFields
-    = AddressFields AddressFields
-    | RecipientFields RecipientFields
-
-
-type AddressFields
     = AddressNameGroup
     | AddressFirstName
     | AddressLastName
@@ -53,23 +55,58 @@ type AddressFields
     | PostalCode
     | AddressState
     | AddressCountry
-
-
-type RecipientFields
-    = RecipientEmail
+    | RecipientEmail
     | RecipientName
 
 
-shipmentFields : Field ShipmentFields
-shipmentFields =
-    Field.group
-        []
-        [ Field.map AddressFields shippingInformationFields
-        , Field.map RecipientFields recipientsFields
-        ]
+type Msg
+    = FormChanged (Field.Msg ShipmentFields)
+    | FormSubmitted
 
 
-shippingInformationFields : Field AddressFields
+
+-- INIT
+
+
+init : Model
+init =
+    { formFields = shipmentForm
+    , submitted = False
+    , result = Err [ Error.CustomError Nothing "Waiting for input" ]
+    }
+
+
+
+-- UPDATE
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        FormChanged inputMsg ->
+            let
+                ( formFields, result ) =
+                    Parse.parseUpdate shipmentParser inputMsg model.formFields
+            in
+            { formFields = formFields
+            , result = result
+            , submitted = False
+            }
+
+        FormSubmitted ->
+            { model | submitted = True }
+
+
+
+-- FORM DEFINITION
+
+
+shipmentForm : Field ShipmentFields
+shipmentForm =
+    Field.group [] [ shippingInformationFields, recipientsFields ]
+
+
+shippingInformationFields : Field ShipmentFields
 shippingInformationFields =
     Field.group
         [ Field.label "Shipping Information" ]
@@ -136,7 +173,7 @@ shippingInformationFields =
         ]
 
 
-recipientsFields : Field RecipientFields
+recipientsFields : Field ShipmentFields
 recipientsFields =
     Field.group
         [ Field.label "Receipt" ]
@@ -155,6 +192,10 @@ recipientsFields =
         ]
 
 
+
+-- PARSER
+
+
 shipmentParser : Parse.Parser ShipmentFields Shipment
 shipmentParser =
     Parse.map2 Shipment
@@ -165,18 +206,18 @@ shipmentParser =
 shipmentAddressParser : Parse.Parser ShipmentFields Address
 shipmentAddressParser =
     Parse.succeed Address
-        |> Parse.andMap (Parse.field (AddressFields AddressFirstName) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields AddressLastName) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields AddressStreet) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields Address2) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields PostalCode) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields AddressState) Parse.string)
+        |> Parse.andMap (Parse.field AddressFirstName Parse.string)
+        |> Parse.andMap (Parse.field AddressLastName Parse.string)
+        |> Parse.andMap (Parse.field AddressStreet Parse.string)
+        |> Parse.andMap (Parse.field Address2 Parse.string)
+        |> Parse.andMap (Parse.field PostalCode Parse.string)
+        |> Parse.andMap (Parse.field AddressState Parse.string)
         |> Parse.andMap shipmentCountryParser
 
 
 shipmentCountryParser : Parse.Parser ShipmentFields Countries.Country
 shipmentCountryParser =
-    Parse.field (AddressFields AddressCountry)
+    Parse.field AddressCountry
         (Parse.string
             |> Parse.andThen
                 (\countryStr ->
@@ -193,3 +234,76 @@ shipmentCountryParser =
 shipmentRecipientsParser : Parse.Parser ShipmentFields (List Recipient)
 shipmentRecipientsParser =
     Parse.succeed [ { email = "", name = "" } ]
+
+
+
+-- VIEW FOR DEMO COMPONENT
+
+
+view : Model -> Html Msg
+view model =
+    Html.div
+        [ Attr.class "milligram"
+        , Attr.style "margin-top" "20px"
+        , Attr.style "padding" "20px"
+        , Attr.style "border" "1px solid #d1d1d1"
+        , Attr.style "border-radius" "4px"
+        ]
+        [ Html.h4 [] [ Html.text "Try the Form" ]
+        , Html.form
+            [ onSubmit FormSubmitted, novalidate True ]
+            [ Field.toHtml FormChanged model.formFields
+            , Html.button
+                [ onClick FormSubmitted
+                , Attr.style "margin-top" "1rem"
+                ]
+                [ Html.text "Submit" ]
+            ]
+        , if model.submitted then
+            case model.result of
+                Ok shipment ->
+                    success
+                        [ Html.div
+                            []
+                            [ Html.text "Form submitted successfully!" ]
+                        , Html.div
+                            []
+                            [ Html.text
+                                ("Parsed Shipment: " ++ shipment.shipping.firstName ++ " " ++ shipment.shipping.lastName)
+                            ]
+                        ]
+
+                Err _ ->
+                    failure
+                        [ Html.text "There are some errors" ]
+
+          else
+            Html.text ""
+        ]
+
+
+success =
+    Html.div
+        [ Attr.style "margin-top" "1rem"
+        , Attr.style "padding" "1rem"
+        , Attr.style "background" "#e8f5e8"
+        , Attr.style "border-radius" "4px"
+        ]
+
+
+failure =
+    Html.div
+        [ Attr.style "margin-top" "1rem"
+        , Attr.style "padding" "1rem"
+        , Attr.style "background" "#fde8e8"
+        , Attr.style "border-radius" "4px"
+        ]
+
+
+
+-- BROWSER.SANDBOX PROGRAM (for standalone usage)
+
+
+main : Program () Model Msg
+main =
+    Browser.sandbox { init = init, update = update, view = view }
