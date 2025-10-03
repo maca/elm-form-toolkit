@@ -15,7 +15,7 @@ module Internal.Parse exposing
 -}
 
 import Dict
-import FormToolkit.Error as Error exposing (Error(..))
+import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Value
@@ -205,9 +205,9 @@ custom func =
 
 
 andUpdate :
-    (Field id -> a -> { field : Field id, parseResult : Result String a })
+    (Field id -> a -> { field : Field id, parser : Parser id b })
     -> Parser id a
-    -> Parser id a
+    -> Parser id b
 andUpdate func (Parser parser) =
     Parser
         (\input ->
@@ -216,17 +216,11 @@ andUpdate func (Parser parser) =
                     let
                         result =
                             func input2 a
-                    in
-                    case result.parseResult of
-                        Ok a1 ->
-                            Success result.field a1
 
-                        Err error ->
-                            Failure result.field
-                                [ Error.CustomError
-                                    (Internal.Field.identifier result.field)
-                                    error
-                                ]
+                        (Parser newParser) =
+                            result.parser
+                    in
+                    newParser result.field
 
                 Failure input2 errors ->
                     Failure input2 errors

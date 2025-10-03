@@ -168,52 +168,55 @@ toHtml { field, path, attributes } =
                 , class = String.join " " unwrappedField.classList
                 }
     in
-    case unwrappedField.inputType of
-        Field.Group ->
+    case (unwrappedField.visible, unwrappedField.inputType) of
+        (False, _) ->
+            Html.text ""
+
+        (True, Field.Group) ->
             groupToHtml attributes path field
 
-        Field.Repeatable _ ->
+        (True, Field.Repeatable _) ->
             repeatableToHtml attributes path field
 
-        Field.Text ->
+        (True, Field.Text) ->
             wrapInput (inputToHtml attributes "text" path field [])
 
-        Field.StrictAutocomplete ->
+        (True, Field.StrictAutocomplete) ->
             wrapInput (inputToHtml attributes "text" path field [])
 
-        Field.Email ->
+        (True, Field.Email) ->
             wrapInput (inputToHtml attributes "email" path field [])
 
-        Field.Password ->
+        (True, Field.Password) ->
             wrapInput (inputToHtml attributes "password" path field [])
 
-        Field.TextArea ->
+        (True, Field.TextArea) ->
             wrapInput (textAreaToHtml attributes path field)
 
-        Field.Integer ->
+        (True, Field.Integer) ->
             inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
                 |> wrapInput
 
-        Field.Float ->
+        (True, Field.Float) ->
             inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
                 |> wrapInput
 
-        Field.Date ->
+        (True, Field.Date) ->
             wrapInput (inputToHtml attributes "date" path field [])
 
-        Field.Month ->
+        (True, Field.Month) ->
             wrapInput (inputToHtml attributes "month" path field [])
 
-        Field.Select ->
+        (True, Field.Select) ->
             wrapInput (selectToHtml attributes path field)
 
-        Field.Radio ->
+        (True, Field.Radio) ->
             wrapInput (radioToHtml attributes path field)
 
-        Field.Checkbox ->
+        (True, Field.Checkbox) ->
             checkboxToHtml attributes path field
 
-        Field.Error errorList ->
+        (True, Field.Error errorList) ->
             viewErrors (List.map attributes.errorToString errorList)
 
 

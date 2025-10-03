@@ -1,15 +1,42 @@
 module Chapters.Parsing exposing (Model, Msg, chapter, init)
 
 import ElmBook
-import ElmBook.Actions exposing (updateStateWithCmdWith)
+import ElmBook.Actions as Actions exposing (updateStateWithCmdWith)
 import ElmBook.Chapter as Chapter exposing (Chapter)
+import FormToolkit.Field as Field exposing (Field)
+import FormToolkit.Parse as Parse
+import FormToolkit.Value as Value
 import Html exposing (Html)
+import Html.Attributes as Attr
+import Iso8601
 import Support.ShipmentForm as ShipmentForm
+import Task
+import Time
+
+
+type alias Event =
+    { name : String
+    , date : String
+    , attendees : Maybe Int
+    , notify : Bool
+    , participants : List String
+    }
+
+
+type EventFields
+    = EventName
+    | EventDate
+    | MaxAttendees
+    | NotifyParticipants
+    | Participants
+    | ParticipantEmail
 
 
 type alias Model =
-    { contactDemo : ShipmentForm.Model
-    , shipmentDemo : ShipmentForm.Model
+    { shipmentDemo : ShipmentForm.Model
+    , eventFields : Field String
+    , eventFields2 : Field EventFields
+    , eventFields3 : Field EventFields
     }
 
 
@@ -18,50 +45,117 @@ type alias Book book =
 
 
 type Msg
-    = ContactDemoMsg ShipmentForm.Msg
-    | ShipmentDemoMsg ShipmentForm.Msg
+    = ShipmentDemoMsg ShipmentForm.Msg
+    | EventFieldsChanged (Field.Msg String)
+    | EventFields2Changed (Field.Msg EventFields)
+    | EventFields3Changed (Field.Msg EventFields)
 
 
 init : Model
 init =
-    { contactDemo = ShipmentForm.init
-    , shipmentDemo = ShipmentForm.init
+    { shipmentDemo = ShipmentForm.init
+    , eventFields = eventFields
+    , eventFields2 = eventFields2
+    , eventFields3 = eventFields3
     }
 
 
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )
-update msg state =
+update msg book =
+    let
+        model =
+            book.parsing
+    in
     case msg of
-        ContactDemoMsg contactMsg ->
-            ( { state
-                | parsing =
-                    { contactDemo = ShipmentForm.update contactMsg state.parsing.contactDemo
-                    , shipmentDemo = state.parsing.shipmentDemo
-                    }
-              }
+        ShipmentDemoMsg innerMsg ->
+            let
+                shipmentDemo =
+                    ShipmentForm.update innerMsg book.parsing.shipmentDemo
+            in
+            ( { book | parsing = { model | shipmentDemo = shipmentDemo } }
             , Cmd.none
             )
 
-        ShipmentDemoMsg shipmentMsg ->
-            ( { state
-                | parsing =
-                    { contactDemo = state.parsing.contactDemo
-                    , shipmentDemo = ShipmentForm.update shipmentMsg state.parsing.shipmentDemo
-                    }
+        EventFieldsChanged innerMsg ->
+            let
+                ( updatedField, result ) =
+                    Parse.parseUpdate eventParser innerMsg book.parsing.eventFields
+            in
+            ( { book
+                | parsing = { model | eventFields = updatedField }
               }
-            , Cmd.none
+            , Task.perform (Actions.logActionWithString "Result")
+                (Task.succeed (Debug.toString result))
             )
+
+        EventFields2Changed innerMsg ->
+            let
+                ( updatedField, result ) =
+                    Parse.parseUpdate eventParser2 innerMsg book.parsing.eventFields2
+            in
+            ( { book
+                | parsing = { model | eventFields2 = updatedField }
+              }
+            , Task.perform (Actions.logActionWithString "Result")
+                (Task.succeed (Debug.toString result))
+            )
+
+        EventFields3Changed innerMsg ->
+            let
+                ( updatedField, result ) =
+                    Parse.parseUpdate eventParser3 innerMsg book.parsing.eventFields3
+            in
+            ( { book
+                | parsing = { model | eventFields3 = updatedField }
+              }
+            , Task.perform (Actions.logActionWithString "Result")
+                (Task.succeed (Debug.toString result))
+            )
+
+
+eventParser : Parse.Parser String { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
+eventParser =
+    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+        (Parse.field "event-name" Parse.string)
+        (Parse.field "event-date" Parse.posix)
+        (Parse.field "max-attendees" (Parse.maybe Parse.int))
+
+
+eventParser2 : Parse.Parser EventFields { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
+eventParser2 =
+    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+        (Parse.field EventName Parse.string)
+        (Parse.field EventDate Parse.posix)
+        (Parse.field MaxAttendees (Parse.maybe Parse.int))
 
 
 chapter : Chapter { x | parsing : Model }
 chapter =
     Chapter.chapter "Parsing"
         |> Chapter.withStatefulComponentList
-            [ ( "Basic Parsing - Contact Form"
+            [ ( "Event Fields (String ID)"
               , \book ->
-                    book.parsing.contactDemo
-                        |> ShipmentForm.view
-                        |> Html.map (ContactDemoMsg >> updateStateWithCmdWith update)
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.parsing.eventFields
+                            |> Field.toHtml EventFieldsChanged
+                        ]
+                        |> Html.map (updateStateWithCmdWith update)
+              )
+            , ( "Event Fields (Custom Type ID)"
+              , \book ->
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.parsing.eventFields2
+                            |> Field.toHtml EventFields2Changed
+                        ]
+                        |> Html.map (updateStateWithCmdWith update)
+              )
+            , ( "Event Fields (Conditional)"
+              , \book ->
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.parsing.eventFields3
+                            |> Field.toHtml EventFields3Changed
+                        ]
+                        |> Html.map (updateStateWithCmdWith update)
               )
             , ( "Advanced Parsing - Shipment Form"
               , \book ->
@@ -77,55 +171,113 @@ parsingIntroMarkdown : String
 parsingIntroMarkdown =
     """
 
-### Form Definition
+### Using String identifiers
+
+Identifiers can be anything, even a string. Identifiers are used to traverse
+similar to using Json.Decode.field. Use `Parse.maybe` to handle optional fields that may be empty.
+
 
 ```elm
-type ContactFields
-    = ContactName
-    | ContactPassword
-
-type alias Contact =
-    { name : String
-    , password : String
-    }
-
-contactForm : Field ContactFields
-contactForm =
-    Field.group []
+eventFields : Field String
+eventFields =
+    Field.group
+        [  Field.class "inline-fields"
+        ]
         [ Field.text
-            [ Field.label "Name"
+            [ Field.label "Event Name"
             , Field.required True
-            , Field.identifier ContactName
-            , Field.name "contact-name"
-            , Field.placeholder "Enter your name"
+            , Field.identifier "event-name"
             ]
-        , Field.password
-            [ Field.label "Password"
+        , Field.date
+            [ Field.label "Event Date"
             , Field.required True
-            , Field.identifier ContactPassword
-            , Field.name "contact-password"
-            , Field.placeholder "Enter your password"
+            , Field.identifier "event-date"
+            ]
+        , Field.int
+            [ Field.label "Max Attendees (Optional)"
+            , Field.identifier "max-attendees"
+            , Field.min (Value.int 1)
+            , Field.max (Value.int 1000)
             ]
         ]
+
+
+
+eventParser : Parse.Parser String { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
+eventParser =
+    Parse.map3 (\\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+        (Parse.field "event-name" Parse.string)
+        (Parse.field "event-date" Parse.posix)
+        (Parse.field "max-attendees" (Parse.maybe Parse.int))
 ```
 
-### Parser with map2
+<component with-label="Event Fields (String ID)"/>
 
-The parser uses `Parse.map2` to combine two field parsers into a Contact record:
+
+
+### Using custom type identifiers
+
+Custom type identifiers mitigate the risk of typos by ensuring type constraints. The compiler will catch any incorrect field references at compile time, making your code more robust and preventing runtime errors.
+
 
 ```elm
-contactParser : Parse.Parser ContactFields Contact
-contactParser =
-    Parse.map2 Contact
-        (Parse.field ContactName Parse.string)
-        (Parse.field ContactPassword Parse.string)
+type EventFields
+    = EventName
+    | EventDate
+    | MaxAttendees
+
+
+eventFields : Field EventFields
+eventFields =
+    Field.group
+        [ Field.label "Event Registration"
+        , Field.class "inline-fields"
+        ]
+        [ Field.text
+            [ Field.label "Event Name"
+            , Field.required True
+            , Field.identifier EventName
+            ]
+        , Field.date
+            [ Field.label "Event Date"
+            , Field.required True
+            , Field.identifier EventDate
+            ]
+        , Field.int
+            [ Field.label "Max Attendees (Optional)"
+            , Field.identifier MaxAttendees
+            , Field.min (Value.int 1)
+            , Field.max (Value.int 1000)
+            ]
+        ]
+
+
+eventParser : Parse.Parser EventFields { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
+eventParser =
+    Parse.map3 (\\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+        (Parse.field EventName Parse.string)
+        (Parse.field EventDate Parse.posix)
+        (Parse.field MaxAttendees (Parse.maybe Parse.int))
 ```
 
-<component with-label="Basic Parsing - Contact Form"/>
+<component with-label="Event Fields (Custom Type ID)"/>
+
+### Conditional parsing using andThen and list
+
+Conditional parsing allows you to dynamically show/hide fields and parse
+different data based on user input. Use `andUpdate` to toggle field visibility
+and `andThen` for conditional parsing logic.
+
+```elm
+
+
+
+```
+
+<component with-label="Event Fields (Conditional)"/>
 
 ## Advanced Parsing with andMap Pipeline
 
-For more complex forms, we can use the `andMap` pipeline style, which scales well to many fields. This example shows a shipment form with nested groups and repeatable fields.
 
 ### Complex Form Structure
 
@@ -153,56 +305,129 @@ type alias Recipient =
 
 ### Parser with andMap Pipeline
 
-The parser uses `Parse.succeed` and `Parse.andMap` to build a pipeline:
-
-```elm
-shipmentParser : Parse.Parser ShipmentFields Shipment
-shipmentParser =
-    Parse.succeed Shipment
-        |> Parse.andMap addressParser
-        |> Parse.andMap recipientsParser
-
-addressParser : Parse.Parser ShipmentFields Address
-addressParser =
-    Parse.succeed Address
-        |> Parse.andMap (Parse.field (AddressFields AddressFirstName) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields AddressLastName) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields AddressStreet) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields Address2) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields PostalCode) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields AddressState) Parse.string)
-        |> Parse.andMap (Parse.field (AddressFields AddressCountry) countryParser)
-
-recipientsParser : Parse.Parser ShipmentFields (List Recipient)
-recipientsParser =
-    Parse.list recipientParser
-
-recipientParser : Parse.Parser ShipmentFields Recipient
-recipientParser =
-    Parse.map2 Recipient
-        (Parse.field (RecipientFields RecipientEmail) Parse.string)
-        (Parse.field (RecipientFields RecipientName) Parse.string)
-```
 
 ### Custom Parsing with andThen
 
-For the country field, we use custom parsing with `Parse.andThen`:
-
-```elm
-countryParser : Parse.Parser ShipmentFields Countries.Country
-countryParser =
-    Parse.string
-        |> Parse.andThen
-            (\\countryCode ->
-                case Countries.fromCode countryCode of
-                    Just country ->
-                        Parse.succeed country
-
-                    Nothing ->
-                        Parse.fail ("Invalid country code: " ++ countryCode)
-            )
-```
 
 <component with-label="Advanced Parsing - Shipment Form"/>
 
+
 """
+
+
+eventFields : Field String
+eventFields =
+    Field.group
+        [ Field.label "Event Registration"
+        , Field.class "inline-fields"
+        ]
+        [ Field.text
+            [ Field.label "Event Name"
+            , Field.required True
+            , Field.identifier "event-name"
+            ]
+        , Field.date
+            [ Field.label "Event Date"
+            , Field.required True
+            , Field.identifier "event-date"
+            ]
+        , Field.int
+            [ Field.label "Max Attendees (Optional)"
+            , Field.identifier "max-attendees"
+            , Field.min (Value.int 1)
+            , Field.max (Value.int 1000)
+            ]
+        ]
+
+
+eventFields2 : Field EventFields
+eventFields2 =
+    Field.group
+        [ Field.label "Event Registration"
+        , Field.class "inline-fields"
+        ]
+        [ Field.text
+            [ Field.label "Event Name"
+            , Field.required True
+            , Field.identifier EventName
+            ]
+        , Field.date
+            [ Field.label "Event Date"
+            , Field.required True
+            , Field.identifier EventDate
+            ]
+        , Field.int
+            [ Field.label "Max Attendees (Optional)"
+            , Field.identifier MaxAttendees
+            , Field.min (Value.int 1)
+            , Field.max (Value.int 1000)
+            ]
+        ]
+
+
+eventFields3 : Field EventFields
+eventFields3 =
+    Field.group
+        []
+        [ Field.group
+            [ Field.class "inline-fields"
+            ]
+            [ Field.text
+                [ Field.label "Event Name"
+                , Field.required True
+                , Field.identifier EventName
+                ]
+            , Field.date
+                [ Field.label "Event Date"
+                , Field.required True
+                , Field.identifier EventDate
+                ]
+            ]
+        , Field.checkbox
+            [ Field.label "Notify Participants"
+            , Field.identifier NotifyParticipants
+            ]
+        , Field.repeatable
+            [ Field.label "Participants"
+            , Field.identifier Participants
+            , Field.repeatableMin 0
+            , Field.repeatableMax 10
+            , Field.visible False
+            , Field.copies
+                { addFieldsButton = "Add Participant"
+                , removeFieldsButton = "Remove"
+                }
+            ]
+            (Field.email
+                [ Field.label "Participant Email"
+                , Field.required True
+                , Field.identifier ParticipantEmail
+                ]
+            )
+            []
+        ]
+
+
+eventParser3 : Parse.Parser EventFields Event
+eventParser3 =
+    Parse.map5 Event
+        (Parse.field EventName Parse.string)
+        (Parse.field EventDate Parse.posix
+            |> Parse.map Iso8601.fromTime
+        )
+        (Parse.field MaxAttendees (Parse.maybe Parse.int))
+        (Parse.field NotifyParticipants Parse.bool)
+        (Parse.field NotifyParticipants Parse.bool
+            |> Parse.andUpdate
+                (\field notify ->
+                    if notify then
+                        { field = field
+                        , parser = Debug.todo "chrash"
+                        }
+
+                    else
+                        { field = field
+                        , parser = Debug.todo "chrash"
+                        }
+                )
+        )

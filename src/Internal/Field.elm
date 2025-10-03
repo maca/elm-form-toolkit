@@ -80,6 +80,7 @@ type alias Attributes id err =
     , classList : List String
     , selectionStart : Int
     , selectionEnd : Int
+    , visible : Bool
     }
 
 
@@ -112,6 +113,7 @@ init inputType_ =
         , classList = []
         , selectionStart = 0
         , selectionEnd = 0
+        , visible = True
         }
 
 
@@ -369,6 +371,7 @@ map func errToErr input =
     , classList = input.classList
     , selectionStart = input.selectionStart
     , selectionEnd = input.selectionEnd
+    , visible = input.visible
     }
 
 

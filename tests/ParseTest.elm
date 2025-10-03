@@ -305,7 +305,7 @@ suite =
                                         |> Parse.andUpdate
                                             (\field str ->
                                                 { field = Field.updateStringValue (removeVowels str) field
-                                                , parseResult = Ok str
+                                                , parser = Parse.succeed str
                                                 }
                                             )
                                     )
@@ -329,7 +329,7 @@ suite =
                                         |> Parse.andUpdate
                                             (\field str ->
                                                 { field = Field.updateStringValue (removeVowels str) field
-                                                , parseResult = Ok (removeVowels str)
+                                                , parser = Parse.succeed (removeVowels str)
                                                 }
                                             )
                                     )

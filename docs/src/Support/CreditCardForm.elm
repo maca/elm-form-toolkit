@@ -154,7 +154,7 @@ creditCardNumberParser =
                         |> Field.updateStringValue formattedNumber
                         |> Field.updateAttribute (Field.selectionStart newCursorPosition)
                         |> Field.updateAttribute (Field.selectionEnd newCursorPosition)
-                , parseResult = Ok formattedNumber
+                , parser = Parse.succeed formattedNumber
                 }
             )
 

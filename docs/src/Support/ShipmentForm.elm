@@ -24,7 +24,7 @@ type alias Model =
 
 type alias Shipment =
     { shipping : Address
-    , recipients : List Recipient
+    , notifiees : List Notifiee
     }
 
 
@@ -39,7 +39,7 @@ type alias Address =
     }
 
 
-type alias Recipient =
+type alias Notifiee =
     { email : String
     , name : String
     }
@@ -55,8 +55,9 @@ type ShipmentFields
     | PostalCode
     | AddressState
     | AddressCountry
-    | RecipientEmail
-    | RecipientName
+    | NotifieeEmail
+    | NotifieeName
+    | Notifiees
 
 
 type Msg
@@ -103,7 +104,7 @@ update msg model =
 
 shipmentForm : Field ShipmentFields
 shipmentForm =
-    Field.group [] [ shippingInformationFields, recipientsFields ]
+    Field.group [] [ shippingInformationFields, notifieesFields ]
 
 
 shippingInformationFields : Field ShipmentFields
@@ -173,23 +174,35 @@ shippingInformationFields =
         ]
 
 
-recipientsFields : Field ShipmentFields
-recipientsFields =
-    Field.group
-        [ Field.label "Receipt" ]
-        [ Field.text
-            [ Field.label "Recipient Email"
-            , Field.required True
-            , Field.identifier RecipientEmail
-            , Field.name "recipient-email"
-            ]
-        , Field.text
-            [ Field.label "Recipient Name"
-            , Field.required True
-            , Field.identifier RecipientName
-            , Field.name "recipient-name"
-            ]
+notifieesFields : Field ShipmentFields
+notifieesFields =
+    Field.repeatable
+        [ Field.label "Notifiees"
+        , Field.identifier Notifiees
+        , Field.repeatableMin 1
+        , Field.repeatableMax 5
+        , Field.copies
+            { addFieldsButton = "Add Notifiee"
+            , removeFieldsButton = "Remove"
+            }
         ]
+        (Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Notifiee"
+                , Field.required True
+                , Field.identifier NotifieeName
+                , Field.name "notifiee-name"
+                ]
+            , Field.email
+                [ Field.label "Email"
+                , Field.required True
+                , Field.identifier NotifieeEmail
+                , Field.name "notifiee-email"
+                ]
+            ]
+        )
+        []
 
 
 
@@ -200,7 +213,7 @@ shipmentParser : Parse.Parser ShipmentFields Shipment
 shipmentParser =
     Parse.map2 Shipment
         shipmentAddressParser
-        shipmentRecipientsParser
+        shipmentNotifieesParser
 
 
 shipmentAddressParser : Parse.Parser ShipmentFields Address
@@ -231,9 +244,17 @@ shipmentCountryParser =
         )
 
 
-shipmentRecipientsParser : Parse.Parser ShipmentFields (List Recipient)
-shipmentRecipientsParser =
-    Parse.succeed [ { email = "", name = "" } ]
+shipmentNotifieesParser : Parse.Parser ShipmentFields (List Notifiee)
+shipmentNotifieesParser =
+    Parse.field Notifiees
+        (Parse.list notifieeParser)
+
+
+notifieeParser : Parse.Parser ShipmentFields Notifiee
+notifieeParser =
+    Parse.map2 Notifiee
+        (Parse.field NotifieeEmail Parse.string)
+        (Parse.field NotifieeName Parse.string)
 
 
 
@@ -270,6 +291,11 @@ view model =
                             []
                             [ Html.text
                                 ("Parsed Shipment: " ++ shipment.shipping.firstName ++ " " ++ shipment.shipping.lastName)
+                            ]
+                        , Html.div
+                            []
+                            [ Html.text
+                                ("Notifiees: " ++ String.fromInt (List.length shipment.notifiees))
                             ]
                         ]
 

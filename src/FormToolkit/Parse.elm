@@ -186,10 +186,8 @@ maybe (Parser parser) =
 
     Field.repeatable [ ]
         (Field.text [ ])
-        [ Field.updateAttribute
-            (Field.value (Value.string "mango") )
-        , Field.updateAttribute
-            (Field.value (Value.string "banana") )
+        [ Ok << Field.updateValue (Value.string "mango")
+        , Ok << Field.updateValue (Value.string "banana")
         ]
         |> parse (list string)
         |> Tuple.second
@@ -241,10 +239,8 @@ Useful if you just want to forward the form values to a backend.
             ]
         , Field.repeatable [ Field.name "fruits" ]
             (Field.text [ Field.name "fruit" ])
-            [ Field.updateAttribute
-                (Field.value (Value.string "mango") )
-            , Field.updateAttribute
-                (Field.value (Value.string "banana") )
+            [ Ok << Field.updateValue (Value.string "mango")
+            , Ok << Field.updateValue (Value.string "banana")
             ]
         ]
         |> parse json
@@ -313,44 +309,14 @@ formatting the input value, and for mapping the result of parsing the field.
             >> String.replace "o" ""
             >> String.replace "u" ""
 
-    -- Transform input display but keep original parse result
-    Field.text [ Field.value (Value.string "the quick fox jumps over the lazy dog") ]
-        |> parse
-            (string
-                |> andUpdate
-                    (\str ->
-                        { inputValue = Value.string (removeVowels str)
-                        , parseResult = Ok str  -- Keep original
-                        }
-                    )
-            )
-        |> Tuple.second
-        --> Ok "the quick fox jumps over the lazy dog"
-        -- But input field displays: "th qck fx jmps vr th lzy dg"
 
-    -- Transform both input display and parse result
     Field.text [ Field.value (Value.string "the quick fox jumps over the lazy dog") ]
         |> parse
             (string
                 |> andUpdate
                     (\str ->
                         { inputValue = Value.string (removeVowels str)
-                        , parseResult = Ok (removeVowels str)  -- Transform both
-                        }
-                    )
-            )
-        |> Tuple.second
-        --> Ok "th qck fx jmps vr th lzy dg"
-        -- And input field displays: "th qck fx jmps vr th lzy dg"
-
-    -- Validate a field
-    Field.text [ Field.value (Value.string "the quick fox jumps over the lazy dog") ]
-        |> parse
-            (string
-                |> andUpdate
-                    (\str ->
-                        { inputValue = Value.string (removeVowels str)
-                        , parseResult = Ok (removeVowels str)  -- Transform both
+                        , parseResult = Ok (removeVowels str)
                         }
                     )
             )
@@ -360,24 +326,31 @@ formatting the input value, and for mapping the result of parsing the field.
 
 -}
 andUpdate :
-    (Field id -> a -> { field : Field id, parseResult : Result String a })
+    (Field id
+     -> a
+     ->
+        { field : Field id
+        , parser : Parser id b
+        }
+    )
     -> Parser id a
-    -> Parser id a
+    -> Parser id b
 andUpdate func (Parser parser) =
-    Parser
-        (Internal.Parse.andUpdate
-            (\pristineField a ->
-                let
-                    result =
-                        func (Field pristineField) a
+    let
+        updateFunc pristineField a =
+            let
+                result =
+                    func (Field pristineField) a
 
-                    (Field modifiedField) =
-                        result.field
-                in
-                { field = modifiedField, parseResult = result.parseResult }
-            )
-            parser
-        )
+                (Field modifiedField) =
+                    result.field
+
+                (Parser newParser) =
+                    result.parser
+            in
+            { field = modifiedField, parser = newParser }
+    in
+    Parser (Internal.Parse.andUpdate updateFunc parser)
 
 
 {-| -}

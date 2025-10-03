@@ -9,7 +9,7 @@ module FormToolkit.Field exposing
     , name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
     , options, stringOptions, min, max, step, autogrow
     , class, classList
-    , noattr
+    , visible, noattr
     , copies, repeatableMin, repeatableMax
     , updateWithId, updateAttribute, updateAttributes
     , updateValue, updateStringValue
@@ -42,7 +42,7 @@ their attributes, update, and render them.
 @docs name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
-@docs noattr
+@docs visible, noattr
 
 
 # Groups
@@ -374,16 +374,8 @@ Relevant attributes are [repeatableMin](#repeatableMin),
                 }
             ]
             (text [ placeholder "Enter email address" ])
-            [ updateAttribute
-                (value
-                    (Value.string "email@example.com")
-                )
-                >> Ok
-            , updateAttribute
-                (value
-                    (Value.string "other-email@example.com")
-                )
-                >> Ok
+            [ Ok << updateValue (Value.string "email@example.com")
+            , Ok << updateValue (Value.string "other-email@example.com")
             ]
 
     emailsFields
@@ -804,6 +796,13 @@ fieldTypeToInputType inputType =
 
         Internal.Field.Error _ ->
             Text
+
+
+{-| Sets the visibility of a field. When set to False, the field will not be rendered.
+-}
+visible : Bool -> Attribute id val
+visible isVisible =
+    Attribute (\field -> { field | visible = isVisible })
 
 
 {-| An attribute that does nothing.
