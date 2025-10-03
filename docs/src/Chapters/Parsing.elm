@@ -14,15 +14,6 @@ import Task
 import Time
 
 
-type alias Event =
-    { name : String
-    , date : String
-    , attendees : Maybe Int
-    , notify : Bool
-    , participants : List String
-    }
-
-
 type EventFields
     = EventName
     | EventDate
@@ -104,6 +95,10 @@ update msg book =
             let
                 ( updatedField, result ) =
                     Parse.parseUpdate eventParser3 innerMsg book.parsing.eventFields3
+
+                notify =
+                    Parse.parse (Parse.field NotifyParticipants Parse.bool) updatedField
+                        |> Result.withDefault False
             in
             ( { book
                 | parsing = { model | eventFields3 = updatedField }
@@ -326,7 +321,13 @@ eventFields =
 
 eventParser : Parse.Parser String { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
 eventParser =
-    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+    Parse.map3
+        (\name date attendees ->
+            { eventName = name
+            , date = date
+            , maxAttendees = attendees
+            }
+        )
         (Parse.field "event-name" Parse.string)
         (Parse.field "event-date" Parse.posix)
         (Parse.field "max-attendees" (Parse.maybe Parse.int))
@@ -359,10 +360,24 @@ eventFields2 =
 
 eventParser2 : Parse.Parser EventFields { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
 eventParser2 =
-    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+    Parse.map3
+        (\name date attendees ->
+            { eventName = name
+            , date = date
+            , maxAttendees = attendees
+            }
+        )
         (Parse.field EventName Parse.string)
         (Parse.field EventDate Parse.posix)
         (Parse.field MaxAttendees (Parse.maybe Parse.int))
+
+
+type alias Event =
+    { name : String
+    , date : String
+    , attendees : Maybe Int
+    , participants : List String
+    }
 
 
 eventFields3 : Field EventFields
@@ -410,13 +425,12 @@ eventFields3 =
 
 eventParser3 : Parse.Parser EventFields Event
 eventParser3 =
-    Parse.map5 Event
+    Parse.map4 Event
         (Parse.field EventName Parse.string)
         (Parse.field EventDate Parse.posix
             |> Parse.map Iso8601.fromTime
         )
         (Parse.field MaxAttendees (Parse.maybe Parse.int))
-        (Parse.field NotifyParticipants Parse.bool)
         (Parse.field NotifyParticipants Parse.bool
             |> Parse.andUpdate
                 (\field notify ->

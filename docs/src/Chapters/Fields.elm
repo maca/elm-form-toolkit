@@ -15,6 +15,24 @@ type alias Book book =
     { book | fields : Model }
 
 
+type Msg
+    = TextChanged (Field.Msg ())
+    | TextareaChanged (Field.Msg ())
+    | EmailChanged (Field.Msg ())
+    | PasswordChanged (Field.Msg ())
+    | AutocompleteTextChanged (Field.Msg ())
+    | AutocompleteChanged (Field.Msg ())
+    | IntChanged (Field.Msg ())
+    | FloatChanged (Field.Msg ())
+    | DateChanged (Field.Msg ())
+    | MonthChanged (Field.Msg ())
+    | SelectChanged (Field.Msg ())
+    | RadioChanged (Field.Msg ())
+    | CheckboxChanged (Field.Msg ())
+    | GroupChanged (Field.Msg String)
+    | RepeatableChanged (Field.Msg String)
+
+
 type alias Model =
     { text : Field ()
     , textarea : Field ()
@@ -33,24 +51,6 @@ type alias Model =
     , repeatable : Field String
     , repeatableWithDefaults : Field String
     }
-
-
-type Msg
-    = TextChanged (Field.Msg ())
-    | TextareaChanged (Field.Msg ())
-    | EmailChanged (Field.Msg ())
-    | PasswordChanged (Field.Msg ())
-    | AutocompleteTextChanged (Field.Msg ())
-    | AutocompleteChanged (Field.Msg ())
-    | IntChanged (Field.Msg ())
-    | FloatChanged (Field.Msg ())
-    | DateChanged (Field.Msg ())
-    | MonthChanged (Field.Msg ())
-    | SelectChanged (Field.Msg ())
-    | RadioChanged (Field.Msg ())
-    | CheckboxChanged (Field.Msg ())
-    | GroupChanged (Field.Msg String)
-    | RepeatableChanged (Field.Msg String)
 
 
 init : Model
@@ -72,237 +72,6 @@ init =
     , repeatable = repeatableField
     , repeatableWithDefaults = repeatableFieldWithDefaults
     }
-
-
-textField : Field ()
-textField =
-    Field.text
-        [ Field.label "Text Field"
-        , Field.placeholder "Enter any text"
-        , Field.required True
-        ]
-
-
-textareaField : Field ()
-textareaField =
-    Field.textarea
-        [ Field.label "Textarea Field"
-        , Field.placeholder "Enter multiple lines of text"
-        , Field.autogrow True
-        , Field.required True
-        ]
-
-
-emailField : Field ()
-emailField =
-    Field.email
-        [ Field.label "Email Field"
-        , Field.placeholder "your@email.com"
-        , Field.required True
-        ]
-
-
-passwordField : Field ()
-passwordField =
-    Field.password
-        [ Field.label "Password Field"
-        , Field.placeholder "Enter password"
-        , Field.required True
-        ]
-
-
-autocompleteTextField : Field ()
-autocompleteTextField =
-    Field.text
-        [ Field.label "Text with suggestions"
-        , Field.placeholder "Type to see suggestions"
-        , Field.stringOptions [ "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig" ]
-        , Field.required True
-        ]
-
-
-autocompleteField : Field ()
-autocompleteField =
-    Field.strictAutocomplete
-        [ Field.label "Strict Autocomplete"
-        , Field.placeholder "Choose from options"
-        , Field.stringOptions [ "Apple", "Banana", "Cherry", "Date" ]
-        , Field.required True
-        ]
-
-
-intField : Field ()
-intField =
-    Field.int
-        [ Field.label "Integer Field"
-        , Field.placeholder "Enter a whole number"
-        , Field.min (Value.int 0)
-        , Field.max (Value.int 100)
-        , Field.step (Value.int 5)
-        , Field.required True
-        ]
-
-
-floatField : Field ()
-floatField =
-    Field.float
-        [ Field.label "Float Field"
-        , Field.placeholder "Enter a decimal number"
-        , Field.min (Value.float 0.0)
-        , Field.max (Value.float 10.0)
-        , Field.step (Value.float 0.1)
-        , Field.required True
-        ]
-
-
-dateField : Field ()
-dateField =
-    Field.date
-        [ Field.label "Date Field"
-        , Field.required True
-        ]
-
-
-monthField : Field ()
-monthField =
-    Field.month
-        [ Field.label "Month Fiend"
-        , Field.required True
-        ]
-
-
-selectField : Field ()
-selectField =
-    Field.select
-        [ Field.label "Select Field"
-        , Field.required True
-        , Field.options
-            [ ( "Small", Value.string "small" )
-            , ( "Medium", Value.string "medium" )
-            , ( "Large", Value.string "large" )
-            , ( "Extra Large", Value.string "xlarge" )
-            ]
-        ]
-
-
-radioField : Field ()
-radioField =
-    Field.radio
-        [ Field.label "Radio Field"
-        , Field.required True
-        , Field.options
-            [ ( "Red", Value.string "red" )
-            , ( "Green", Value.string "green" )
-            , ( "Blue", Value.string "blue" )
-            ]
-        ]
-
-
-checkboxField : Field ()
-checkboxField =
-    Field.checkbox
-        [ Field.label "Checkbox Field"
-        ]
-
-
-groupField : Field String
-groupField =
-    Field.group
-        [ Field.label "Contact Information" ]
-        [ Field.text
-            [ Field.label "Name"
-            , Field.placeholder "Enter your name"
-            , Field.required True
-            , Field.identifier "name"
-            ]
-        , Field.email
-            [ Field.label "Email"
-            , Field.placeholder "your@email.com"
-            , Field.required True
-            , Field.identifier "email"
-            ]
-        ]
-
-
-repeatableField : Field String
-repeatableField =
-    Field.repeatable
-        [ Field.label "Contact Information"
-        , Field.name "contacts"
-        , Field.repeatableMin 1
-        , Field.repeatableMax 5
-        , Field.copies
-            { addFieldsButton = "Add Contact"
-            , removeFieldsButton = "Remove"
-            }
-        ]
-        (Field.group
-            [ Field.class "inline-fields" ]
-            [ Field.text
-                [ Field.label "Name"
-                , Field.placeholder "Enter contact name"
-                , Field.required True
-                , Field.identifier "name-field"
-                ]
-            , Field.email
-                [ Field.label "Email"
-                , Field.placeholder "contact@email.com"
-                , Field.required True
-                , Field.identifier "email-field"
-                ]
-            ]
-        )
-        []
-
-
-repeatableFieldWithDefaults : Field String
-repeatableFieldWithDefaults =
-    Field.repeatable
-        [ Field.label "Contact Information"
-        , Field.name "contacts"
-        , Field.repeatableMin 2
-        , Field.repeatableMax 5
-        , Field.copies
-            { addFieldsButton = "Add Contact"
-            , removeFieldsButton = "Remove"
-            }
-        ]
-        (Field.group
-            [ Field.class "inline-fields" ]
-            [ Field.text
-                [ Field.label "Name"
-                , Field.placeholder "Enter contact name"
-                , Field.required True
-                , Field.identifier "name-field"
-                ]
-            , Field.email
-                [ Field.label "Email"
-                , Field.placeholder "contact@email.com"
-                , Field.required True
-                , Field.identifier "email-field"
-                ]
-            ]
-        )
-        [ Field.updateWithId "name-field"
-            (Field.updateValue
-                (Value.string "Default contact 1")
-            )
-        , Field.updateWithId "name-field"
-            (Field.updateValue
-                (Value.string "Default contact 2")
-            )
-        , Field.updateWithId "name-field"
-            (Field.updateValue
-                (Value.string "Default contact 3")
-            )
-        ]
-
-
-contactParser : Parse.Parser String { name : String, email : String }
-contactParser =
-    Parse.map2 (\name email -> { name = name, email = email })
-        (Parse.field "name-field" Parse.string)
-        (Parse.field "email-field" Parse.string)
 
 
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )
@@ -599,17 +368,21 @@ chapter =
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
             ]
-        |> Chapter.render
-            inputTypesMarkdown
+        |> Chapter.render markdownContent
 
 
 
 -- MARKDOWN CONTENT COMPONENTS
 
 
-inputTypesMarkdown : String
-inputTypesMarkdown =
+markdownContent : String
+markdownContent =
     """
+
+A Field can be a single input field, a group of Fields, or a group of repeatable
+Fields. It has a similar API to Elm Html, but since it tracks state, it should be
+part of the model.
+
 
 ### Text
 
@@ -953,3 +726,234 @@ repeatableFieldWithDefaults =
 
 <component with-label="Repeatable With Defaults"/>
 """
+
+
+textField : Field ()
+textField =
+    Field.text
+        [ Field.label "Text Field"
+        , Field.placeholder "Enter any text"
+        , Field.required True
+        ]
+
+
+textareaField : Field ()
+textareaField =
+    Field.textarea
+        [ Field.label "Textarea Field"
+        , Field.placeholder "Enter multiple lines of text"
+        , Field.autogrow True
+        , Field.required True
+        ]
+
+
+emailField : Field ()
+emailField =
+    Field.email
+        [ Field.label "Email Field"
+        , Field.placeholder "your@email.com"
+        , Field.required True
+        ]
+
+
+passwordField : Field ()
+passwordField =
+    Field.password
+        [ Field.label "Password Field"
+        , Field.placeholder "Enter password"
+        , Field.required True
+        ]
+
+
+autocompleteTextField : Field ()
+autocompleteTextField =
+    Field.text
+        [ Field.label "Text with suggestions"
+        , Field.placeholder "Type to see suggestions"
+        , Field.stringOptions [ "Apple", "Banana", "Cherry", "Date", "Elderberry", "Fig" ]
+        , Field.required True
+        ]
+
+
+autocompleteField : Field ()
+autocompleteField =
+    Field.strictAutocomplete
+        [ Field.label "Strict Autocomplete"
+        , Field.placeholder "Choose from options"
+        , Field.stringOptions [ "Apple", "Banana", "Cherry", "Date" ]
+        , Field.required True
+        ]
+
+
+intField : Field ()
+intField =
+    Field.int
+        [ Field.label "Integer Field"
+        , Field.placeholder "Enter a whole number"
+        , Field.min (Value.int 0)
+        , Field.max (Value.int 100)
+        , Field.step (Value.int 5)
+        , Field.required True
+        ]
+
+
+floatField : Field ()
+floatField =
+    Field.float
+        [ Field.label "Float Field"
+        , Field.placeholder "Enter a decimal number"
+        , Field.min (Value.float 0.0)
+        , Field.max (Value.float 10.0)
+        , Field.step (Value.float 0.1)
+        , Field.required True
+        ]
+
+
+dateField : Field ()
+dateField =
+    Field.date
+        [ Field.label "Date Field"
+        , Field.required True
+        ]
+
+
+monthField : Field ()
+monthField =
+    Field.month
+        [ Field.label "Month Fiend"
+        , Field.required True
+        ]
+
+
+selectField : Field ()
+selectField =
+    Field.select
+        [ Field.label "Select Field"
+        , Field.required True
+        , Field.options
+            [ ( "Small", Value.string "small" )
+            , ( "Medium", Value.string "medium" )
+            , ( "Large", Value.string "large" )
+            , ( "Extra Large", Value.string "xlarge" )
+            ]
+        ]
+
+
+radioField : Field ()
+radioField =
+    Field.radio
+        [ Field.label "Radio Field"
+        , Field.required True
+        , Field.options
+            [ ( "Red", Value.string "red" )
+            , ( "Green", Value.string "green" )
+            , ( "Blue", Value.string "blue" )
+            ]
+        ]
+
+
+checkboxField : Field ()
+checkboxField =
+    Field.checkbox
+        [ Field.label "Checkbox Field"
+        ]
+
+
+groupField : Field String
+groupField =
+    Field.group
+        [ Field.label "Contact Information" ]
+        [ Field.text
+            [ Field.label "Name"
+            , Field.placeholder "Enter your name"
+            , Field.required True
+            , Field.identifier "name"
+            ]
+        , Field.email
+            [ Field.label "Email"
+            , Field.placeholder "your@email.com"
+            , Field.required True
+            , Field.identifier "email"
+            ]
+        ]
+
+
+repeatableField : Field String
+repeatableField =
+    Field.repeatable
+        [ Field.label "Contact Information"
+        , Field.name "contacts"
+        , Field.repeatableMin 1
+        , Field.repeatableMax 5
+        , Field.copies
+            { addFieldsButton = "Add Contact"
+            , removeFieldsButton = "Remove"
+            }
+        ]
+        (Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Name"
+                , Field.placeholder "Enter contact name"
+                , Field.required True
+                , Field.identifier "name-field"
+                ]
+            , Field.email
+                [ Field.label "Email"
+                , Field.placeholder "contact@email.com"
+                , Field.required True
+                , Field.identifier "email-field"
+                ]
+            ]
+        )
+        []
+
+
+repeatableFieldWithDefaults : Field String
+repeatableFieldWithDefaults =
+    Field.repeatable
+        [ Field.label "Contact Information"
+        , Field.name "contacts"
+        , Field.repeatableMin 2
+        , Field.repeatableMax 5
+        , Field.copies
+            { addFieldsButton = "Add Contact"
+            , removeFieldsButton = "Remove"
+            }
+        ]
+        (Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Name"
+                , Field.placeholder "Enter contact name"
+                , Field.required True
+                , Field.identifier "name-field"
+                ]
+            , Field.email
+                [ Field.label "Email"
+                , Field.placeholder "contact@email.com"
+                , Field.required True
+                , Field.identifier "email-field"
+                ]
+            ]
+        )
+        [ Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 1")
+            )
+        , Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 2")
+            )
+        , Field.updateWithId "name-field"
+            (Field.updateValue
+                (Value.string "Default contact 3")
+            )
+        ]
+
+
+contactParser : Parse.Parser String { name : String, email : String }
+contactParser =
+    Parse.map2 (\name email -> { name = name, email = email })
+        (Parse.field "name-field" Parse.string)
+        (Parse.field "email-field" Parse.string)

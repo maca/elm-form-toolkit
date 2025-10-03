@@ -78,8 +78,7 @@ interact matcher event actions =
                 |> Event.toResult
                 |> Result.map
                     (\msg ->
-                        FormToolkit.Field.update msg actions.field
-                            |> Parse.parse actions.decoder
+                        Parse.parseUpdate actions.decoder msg actions.field
                     )
                 |> Result.mapError (CustomError Nothing)
                 |> Result.withDefault ( actions.field, actions.result )

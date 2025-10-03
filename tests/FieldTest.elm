@@ -41,7 +41,6 @@ suite =
                                         (Parse.field "NestedField2" Parse.string)
                                     )
                                     field
-                                    |> Tuple.second
                             )
                         |> Expect.equal (Ok ( "Updated value", "Value2" ))
             , test "updating multiple attributes succeeds" <|
@@ -59,7 +58,6 @@ suite =
                                         (Parse.field "NestedField2" Parse.string)
                                     )
                                     field
-                                    |> Tuple.second
                             )
                         |> Expect.equal (Ok ( "Updated value", "Value2" ))
             , test "it preserves identifier" <|
@@ -75,7 +73,6 @@ suite =
                                         (Parse.field "NestedField2" Parse.string)
                                     )
                                     field
-                                    |> Tuple.second
                             )
                         |> Expect.equal (Ok ( "Value", "Value2" ))
             , test "fails when no matching id" <|
@@ -101,7 +98,6 @@ suite =
                         , \field -> Ok (Field.updateValue (Value.string "default3") field)
                         ]
                         |> Parse.parse (Parse.list Parse.string)
-                        |> Tuple.second
                         |> Expect.equal (Ok [ "default1", "default2", "default3" ])
             ]
         ]

@@ -55,24 +55,15 @@ chapter =
                             )
               )
             ]
-        |> Chapter.render
-            (String.concat
-                [ introMarkdown
-                , stepOneMarkdown
-                , stepTwoMarkdown
-                , stepThreeMarkdown
-                , stepFourMarkdown
-                , completeExampleMarkdown
-                ]
-            )
+        |> Chapter.render markdownContent
 
 
 
 -- MARKDOWN CONTENT COMPONENTS
 
 
-introMarkdown : String
-introMarkdown =
+markdownContent : String
+markdownContent =
     """
 # Welcome to form-toolkit!
 
@@ -81,7 +72,7 @@ rendering forms in Elm for building complex forms with validation, parsing to
 any shape, and flexible rendering.
 
 
-## Key Features:
+## Features:
 
 - Declarative and opinionated form building with an Elm-Html-like API
 - Built-in validation with custom validation support  
@@ -89,21 +80,21 @@ any shape, and flexible rendering.
 - Flexible rendering with customization options
 - Support for complex forms with repeatable fields
 
-Let's build a simple name form step by step to see how form-toolkit works!
-"""
+Let's build a simple form step by step to see how form-toolkit works!
 
 
-stepOneMarkdown : String
-stepOneMarkdown =
-    """
 ## Step 1: Declaring a Form
 
-First, let's declare a simple form with two fields: first name and last name. We start by
-defining field identifiers and then create the form structure.
+A `Field` represents all of the user inputs for a form and their corresponding
+labels, hints and validation errors. It can be a single input field, a group of
+Fields or a group of repeatable Fields.
+
+Let's declare a simple form with two fields: first name and last name.
 
 
 ```elm
--- Define field identifiers
+-- Define field identifiers,
+-- we will use this to refer to particular fields when parsing
 type UserFormFields
     = FirstName
     | LastName
@@ -131,17 +122,14 @@ Each field has:
 - **identifier**: Used for parsing (connects to your custom type)
 
 
-"""
-
-
-stepTwoMarkdown : String
-stepTwoMarkdown =
-    """
 ## Step 2: Setting up the Model
 
 The form should be kept in your model, this keeps track of inputs and values,
 and validation errors, nothing else, so it's safe to keep in the model.
 
+The API was modeled after the Html API with a list of attributes and a list
+of children nodes, but once a Field is built it should be keept in the model
+because it keeps track of the Fields state.
 
 
 ```elm
@@ -164,12 +152,7 @@ init =
     }
 ```
 
-"""
 
-
-stepThreeMarkdown : String
-stepThreeMarkdown =
-    """
 ## Step 3: Handle Updates
 
 Form updates are handled using `Parse.parseUpdate` along with a parser.
@@ -209,12 +192,9 @@ userParser =
 - `Parse.parseUpdate` handles both updating the form state AND parsing the current form data
 - Field identifiers `FirstName` and `LastName` are used to reference fields while parsing,
 similar as using `field` when using `Json.Decode`
-"""
 
 
-stepFourMarkdown : String
-stepFourMarkdown =
-    """
+
 ## Step 4: Render the Form
 
 Use `Field.toHtml` with your `Msg` constructor:
@@ -239,12 +219,9 @@ view model =
 - **Required indicators** for mandatory fields
 
 The first argument is a function that wraps `Field.Msg` in your app's `Msg` type.
-"""
+    
 
-
-completeExampleMarkdown : String
-completeExampleMarkdown =
-    """
+    
 ## Complete Example
 
 Here's the complete working example that you can copy and use:

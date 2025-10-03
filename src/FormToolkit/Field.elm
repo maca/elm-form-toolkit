@@ -380,7 +380,6 @@ Relevant attributes are [repeatableMin](#repeatableMin),
 
     emailsFields
         |> Parse.parse (Parse.list Parse.string)
-        |> Tuple.second
     --> Ok [ "email@example.com", "other-email@example.com" ]
 
 -}
@@ -468,8 +467,7 @@ type Attribute id val
             , value (Value.string "Chavela")
             ]
             |> Parse.parse Parse.json
-            |> Tuple.second
-            |> Result.map (Json.Encode.encode 0)
+                |> Result.map (Json.Encode.encode 0)
             --> Ok "{\"first-name\":\"Chavela\"}"
 
 -}
@@ -513,7 +511,6 @@ for added type safety.
     form
         |> Parse.parse
             (Parse.field FirstName Parse.string)
-        |> Tuple.second
         --> Ok "Juan"
 
 -}
@@ -529,7 +526,6 @@ identifier id =
 
     text [ label "Name", value (Value.string "Chavela") ]
         |> Parse.parse Parse.string
-        |> Tuple.second
         --> Ok "Chavela"
 
 -}
@@ -546,7 +542,6 @@ field error will be displayed.
 
     text [ label "First name" ]
         |> Parse.parse (Parse.maybe Parse.string)
-        |> Tuple.second
         --> Ok Nothing
 
 -}
@@ -874,8 +869,7 @@ error.
             (\field ->
                 field
                     |> Parse.parse (Parse.field "Field" Parse.string)
-                    |> Tuple.second
-            )
+                        )
         --> Ok "Updated"
 
 -}
@@ -915,7 +909,6 @@ updateWithId id fn (Field field) =
         [ value (Value.string "Value") ]
         |> updateAttribute (value (Value.string "Updated"))
         |> Parse.parse Parse.string
-        |> Tuple.second
         --> Ok "Updated"
 
 -}
@@ -942,7 +935,6 @@ updateAttribute attr =
                 ]
             ]
         |> Parse.parse Parse.string
-        |> Tuple.second
         --> Ok "Chocolate"
 
 -}

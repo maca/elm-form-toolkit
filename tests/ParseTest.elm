@@ -23,27 +23,22 @@ suite =
             [ test "decoding string" <|
                 \_ ->
                     Parse.parse Parse.string stringInput
-                        |> Tuple.second
                         |> Expect.equal (Ok "A string")
             , test "decoding int" <|
                 \_ ->
                     Parse.parse Parse.int intInput
-                        |> Tuple.second
                         |> Expect.equal (Ok 1)
             , test "decoding float" <|
                 \_ ->
                     Parse.parse Parse.float floatInput
-                        |> Tuple.second
                         |> Expect.equal (Ok 1.1)
             , test "decoding bool" <|
                 \_ ->
                     Parse.parse Parse.bool boolInput
-                        |> Tuple.second
                         |> Expect.equal (Ok True)
             , test "decoding posix" <|
                 \_ ->
                     Parse.parse Parse.posix posixInput
-                        |> Tuple.second
                         |> Expect.equal (Ok (Time.millisToPosix 0))
             , test "decoding custom value with field with options" <|
                 \_ ->
@@ -52,14 +47,12 @@ suite =
                         , Field.stringOptions [ "Español", "English", "Deutsch" ]
                         ]
                         |> Parse.parse Parse.string
-                        |> Tuple.second
                         |> Expect.equal (Ok "Español")
             , test "decoding field by id" <|
                 \_ ->
                     Field.group [] [ stringInput ]
                         |> Parse.parse
                             (Parse.field StringField Parse.string)
-                        |> Tuple.second
                         |> Expect.equal (Ok "A string")
             ]
         , describe "failure"
@@ -67,8 +60,7 @@ suite =
                 [ test "produces error" <|
                     \_ ->
                         Parse.parse Parse.int stringInput
-                            |> Tuple.second
-                            |> Expect.equal
+                                |> Expect.equal
                                 (Err [ ParseError (Just StringField) ])
                 ]
             , describe "on field decoding"
@@ -76,15 +68,13 @@ suite =
                     \_ ->
                         Field.group [] [ stringInput ]
                             |> Parse.parse (Parse.field StringField Parse.int)
-                            |> Tuple.second
-                            |> Expect.equal (Err [ ParseError (Just StringField) ])
+                                |> Expect.equal (Err [ ParseError (Just StringField) ])
                 ]
             ]
         , describe "encode json"
             [ test "string" <|
                 \_ ->
                     Parse.parse Parse.json stringInput
-                        |> Tuple.second
                         |> Result.withDefault (Json.Encode.string "")
                         |> Json.Decode.decodeValue
                             (Json.Decode.field "string-field" Json.Decode.string)
@@ -93,14 +83,12 @@ suite =
                 \_ ->
                     Parse.parse Parse.json
                         (Field.group [] [ stringInput, intInput ])
-                        |> Tuple.second
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue simpleJsonDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
             , test "group name" <|
                 \_ ->
                     Parse.parse Parse.json groupWithName
-                        |> Tuple.second
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue groupWithNameDecoder
                         |> Expect.equal (Ok ( "A string", 1 ))
@@ -111,7 +99,6 @@ suite =
                             groupWithName
                             []
                         )
-                        |> Tuple.second
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue
                             (Json.Decode.field "repeatable"
@@ -126,7 +113,6 @@ suite =
                             (Field.group [] [ stringInput, intInput ])
                             []
                         )
-                        |> Tuple.second
                         |> Result.withDefault Json.Encode.null
                         |> Json.Decode.decodeValue
                             (Json.Decode.field "repeatable"
@@ -139,14 +125,12 @@ suite =
             [ test "presence" <|
                 \_ ->
                     Parse.parse (Parse.succeed ()) blankInput
-                        |> Tuple.second
                         |> Expect.equal
                             (Err [ IsBlank (Just BlankField) ])
             , test "nested field not handled" <|
                 \_ ->
                     Field.group [] [ blankInput ]
                         |> Parse.parse (Parse.succeed ())
-                        |> Tuple.second
                         |> Expect.equal (Err [ IsBlank (Just BlankField) ])
             , test "errors are presented in correct order" <|
                 \_ ->
@@ -162,7 +146,6 @@ suite =
                                     )
                     in
                     result
-                        |> Tuple.second
                         |> Expect.equal
                             (Err
                                 [ ParseError (Just StringField)
@@ -179,7 +162,6 @@ suite =
                                 |> Parse.andMap
                                     (Parse.field StringField Parse.float)
                             )
-                        |> Tuple.second
                         |> Expect.equal
                             (Err [ ParseError (Just StringField) ])
             , test "email validation only applies to email fields" <|
@@ -203,12 +185,10 @@ suite =
                     Expect.all
                         [ \_ ->
                             Parse.parse Parse.string textField
-                                |> Tuple.second
-                                |> Expect.equal (Ok invalidEmail)
+                                        |> Expect.equal (Ok invalidEmail)
                         , \_ ->
                             Parse.parse Parse.string emailField
-                                |> Tuple.second
-                                |> Expect.equal (Err [ EmailInvalid (Just StringField) ])
+                                        |> Expect.equal (Err [ EmailInvalid (Just StringField) ])
                         ]
                         ()
             , test "valid email passes validation" <|
@@ -224,7 +204,6 @@ suite =
                                 ]
                     in
                     Parse.parse Parse.string emailField
-                        |> Tuple.second
                         |> Expect.equal (Ok validEmail)
             , test "email validation edge cases" <|
                 \_ ->
@@ -239,8 +218,7 @@ suite =
 
                                 result =
                                     Parse.parse Parse.string emailField
-                                        |> Tuple.second
-                            in
+                                            in
                             if shouldPass then
                                 result |> Expect.equal (Ok email)
 
@@ -274,7 +252,6 @@ suite =
                     in
                     -- Empty required email field should fail with both ParseError and IsBlank
                     Parse.parse Parse.string emptyEmailField
-                        |> Tuple.second
                         |> Expect.equal (Err [ ParseError (Just StringField), IsBlank (Just StringField) ])
             , test "EmailInvalid error has correct English translation" <|
                 \_ ->
