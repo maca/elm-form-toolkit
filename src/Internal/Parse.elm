@@ -1,5 +1,5 @@
 module Internal.Parse exposing
-    ( Parser(..), ParserResult(..)
+    ( Parser, ParserResult(..)
     , field, list, json, custom, maybe
     , map, map2, andThen, andUpdate
     , parseValue, parse, validate
@@ -35,24 +35,22 @@ type ParserResult id a
     | Success (Field id) a
 
 
-type Parser id a
-    = Parser (Field id -> ParserResult id a)
+type alias Parser id a =
+    Field id -> ParserResult id a
 
 
 field : id -> Parser id a -> Parser id a
 field id parser =
-    Parser
-        (\tree ->
-            case fieldHelp id parser tree of
-                ( Just (Success node a), path ) ->
-                    Success (Tree.replaceAt path node tree) a
+    \tree ->
+        case fieldHelp id parser tree of
+            ( Just (Success node a), path ) ->
+                Success (Tree.replaceAt path node tree) a
 
-                ( Just (Failure node errors), path ) ->
-                    Failure (Tree.replaceAt path node tree) errors
+            ( Just (Failure node errors), path ) ->
+                Failure (Tree.replaceAt path node tree) errors
 
-                ( Nothing, _ ) ->
-                    failure tree (InputNotFound id)
-        )
+            ( Nothing, _ ) ->
+                failure tree (InputNotFound id)
 
 
 fieldHelp : id -> Parser id a -> Field id -> ( Maybe (ParserResult id a), List Int )
@@ -60,7 +58,7 @@ fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
             if Internal.Field.identifier tree == Just id then
-                ( Just (apply parser tree), path )
+                ( Just (parser tree), path )
 
             else
                 acc
@@ -70,34 +68,30 @@ fieldHelp id parser =
 
 maybe : Parser id a -> Parser id (Maybe a)
 maybe parser =
-    Parser
-        (\input ->
-            if Internal.Field.isBlank input then
-                Success input Nothing
+    \input ->
+        if Internal.Field.isBlank input then
+            Success input Nothing
 
-            else
-                mapHelp Just parser input
-        )
+        else
+            mapHelp Just parser input
 
 
 list : Parser id a -> Parser id (List a)
 list parser =
-    Parser
-        (\input ->
-            let
-                ( children, result ) =
-                    listHelp parser input
+    \input ->
+        let
+            ( children, result ) =
+                listHelp parser input
 
-                input2 =
-                    Tree.branch (Tree.value input) children
-            in
-            case result of
-                Ok elements ->
-                    Success input2 elements
+            input2 =
+                Tree.branch (Tree.value input) children
+        in
+        case result of
+            Ok elements ->
+                Success input2 elements
 
-                Err errors ->
-                    Failure input2 errors
-        )
+            Err errors ->
+                Failure input2 errors
 
 
 listHelp : Parser id a -> Field id -> ( List (Field id), Result (List (Error id)) (List a) )
@@ -105,7 +99,7 @@ listHelp parser =
     Tree.children
         >> List.foldr
             (\node ( nodes, result ) ->
-                case apply parser node of
+                case parser node of
                     Success node2 a ->
                         ( node2 :: nodes
                         , Result.map2 (::) (Ok a) result
@@ -126,15 +120,13 @@ listHelp parser =
 
 json : Parser id Json.Decode.Value
 json =
-    Parser
-        (\input ->
-            case jsonEncodeObject input of
-                Ok a ->
-                    Success input a
+    \input ->
+        case jsonEncodeObject input of
+            Ok a ->
+                Success input a
 
-                Err err ->
-                    failure input err
-        )
+            Err err ->
+                failure input err
 
 
 jsonEncodeObject : Field id -> Result (Error id) Json.Encode.Value
@@ -208,23 +200,21 @@ andUpdate :
     (Field id -> a -> { field : Field id, parser : Parser id b })
     -> Parser id a
     -> Parser id b
-andUpdate func (Parser parser) =
-    Parser
-        (\input ->
-            case parser input of
-                Success input2 a ->
-                    let
-                        result =
-                            func input2 a
+andUpdate func parser =
+    \input ->
+        case parser input of
+            Success input2 a ->
+                let
+                    result =
+                        func input2 a
 
-                        (Parser newParser) =
-                            result.parser
-                    in
-                    newParser result.field
+                    newParser =
+                        result.parser
+                in
+                newParser result.field
 
-                Failure input2 errors ->
-                    Failure input2 errors
-        )
+            Failure input2 errors ->
+                Failure input2 errors
 
 
 parseValue : (Value.Value -> Maybe a) -> Parser id a
@@ -252,15 +242,13 @@ parseValue func =
 
 parseHelp : (Field id -> Result (Error id) a) -> Parser id a
 parseHelp func =
-    Parser
-        (\input ->
-            case func input of
-                Ok a ->
-                    Success input a
+    \input ->
+        case func input of
+            Ok a ->
+                Success input a
 
-                Err err ->
-                    failure input err
-        )
+            Err err ->
+                failure input err
 
 
 failure : Field id -> Error id -> ParserResult id a
@@ -269,25 +257,23 @@ failure input err =
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b
-andThen func (Parser parser) =
-    Parser
-        (\input ->
-            case parser input of
-                Success input2 a ->
-                    apply (func a) input2
+andThen func parser =
+    \input ->
+        case parser input of
+            Success input2 a ->
+                func a input2
 
-                Failure input2 errors ->
-                    Failure input2 errors
-        )
+            Failure input2 errors ->
+                Failure input2 errors
 
 
 map : (a -> b) -> Parser id a -> Parser id b
 map func parser =
-    Parser (mapHelp func parser)
+    mapHelp func parser
 
 
 mapHelp : (a -> b) -> Parser id a -> Field id -> ParserResult id b
-mapHelp func (Parser parser) input =
+mapHelp func parser input =
     case parser input of
         Success input2 a ->
             Success input2 (func a)
@@ -298,43 +284,37 @@ mapHelp func (Parser parser) input =
 
 map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
 map2 func a b =
-    Parser
-        (\tree ->
-            case apply a tree of
-                Success tree2 res ->
-                    case apply b tree2 of
-                        Success tree3 res2 ->
-                            Success tree3 (func res res2)
+    \tree ->
+        case a tree of
+            Success tree2 res ->
+                case b tree2 of
+                    Success tree3 res2 ->
+                        Success tree3 (func res res2)
 
-                        Failure tree3 errors ->
-                            Failure tree3 errors
+                    Failure tree3 errors ->
+                        Failure tree3 errors
 
-                Failure tree2 errors ->
-                    case apply b tree2 of
-                        Success tree3 _ ->
-                            Failure tree3 errors
+            Failure tree2 errors ->
+                case b tree2 of
+                    Success tree3 _ ->
+                        Failure tree3 errors
 
-                        Failure tree3 errors2 ->
-                            Failure tree3 (List.Extra.unique (errors2 ++ errors))
-        )
-
-
-
--- parse : Parser id a -> Field id -> ParserResult id a
+                    Failure tree3 errors2 ->
+                        Failure tree3 (List.Extra.unique (errors2 ++ errors))
 
 
 parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
 parse parser input =
     let
         result =
-            apply (map2 (always identity) validateTree parser) input
+            map2 (always identity) validateTree parser input
     in
     ( parseResultToField result, parseResultToResult result )
 
 
 validate : Field id -> Field id
 validate =
-    apply validateTree >> parseResultToField
+    validateTree >> parseResultToField
 
 
 parseResultToField : ParserResult id a -> Field id
@@ -358,34 +338,10 @@ parseResultToResult parseResult =
 
 
 validateTree : Parser id ()
-validateTree =
-    Parser
-        (validateField
-            [ checkRequired
-            , checkInRange
-            , checkOptionsProvided
-            , checkEmail
-            ]
-        )
-
-
-validateField :
-    List (Field id -> Maybe (Error id))
-    -> Field id
-    -> ParserResult id ()
-validateField validators input =
+validateTree input =
     let
         updated =
-            Tree.map
-                (\node ->
-                    case List.filterMap ((|>) node) validators of
-                        [] ->
-                            node
-
-                        errors ->
-                            Internal.Field.setErrors errors node
-                )
-                input
+            Tree.map (validateNode >> parseResultToField) input
     in
     case Internal.Field.errors updated of
         [] ->
@@ -395,9 +351,32 @@ validateField validators input =
             Failure updated errors
 
 
-apply : Parser id a -> Field id -> ParserResult id a
-apply (Parser parser) =
-    parser
+validateNode : Parser id ()
+validateNode node =
+    let
+        updated =
+            case List.filterMap ((|>) node) validations of
+                [] ->
+                    node
+
+                errors ->
+                    Internal.Field.setErrors errors node
+    in
+    case Internal.Field.errors updated of
+        [] ->
+            Success updated ()
+
+        errors ->
+            Failure updated errors
+
+
+validations : List (Field id -> Maybe (Error id))
+validations =
+    [ checkRequired
+    , checkInRange
+    , checkOptionsProvided
+    , checkEmail
+    ]
 
 
 checkRequired : Field id -> Maybe (Error id)
