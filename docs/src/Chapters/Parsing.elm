@@ -113,22 +113,6 @@ update msg book =
             )
 
 
-eventParser : Parse.Parser String { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
-eventParser =
-    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
-        (Parse.field "event-name" Parse.string)
-        (Parse.field "event-date" Parse.posix)
-        (Parse.field "max-attendees" (Parse.maybe Parse.int))
-
-
-eventParser2 : Parse.Parser EventFields { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
-eventParser2 =
-    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
-        (Parse.field EventName Parse.string)
-        (Parse.field EventDate Parse.posix)
-        (Parse.field MaxAttendees (Parse.maybe Parse.int))
-
-
 chapter : Chapter { x | parsing : Model }
 chapter =
     Chapter.chapter "Parsing"
@@ -340,6 +324,14 @@ eventFields =
         ]
 
 
+eventParser : Parse.Parser String { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
+eventParser =
+    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+        (Parse.field "event-name" Parse.string)
+        (Parse.field "event-date" Parse.posix)
+        (Parse.field "max-attendees" (Parse.maybe Parse.int))
+
+
 eventFields2 : Field EventFields
 eventFields2 =
     Field.group
@@ -363,6 +355,14 @@ eventFields2 =
             , Field.max (Value.int 1000)
             ]
         ]
+
+
+eventParser2 : Parse.Parser EventFields { eventName : String, date : Time.Posix, maxAttendees : Maybe Int }
+eventParser2 =
+    Parse.map3 (\name date attendees -> { eventName = name, date = date, maxAttendees = attendees })
+        (Parse.field EventName Parse.string)
+        (Parse.field EventDate Parse.posix)
+        (Parse.field MaxAttendees (Parse.maybe Parse.int))
 
 
 eventFields3 : Field EventFields
