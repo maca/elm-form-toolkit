@@ -476,6 +476,7 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
     Html.select
         (Attributes.id (inputId input path)
             :: Attributes.required unwappedField.isRequired
+            :: Attributes.disabled unwappedField.disabled
             :: onInputWithSelection
                 (\inputStr ->
                     onChange path
@@ -526,6 +527,7 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                         (Attributes.id (radioOptionId input (path ++ [ index ]))
                             :: Attributes.checked (optionValue == unwrappedField.value)
                             :: Attributes.required unwrappedField.isRequired
+                            :: Attributes.disabled unwrappedField.disabled
                             :: Attributes.value (String.fromInt index)
                             :: Attributes.type_ "radio"
                             :: onInputWithSelection
@@ -638,6 +640,7 @@ textInputHtmlAttributes attributes path input =
         , [ Attributes.placeholder (Maybe.withDefault "" (Field.placeholder input))
           , Attributes.id (inputId input path)
           , Attributes.required (Field.isRequired input)
+          , Attributes.disabled node.disabled
           , Events.onFocus (attributes.onFocus path)
           , Events.onBlur (attributes.onBlur path)
           , nameAttribute input

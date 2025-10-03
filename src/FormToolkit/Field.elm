@@ -9,7 +9,7 @@ module FormToolkit.Field exposing
     , name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
     , options, stringOptions, min, max, step, autogrow
     , class, classList
-    , visible, noattr
+    , disabled, visible, noattr
     , copies, repeatableMin, repeatableMax
     , updateWithId, updateAttribute, updateAttributes
     , updateValue, updateStringValue
@@ -42,7 +42,7 @@ their attributes, update, and render them.
 @docs name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
-@docs visible, noattr
+@docs disabled, visible, noattr
 
 
 # Groups
@@ -796,6 +796,13 @@ fieldTypeToInputType inputType =
 
         Internal.Field.Error _ ->
             Text
+
+
+{-| Sets whether a field is disabled. When set to True, the field input will have the disabled HTML attribute.
+-}
+disabled : Bool -> Attribute id val
+disabled isDisabled =
+    Attribute (\field -> { field | disabled = isDisabled })
 
 
 {-| Sets the visibility of a field. When set to False, the field will not be rendered.
