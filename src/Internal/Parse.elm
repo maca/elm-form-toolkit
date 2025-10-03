@@ -42,7 +42,7 @@ type alias Parser id a =
 field : id -> Parser id a -> Parser id a
 field id parser =
     \tree ->
-        case fieldHelp id parser tree of
+        case fieldHelp id (map2 (\_ a -> a) validateTree parser) tree of
             ( Just (Success node a), path ) ->
                 Success (Tree.replaceAt path node tree) a
 
@@ -58,7 +58,9 @@ fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
             if Internal.Field.identifier tree == Just id then
-                ( Just (parser tree), path )
+                ( Just (parser tree)
+                , path
+                )
 
             else
                 acc
@@ -307,7 +309,7 @@ parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
 parse parser input =
     let
         result =
-            map2 (always identity) validateTree parser input
+            map2 (\_ a -> a) validateNode parser input
     in
     ( parseResultToField result, parseResultToResult result )
 
@@ -353,21 +355,12 @@ validateTree input =
 
 validateNode : Parser id ()
 validateNode node =
-    let
-        updated =
-            case List.filterMap ((|>) node) validations of
-                [] ->
-                    node
-
-                errors ->
-                    Internal.Field.setErrors errors node
-    in
-    case Internal.Field.errors updated of
+    case List.filterMap ((|>) node) validations of
         [] ->
-            Success updated ()
+            Success node ()
 
         errors ->
-            Failure updated errors
+            Failure (Internal.Field.setErrors errors node) errors
 
 
 validations : List (Field id -> Maybe (Error id))

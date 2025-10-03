@@ -60,7 +60,7 @@ suite =
                 [ test "produces error" <|
                     \_ ->
                         Parse.parse Parse.int stringInput
-                                |> Expect.equal
+                            |> Expect.equal
                                 (Err [ ParseError (Just StringField) ])
                 ]
             , describe "on field decoding"
@@ -68,7 +68,7 @@ suite =
                     \_ ->
                         Field.group [] [ stringInput ]
                             |> Parse.parse (Parse.field StringField Parse.int)
-                                |> Expect.equal (Err [ ParseError (Just StringField) ])
+                            |> Expect.equal (Err [ ParseError (Just StringField) ])
                 ]
             ]
         , describe "encode json"
@@ -127,11 +127,6 @@ suite =
                     Parse.parse (Parse.succeed ()) blankInput
                         |> Expect.equal
                             (Err [ IsBlank (Just BlankField) ])
-            , test "nested field not handled" <|
-                \_ ->
-                    Field.group [] [ blankInput ]
-                        |> Parse.parse (Parse.succeed ())
-                        |> Expect.equal (Err [ IsBlank (Just BlankField) ])
             , test "errors are presented in correct order" <|
                 \_ ->
                     let
@@ -185,10 +180,10 @@ suite =
                     Expect.all
                         [ \_ ->
                             Parse.parse Parse.string textField
-                                        |> Expect.equal (Ok invalidEmail)
+                                |> Expect.equal (Ok invalidEmail)
                         , \_ ->
                             Parse.parse Parse.string emailField
-                                        |> Expect.equal (Err [ EmailInvalid (Just StringField) ])
+                                |> Expect.equal (Err [ EmailInvalid (Just StringField) ])
                         ]
                         ()
             , test "valid email passes validation" <|
@@ -218,7 +213,7 @@ suite =
 
                                 result =
                                     Parse.parse Parse.string emailField
-                                            in
+                            in
                             if shouldPass then
                                 result |> Expect.equal (Ok email)
 
