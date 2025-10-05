@@ -83,6 +83,7 @@
     .card-expiry { @extend .form-row; }
     .field { @extend .standard-field; }
     .inline-fields {  @extend .form-row; }
+
     .group-repeat {
         display: flex;
         border-bottom: dotted 1px gray;
@@ -96,6 +97,20 @@
             margin-top: 30px;
         }
     }
+
+    .participant-emails {
+        .group-repeat {
+            display: flex;
+
+            button {
+                margin-top: 0 !important;
+                margin-left: 1rem;
+            }
+
+            border: none;
+        }
+    }
+
     textarea { height: unset; }
 }
 

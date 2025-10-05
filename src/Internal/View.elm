@@ -76,6 +76,7 @@ type alias RepeatableFieldsGroupView msg =
     , addFieldsButtonOnClick : Maybe msg
     , errors : List String
     , path : List Int
+    , class : String
     }
 
 
@@ -85,6 +86,7 @@ type alias RepeatableFieldView msg =
     , index : Int
     , removeFieldsButtonCopy : String
     , removeFieldsButtonOnClick : Maybe msg
+    , class : String
     }
 
 
@@ -309,6 +311,7 @@ repeatableToHtml attributes path input =
 
                     else
                         Nothing
+                , class = inputId input childPath ++ "-repeat"
                 }
 
         addFieldsButtonEnabled =
@@ -322,6 +325,7 @@ repeatableToHtml attributes path input =
     repeatableFieldsGroupView
         { legendText = unwrappedField.label
         , fields = List.indexedMap inputsView children
+        , class = String.join " " unwrappedField.classList
         , addFieldsButton =
             \attrList ->
                 Html.button
@@ -744,8 +748,11 @@ groupView { fields, legendText, errors, class } =
 
 
 repeatableFieldsGroupView : RepeatableFieldsGroupView msg -> Html msg
-repeatableFieldsGroupView { legendText, addFieldsButton, fields, errors } =
-    Html.fieldset []
+repeatableFieldsGroupView { legendText, addFieldsButton, fields, errors, class } =
+    Html.fieldset
+        [ Attributes.class "group-repeatable"
+        , Attributes.class class
+        ]
         [ case legendText of
             Just str ->
                 Html.legend [] [ Html.text str ]
@@ -759,9 +766,11 @@ repeatableFieldsGroupView { legendText, addFieldsButton, fields, errors } =
 
 
 repeatableFieldView : RepeatableFieldView msg -> Html msg
-repeatableFieldView { field, removeFieldsButton } =
+repeatableFieldView { field, removeFieldsButton, class } =
     Html.div
-        [ Attributes.class "group-repeat" ]
+        [ Attributes.class "group-repeat"
+        , Attributes.class class
+        ]
         [ field
         , removeFieldsButton defaultAttributes
         ]

@@ -400,19 +400,17 @@ eventFields3 =
             , Field.value (Value.bool True)
             ]
         , Field.repeatable
-            [ Field.label "Participants"
+            [ Field.label "Participant emails"
             , Field.identifier Participants
             , Field.repeatableMin 1
             , Field.repeatableMax 5
-            , Field.class "inline-fields"
             , Field.copies
                 { addFieldsButton = "Add Participant"
                 , removeFieldsButton = "Remove"
                 }
             ]
             (Field.email
-                [ Field.label "Participant Email"
-                , Field.required True
+                [ Field.required True
                 , Field.identifier ParticipantEmail
                 ]
             )
