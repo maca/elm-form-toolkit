@@ -226,7 +226,9 @@ eventParser =
 
 <component with-label="Event Fields (Custom Type ID)"/>
 
+
 ## Updating field attributes while parsing
+
 
 ### Conditional parsing using `andUpdate`
 
@@ -236,7 +238,6 @@ toggling, for instance, its visibility.
 
 In this example, we use the value of the "Notify Participants" checkbox to make "Participant Emails"
 visible and parse the list if it is visible, or just succeed with an empty list.
-
 
 
 ```elm
@@ -299,6 +300,10 @@ eventParser =
 ```
 
 <component with-label="Event Fields (Conditional)"/>
+
+
+### Parsers nesting and `andUpdate` field context.
+
 
 
 ### Parsers nesting and `andUpdate` field context.

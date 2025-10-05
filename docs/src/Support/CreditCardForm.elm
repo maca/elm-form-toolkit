@@ -76,6 +76,72 @@ update msg model =
 
 
 
+-- VIEW FOR DEMO COMPONENT
+
+
+view : Model -> Html Msg
+view model =
+    Html.div
+        [ Attr.class "milligram"
+        , Attr.style "margin-top" "20px"
+        , Attr.style "padding" "20px"
+        , Attr.style "border" "1px solid #d1d1d1"
+        , Attr.style "border-radius" "4px"
+        ]
+        [ Html.h4 [] [ Html.text "Try the Credit Card Form" ]
+        , Html.form
+            [ onSubmit FormSubmitted, novalidate True ]
+            [ Field.toHtml FormChanged model.formFields
+            , Html.button
+                [ onClick FormSubmitted
+                , Attr.style "margin-top" "1rem"
+                ]
+                [ Html.text "Submit" ]
+            ]
+        , if model.submitted then
+            case model.result of
+                Ok cardInfo ->
+                    success
+                        [ Html.div
+                            []
+                            [ Html.text "Credit card information submitted successfully!" ]
+                        , Html.div
+                            []
+                            [ Html.text
+                                ("Card: " ++ cardInfo.cardName ++ " - " ++ cardInfo.cardNumber)
+                            ]
+                        ]
+
+                Err _ ->
+                    failure
+                        [ Html.text "There are some errors in the form" ]
+
+          else
+            Html.text ""
+        ]
+
+
+success : List (Html msg) -> Html msg
+success =
+    Html.div
+        [ Attr.style "margin-top" "1rem"
+        , Attr.style "padding" "1rem"
+        , Attr.style "background" "#e8f5e8"
+        , Attr.style "border-radius" "4px"
+        ]
+
+
+failure : List (Html msg) -> Html msg
+failure =
+    Html.div
+        [ Attr.style "margin-top" "1rem"
+        , Attr.style "padding" "1rem"
+        , Attr.style "background" "#fde8e8"
+        , Attr.style "border-radius" "4px"
+        ]
+
+
+
 -- FORM DEFINITION
 
 
@@ -137,17 +203,15 @@ creditCardNumberParser =
                     { selectionStart } =
                         Field.toProperties field
 
-                    cursorPosition =
-                        rawInput
-                            |> String.left selectionStart
-                            |> cleanCardNumber
-                            |> String.length
-
                     formattedNumber =
-                        formatCardNumber rawInput
+                        rawInput
+                            |> String.toList
+                            |> List.filter Char.isDigit
+                            |> String.fromList
+                            |> formatCardNumber
 
                     newCursorPosition =
-                        countCharsUpTo Char.isDigit cursorPosition formattedNumber
+                        calculateCursorPosition rawInput formattedNumber selectionStart
                 in
                 { field =
                     field
@@ -161,8 +225,7 @@ creditCardNumberParser =
 
 formatCardNumber : String -> String
 formatCardNumber =
-    cleanCardNumber
-        >> String.left 20
+    String.left 20
         >> String.toList
         >> List.indexedMap (\i c -> ( i, c ))
         >> List.foldr
@@ -178,91 +241,28 @@ formatCardNumber =
         >> String.trim
 
 
-cleanCardNumber : String -> String
-cleanCardNumber =
-    String.toList
-        >> List.filter Char.isDigit
-        >> String.fromList
+calculateCursorPosition : String -> String -> Int -> Int
+calculateCursorPosition original formatted cursorPos =
+    matchChars
+        (String.toList (String.left cursorPos original))
+        (String.toList formatted)
+        0
 
 
-countCharsUpTo : (Char -> Bool) -> Int -> String -> Int
-countCharsUpTo predicate cursorPosition formattedString =
-    formattedString
-        |> String.toList
-        |> List.foldl
-            (\char ( pos, charCount ) ->
-                if charCount >= cursorPosition then
-                    ( pos, charCount )
+matchChars : List Char -> List Char -> Int -> Int
+matchChars source target targetPos =
+    case source of
+        [] ->
+            targetPos
 
-                else if predicate char then
-                    ( pos + 1, charCount + 1 )
+        sourceChar :: remainingSource ->
+            case target of
+                [] ->
+                    targetPos
 
-                else
-                    ( pos + 1, charCount )
-            )
-            ( 0, 0 )
-        |> Tuple.first
+                targetChar :: remainingTarget ->
+                    if sourceChar == targetChar then
+                        matchChars remainingSource remainingTarget (targetPos + 1)
 
-
-
--- VIEW FOR DEMO COMPONENT
-
-
-view : Model -> Html Msg
-view model =
-    Html.div
-        [ Attr.class "milligram"
-        , Attr.style "margin-top" "20px"
-        , Attr.style "padding" "20px"
-        , Attr.style "border" "1px solid #d1d1d1"
-        , Attr.style "border-radius" "4px"
-        ]
-        [ Html.h4 [] [ Html.text "Try the Credit Card Form" ]
-        , Html.form
-            [ onSubmit FormSubmitted, novalidate True ]
-            [ Field.toHtml FormChanged model.formFields
-            , Html.button
-                [ onClick FormSubmitted
-                , Attr.style "margin-top" "1rem"
-                ]
-                [ Html.text "Submit" ]
-            ]
-        , if model.submitted then
-            case model.result of
-                Ok cardInfo ->
-                    success
-                        [ Html.div
-                            []
-                            [ Html.text "Credit card information submitted successfully!" ]
-                        , Html.div
-                            []
-                            [ Html.text
-                                ("Card: " ++ cardInfo.cardName ++ " - " ++ cardInfo.cardNumber)
-                            ]
-                        ]
-
-                Err _ ->
-                    failure
-                        [ Html.text "There are some errors in the form" ]
-
-          else
-            Html.text ""
-        ]
-
-
-success =
-    Html.div
-        [ Attr.style "margin-top" "1rem"
-        , Attr.style "padding" "1rem"
-        , Attr.style "background" "#e8f5e8"
-        , Attr.style "border-radius" "4px"
-        ]
-
-
-failure =
-    Html.div
-        [ Attr.style "margin-top" "1rem"
-        , Attr.style "padding" "1rem"
-        , Attr.style "background" "#fde8e8"
-        , Attr.style "border-radius" "4px"
-        ]
+                    else
+                        matchChars source remainingTarget (targetPos + 1)
