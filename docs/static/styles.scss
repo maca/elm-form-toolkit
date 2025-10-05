@@ -41,7 +41,7 @@
 .standard-field {
     padding-bottom: 1.5rem !important;
 
-    input, select, textarea {
+    input, select {
         margin-bottom: 0.75rem;
     }
 
@@ -96,6 +96,7 @@
             margin-top: 30px;
         }
     }
+    textarea { height: unset; }
 }
 
 

@@ -14,15 +14,6 @@ import Task
 import Time
 
 
-type EventFields
-    = EventName
-    | EventDate
-    | MaxAttendees
-    | NotifyParticipants
-    | Participants
-    | ParticipantEmail
-
-
 type alias Model =
     { shipmentDemo : ShipmentForm.Model
     , eventFields : Field String
@@ -96,13 +87,17 @@ update msg book =
                 ( updatedField, result ) =
                     Parse.parseUpdate eventParser3 innerMsg book.parsing.eventFields3
 
-                notify =
+                updatedField2 =
                     Parse.parse (Parse.field NotifyParticipants Parse.bool) updatedField
-                        |> Result.withDefault False
+                        |> Result.andThen
+                            (\notify ->
+                                Field.updateWithId Participants
+                                    (Field.updateAttribute (Field.visible notify))
+                                    updatedField
+                            )
+                        |> Result.withDefault updatedField
             in
-            ( { book
-                | parsing = { model | eventFields3 = updatedField }
-              }
+            ( { book | parsing = { model | eventFields3 = updatedField2 } }
             , Task.perform (Actions.logActionWithString "Result")
                 (Task.succeed (Debug.toString result))
             )
@@ -333,6 +328,15 @@ eventParser =
         (Parse.field "max-attendees" (Parse.maybe Parse.int))
 
 
+type EventFields
+    = EventName
+    | EventDate
+    | MaxAttendees
+    | NotifyParticipants
+    | Participants
+    | ParticipantEmail
+
+
 eventFields2 : Field EventFields
 eventFields2 =
     Field.group
@@ -372,14 +376,6 @@ eventParser2 =
         (Parse.field MaxAttendees (Parse.maybe Parse.int))
 
 
-type alias Event =
-    { name : String
-    , date : String
-    , attendees : Maybe Int
-    , participants : List String
-    }
-
-
 eventFields3 : Field EventFields
 eventFields3 =
     Field.group
@@ -401,13 +397,14 @@ eventFields3 =
         , Field.checkbox
             [ Field.label "Notify Participants"
             , Field.identifier NotifyParticipants
+            , Field.value (Value.bool True)
             ]
         , Field.repeatable
             [ Field.label "Participants"
             , Field.identifier Participants
-            , Field.repeatableMin 0
-            , Field.repeatableMax 10
-            , Field.visible False
+            , Field.repeatableMin 1
+            , Field.repeatableMax 5
+            , Field.class "inline-fields"
             , Field.copies
                 { addFieldsButton = "Add Participant"
                 , removeFieldsButton = "Remove"
@@ -423,25 +420,24 @@ eventFields3 =
         ]
 
 
-eventParser3 : Parse.Parser EventFields Event
+eventParser3 : Parse.Parser EventFields { name : String, date : String, participants : List String }
 eventParser3 =
-    Parse.map4 Event
-        (Parse.field EventName Parse.string)
-        (Parse.field EventDate Parse.posix
-            |> Parse.map Iso8601.fromTime
+    Parse.map3
+        (\name date participants ->
+            { name = name
+            , date = date
+            , participants = participants
+            }
         )
-        (Parse.field MaxAttendees (Parse.maybe Parse.int))
+        (Parse.field EventName Parse.string)
+        (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
         (Parse.field NotifyParticipants Parse.bool
-            |> Parse.andUpdate
-                (\field notify ->
+            |> Parse.andThen
+                (\notify ->
                     if notify then
-                        { field = field
-                        , parser = Debug.todo "chrash"
-                        }
+                        Parse.field Participants (Parse.list Parse.string)
 
                     else
-                        { field = field
-                        , parser = Debug.todo "chrash"
-                        }
+                        Parse.succeed []
                 )
         )

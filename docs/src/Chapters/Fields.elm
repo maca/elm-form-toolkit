@@ -676,9 +676,13 @@ repeatableField =
 
 <component with-label="Repeatable"/>
 
+
 ### Repeatable With Defaults
 
-Repeatable fields can be initialized with default values by passing a list of functions that set field values. The minimum number of fields enforces a lower bound - fields cannot be removed below this count. If more defaults are provided than the minimum, extra fields are added but remain removable.
+Repeatable fields can be initialized with default values by passing a list of
+functions that set field values. The minimum number of fields enforces a lower
+bound - fields cannot be removed below this count. If more defaults are provided
+than the minimum, extra fields are added but remain removable.
 
 ```elm
 repeatableFieldWithDefaults : Field String
