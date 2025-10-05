@@ -271,6 +271,34 @@ init =
     }
 
 
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        FormChanged fieldMsg ->
+            let
+                ( formFields, result ) =
+                    Parse.parseUpdate userParser fieldMsg model.formFields
+            in
+            { model
+                | formFields = formFields
+                , user = Result.toMaybe result
+            }
+
+        FormSubmitted ->
+            { model | submitted = True }
+
+
+view : Model -> Html Msg
+view model =
+    Html.form
+        [ onSubmit FormSubmitted ]
+        [ Field.toHtml FormChanged model.formFields
+        , Html.button
+            [ onClick FormSubmitted ]
+            [ Html.text "Submit" ]
+        ]
+
+
 userForm : Field UserFormFields
 userForm =
     Field.group []
@@ -289,39 +317,11 @@ userForm =
         ]
 
 
-update : Msg -> Model -> Model
-update msg model =
-    case msg of
-        FormChanged fieldMsg ->
-            let
-                ( formFields, result ) =
-                    Parse.parseUpdate userParser fieldMsg model.formFields
-            in
-            { model
-                | formFields = formFields
-                , user = Result.toMaybe result
-            }
-
-        FormSubmitted ->
-            { model | submitted = True }
-
-
 userParser : Parse.Parser UserFormFields User
 userParser =
     Parse.map2 User
         (Parse.field FirstName Parse.string)
         (Parse.field LastName Parse.string)
-
-
-view : Model -> Html Msg
-view model =
-    Html.form
-        [ onSubmit FormSubmitted ]
-        [ Field.toHtml FormChanged model.formFields
-        , Html.button
-            [ onClick FormSubmitted ]
-            [ Html.text "Submit" ]
-        ]
 ```
 
 <component with-label="Demo"/>
