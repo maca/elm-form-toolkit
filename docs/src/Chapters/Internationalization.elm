@@ -1,4 +1,4 @@
-module Chapters.Internationalization exposing (Model, Msg, chapter, init)
+module Chapters.Internationalization exposing (Model, chapter, init)
 
 import ElmBook.Chapter as Chapter exposing (Chapter)
 
@@ -11,20 +11,9 @@ type alias Model =
     {}
 
 
-type Msg
-    = NoOp
-
-
 init : Model
 init =
     {}
-
-
-update : Msg -> Book book -> ( Book book, Cmd msg )
-update msg book =
-    case msg of
-        NoOp ->
-            ( book, Cmd.none )
 
 
 chapter : Chapter (Book book)
