@@ -11,8 +11,9 @@ module FormToolkit.Field exposing
     , class, classList
     , disabled, visible, noattr
     , copies, repeatableMin, repeatableMax
-    , updateWithId, updateAttribute, updateAttributes
-    , updateValue, updateStringValue
+    , updateAttribute, updateAttributes
+    , updateWithId, updateVisibleWithId, updateValueWithId
+    , updateValue, updateStringValue, updateVisible
     , InputType(..), Properties, toProperties
     , errors
     , map
@@ -52,8 +53,9 @@ their attributes, update, and render them.
 
 # Update attributes
 
-@docs updateWithId, updateAttribute, updateAttributes
-@docs updateValue, updateStringValue
+@docs updateAttribute, updateAttributes
+@docs updateWithId, updateVisibleWithId, updateValueWithId
+@docs updateValue, updateStringValue, updateVisible
 
 
 # Properties
@@ -716,6 +718,7 @@ type alias Properties id =
     , hintText : Maybe String
     , idString : String
     , isRequired : Bool
+    , isVisible : Bool
     }
 
 
@@ -741,6 +744,7 @@ toProperties (Field field) =
     , selectionStart = unwrappedField.selectionStart
     , selectionEnd = unwrappedField.selectionEnd
     , isRequired = unwrappedField.isRequired
+    , isVisible = unwrappedField.visible
     }
 
 
@@ -900,6 +904,42 @@ updateWithId id fn (Field field) =
         Err [ InputNotFound id ]
 
 
+{-| Traverses the field tree updating the visibility of a descendant field matching the
+[identifier](#identifier), if the descendant is not found it will produce an
+error.
+-}
+updateVisibleWithId : id -> Bool -> Field id -> Result (List (Error id)) (Field id)
+updateVisibleWithId id isVisible =
+    updateWithId id (updateAttribute (visible isVisible))
+
+
+{-| Traverses the field tree updating the value of a descendant field matching the
+[identifier](#identifier), if the descendant is not found it will produce an
+error.
+
+    import FormToolkit.Parse as Parse
+    import FormToolkit.Value as Value
+
+    group []
+        [ text
+            [ identifier "Field"
+            , value (Value.string "Original")
+            ]
+        ]
+        |> updateValueWithId "Field" (Value.string "Updated")
+        |> Result.andThen
+            (\field ->
+                field
+                    |> Parse.parse (Parse.field "Field" Parse.string)
+            )
+        --> Ok "Updated"
+
+-}
+updateValueWithId : id -> Value.Value -> Field id -> Result (List (Error id)) (Field id)
+updateValueWithId id newValue =
+    updateWithId id (updateAttribute (value newValue))
+
+
 {-| Updates a field attribute.
 
     import FormToolkit.Parse as Parse
@@ -958,6 +998,13 @@ updateValue val =
 updateStringValue : String -> Field id -> Field id
 updateStringValue strVal =
     updateValue (Value.string strVal)
+
+
+{-| Convienience function for updating the value of a Field with a String.
+-}
+updateVisible : Bool -> Field id -> Field id
+updateVisible isVisible =
+    updateAttribute (visible isVisible)
 
 
 {-| Collects all errors from a field and its children.

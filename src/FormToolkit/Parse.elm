@@ -303,9 +303,9 @@ formatting the input value, and for mapping the result of parsing the field.
         |> parse
             (string
                 |> andUpdate
-                    (\str ->
-                        { inputValue = Value.string (removeVowels str)
-                        , parseResult = Ok (removeVowels str)
+                    (\field str ->
+                        { field = Field.updateStringValue (removeVowels str) field
+                        , parser = succeed (removeVowels str)
                         }
                     )
             )

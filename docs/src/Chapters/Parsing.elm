@@ -6,7 +6,7 @@ import ElmBook.Chapter as Chapter exposing (Chapter)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
-import Html exposing (Html)
+import Html
 import Html.Attributes as Attr
 import Iso8601
 import Support.ShipmentForm as ShipmentForm
@@ -86,18 +86,8 @@ update msg book =
             let
                 ( updatedField, result ) =
                     Parse.parseUpdate eventParser3 innerMsg book.parsing.eventFields3
-
-                updatedField2 =
-                    Parse.parse (Parse.field NotifyParticipants Parse.bool) updatedField
-                        |> Result.andThen
-                            (\notify ->
-                                Field.updateWithId Participants
-                                    (Field.updateAttribute (Field.visible notify))
-                                    updatedField
-                            )
-                        |> Result.withDefault updatedField
             in
-            ( { book | parsing = { model | eventFields3 = updatedField2 } }
+            ( { book | parsing = { model | eventFields3 = updatedField } }
             , Task.perform (Actions.logActionWithString "Result")
                 (Task.succeed (Debug.toString result))
             )
@@ -147,7 +137,7 @@ parsingIntroMarkdown =
 
 ### Using String identifiers
 
-Identifiers can be anything, even a string. Identifiers are used to traverse
+Identifiers can be anything, even a string. Identifiers are used to traverse,
 similar to using Json.Decode.field. Use `Parse.maybe` to handle optional fields that may be empty.
 
 
@@ -236,16 +226,77 @@ eventParser =
 
 <component with-label="Event Fields (Custom Type ID)"/>
 
-### Conditional parsing using andThen and list
+### Conditional parsing using `andUpdate`
 
-Conditional parsing allows you to dynamically show/hide fields and parse
-different data based on user input. Use `andUpdate` to toggle field visibility
-and `andThen` for conditional parsing logic.
+
+`andUpdate` is similar to `andThen`, but it can update `Field` attributes too,
+toggling, for instance, its visibility.
+
+In this example we use the value of the "Notify Participants" checkbox to make "Participant Emails"
+visible and parse the list if it is visible or just succeed with an empty list.
+
+
+ 
+
 
 ```elm
+eventFields : Field EventFields
+eventFields =
+    Field.group
+        []
+        [ Field.group
+            [ Field.class "inline-fields"
+            ]
+            [ Field.text
+                [ Field.label "Event Name"
+                , Field.required True
+                , Field.identifier EventName
+                ]
+            , Field.date
+                [ Field.label "Event Date"
+                , Field.required True
+                , Field.identifier EventDate
+                ]
+            ]
+        , Field.checkbox
+            [ Field.label "Notify Participants"
+            , Field.identifier NotifyParticipants
+            , Field.value (Value.bool True)
+            ]
+        , Field.repeatable
+            [ Field.label "Participant Emails"
+            , Field.identifier Participants
+            , Field.repeatableMin 1
+            , Field.repeatableMax 5
+            ]
+            (Field.email
+                [ Field.required True
+                , Field.identifier ParticipantEmail
+                ]
+            )
+            []
+        ]
 
 
-
+eventParser : Parse.Parser EventFields { name : String, date : String, participants : List String }
+eventParser =
+    Parse.map3 (\\name date participants -> { name = name , date = date , participants = participants } )
+        (Parse.field EventName Parse.string)
+        (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
+        (Parse.field NotifyParticipants Parse.bool
+            |> Parse.andUpdate
+                (\\field notify ->
+                    { field =
+                        Field.updateVisibleWithId Participants notify field
+                            |> Result.withDefault field
+                     , parser =
+                        if notify then
+                            Parse.field Participants (Parse.list Parse.string)
+                        else
+                            Parse.succeed []
+                    }
+                )
+        )
 ```
 
 <component with-label="Event Fields (Conditional)"/>
@@ -400,14 +451,10 @@ eventFields3 =
             , Field.value (Value.bool True)
             ]
         , Field.repeatable
-            [ Field.label "Participant emails"
+            [ Field.label "Participant Emails"
             , Field.identifier Participants
             , Field.repeatableMin 1
             , Field.repeatableMax 5
-            , Field.copies
-                { addFieldsButton = "Add Participant"
-                , removeFieldsButton = "Remove"
-                }
             ]
             (Field.email
                 [ Field.required True
@@ -430,12 +477,17 @@ eventParser3 =
         (Parse.field EventName Parse.string)
         (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
         (Parse.field NotifyParticipants Parse.bool
-            |> Parse.andThen
-                (\notify ->
-                    if notify then
-                        Parse.field Participants (Parse.list Parse.string)
+            |> Parse.andUpdate
+                (\field notify ->
+                    { field =
+                        Field.updateVisibleWithId Participants notify field
+                            |> Result.withDefault field
+                    , parser =
+                        if notify then
+                            Parse.field Participants (Parse.list Parse.string)
 
-                    else
-                        Parse.succeed []
+                        else
+                            Parse.succeed []
+                    }
                 )
         )

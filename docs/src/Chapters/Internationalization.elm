@@ -1,7 +1,6 @@
 module Chapters.Internationalization exposing (Model, Msg, chapter, init)
 
 import ElmBook.Chapter as Chapter exposing (Chapter)
-import Html
 
 
 type alias Book book =
