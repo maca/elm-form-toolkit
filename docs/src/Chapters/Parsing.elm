@@ -304,10 +304,6 @@ eventParser =
 
 ### Parsers nesting and `andUpdate` field context.
 
-
-
-### Parsers nesting and `andUpdate` field context.
-
 A `Field` represents either a group or individual field in a tree structure.
 
 Parsers navigate this tree using `Parse.field` to find nodes by identifier.
@@ -360,7 +356,11 @@ fields |>
 
 
 
-## Advanced Parsing with andMap Pipeline
+### Parsers nesting and `andUpdate` field context.
+
+
+
+## andMap parser Pipeline
 
 
 ### Complex Form Structure

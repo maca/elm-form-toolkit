@@ -204,11 +204,7 @@ creditCardNumberParser =
                         Field.toProperties field
 
                     formattedNumber =
-                        rawInput
-                            |> String.toList
-                            |> List.filter Char.isDigit
-                            |> String.fromList
-                            |> formatCardNumber
+                        formatMask "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}" rawInput
 
                     newCursorPosition =
                         calculateCursorPosition rawInput formattedNumber selectionStart
@@ -221,24 +217,6 @@ creditCardNumberParser =
                 , parser = Parse.succeed formattedNumber
                 }
             )
-
-
-formatCardNumber : String -> String
-formatCardNumber =
-    String.left 20
-        >> String.toList
-        >> List.indexedMap (\i c -> ( i, c ))
-        >> List.foldr
-            (\( i, char ) acc ->
-                if modBy 4 (i + 5) == 0 then
-                    char :: ' ' :: acc
-
-                else
-                    char :: acc
-            )
-            []
-        >> String.fromList
-        >> String.trim
 
 
 calculateCursorPosition : String -> String -> Int -> Int
@@ -266,3 +244,126 @@ matchChars source target targetPos =
 
                     else
                         matchChars source remainingTarget (targetPos + 1)
+
+
+type MaskToken
+    = Digit -- {d}
+    | NonDigit -- {D}
+    | WordChar -- {w}
+    | NonWordChar -- {W}
+    | Literal Char -- any other character
+
+
+type alias InputChar =
+    ( Char, MaskToken )
+
+
+formatMask : String -> String -> String
+formatMask mask input =
+    let
+        inputChars =
+            input
+                |> String.toList
+                |> List.map
+                    (\char ->
+                        ( char
+                        , if Char.isDigit char then
+                            Digit
+
+                          else if Char.isAlphaNum char || char == '_' then
+                            WordChar
+
+                          else
+                            NonWordChar
+                        )
+                    )
+    in
+    formatHelper (parseMask mask) inputChars []
+        |> String.fromList
+
+
+formatHelper : List MaskToken -> List InputChar -> List Char -> List Char
+formatHelper maskList inputList acc =
+    case ( maskList, inputList ) of
+        ( [], _ ) ->
+            List.reverse acc
+
+        ( _, [] ) ->
+            List.reverse acc
+
+        ( maskToken :: restMask, ( char, inputToken ) :: restInput ) ->
+            case maskToken of
+                Literal literalChar ->
+                    formatHelper restMask inputList (literalChar :: acc)
+
+                _ ->
+                    if tokensCompatible maskToken inputToken then
+                        formatHelper restMask restInput (char :: acc)
+
+                    else
+                        formatHelper maskList restInput acc
+
+
+parseMask : String -> List MaskToken
+parseMask mask =
+    parseMaskHelper (String.toList mask) []
+
+
+parseMaskHelper : List Char -> List MaskToken -> List MaskToken
+parseMaskHelper chars acc =
+    case chars of
+        [] ->
+            List.reverse acc
+
+        '{' :: 'd' :: '}' :: rest ->
+            parseMaskHelper rest (Digit :: acc)
+
+        '{' :: 'D' :: '}' :: rest ->
+            parseMaskHelper rest (NonDigit :: acc)
+
+        '{' :: 'w' :: '}' :: rest ->
+            parseMaskHelper rest (WordChar :: acc)
+
+        '{' :: 'W' :: '}' :: rest ->
+            parseMaskHelper rest (NonWordChar :: acc)
+
+        char :: rest ->
+            parseMaskHelper rest (Literal char :: acc)
+
+
+tokensCompatible : MaskToken -> MaskToken -> Bool
+tokensCompatible maskToken inputToken =
+    case ( maskToken, inputToken ) of
+        ( Digit, Digit ) ->
+            True
+
+        ( NonDigit, _ ) ->
+            case inputToken of
+                NonDigit ->
+                    True
+
+                WordChar ->
+                    True
+
+                NonWordChar ->
+                    True
+
+                _ ->
+                    False
+
+        ( WordChar, _ ) ->
+            case inputToken of
+                Digit ->
+                    True
+
+                WordChar ->
+                    True
+
+                NonWordChar ->
+                    True
+
+                _ ->
+                    False
+
+        _ ->
+            False

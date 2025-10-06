@@ -39,8 +39,7 @@ config =
     , Docs.UpToDateReadmeLinks.rule
     , NoDebug.Log.rule
     , Review.Documentation.CodeSnippet.checkImplicitlyImportingEverythingFromCurrentModule
-    , NoDebug.TodoOrToString.rule
-        |> Rule.ignoreErrorsForDirectories [ "tests/" ]
+    , NoDebug.TodoOrToString.rule |> Rule.ignoreErrorsForDirectories [ "tests/" ]
     , NoExposingEverything.rule
     , NoMissingTypeAnnotation.rule
     , NoSimpleLetBody.rule

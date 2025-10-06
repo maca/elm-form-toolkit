@@ -31,6 +31,7 @@ type Msg
     | CheckboxChanged (Field.Msg ())
     | GroupChanged (Field.Msg String)
     | RepeatableChanged (Field.Msg String)
+    | Repeatable2Changed (Field.Msg String)
 
 
 type alias Model =
@@ -231,6 +232,17 @@ update msg book =
                     , Task.perform (Actions.logActionWithString "Result")
                         (Task.succeed (Debug.toString result))
                     )
+
+                Repeatable2Changed fieldMsg ->
+                    let
+                        ( updatedField, result ) =
+                            model.repeatableWithDefaults
+                                |> Parse.parseUpdate (Parse.list contactParser) fieldMsg
+                    in
+                    ( { model | repeatableWithDefaults = updatedField }
+                    , Task.perform (Actions.logActionWithString "Result")
+                        (Task.succeed (Debug.toString result))
+                    )
     in
     ( { book | fields = newModel }, cmd )
 
@@ -363,7 +375,7 @@ chapter =
               , \book ->
                     Html.div [ Attr.class "milligram" ]
                         [ book.fields.repeatableWithDefaults
-                            |> Field.toHtml RepeatableChanged
+                            |> Field.toHtml Repeatable2Changed
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
@@ -386,7 +398,7 @@ part of the model.
 
 ### Text
 
-Basic text input. Use `Field.placeholder` for user guidance and `Field.required` to enforce validation.
+Basic text input. Use `Field.placeholder` for user guidance, `Field.hint` for help text, and `Field.required` to enforce validation.
 
 ```elm
 textField : Field ()
@@ -394,6 +406,7 @@ textField =
     Field.text
         [ Field.label "Text Field"
         , Field.placeholder "Enter any text"
+        , Field.hint "This field accepts any text input"
         , Field.required True
         ]
 ```
@@ -737,6 +750,7 @@ textField =
     Field.text
         [ Field.label "Text Field"
         , Field.placeholder "Enter any text"
+        , Field.hint "This field accepts any text input"
         , Field.required True
         ]
 
