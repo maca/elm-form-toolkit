@@ -204,18 +204,19 @@ creditCardNumberParser =
                     { selectionStart } =
                         Field.toProperties field
 
-                    formattedNumber =
-                        Utils.formatMask "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}" rawInput
-
-                    newCursorPosition =
-                        Utils.calculateCursorPosition rawInput formattedNumber selectionStart
+                    { formatted, cursorPosition } =
+                        Utils.formatMask 
+                            { mask = "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
+                            , input = rawInput
+                            , cursorPosition = selectionStart
+                            }
                 in
                 { field =
                     field
-                        |> Field.updateStringValue formattedNumber
-                        |> Field.updateAttribute (Field.selectionStart newCursorPosition)
-                        |> Field.updateAttribute (Field.selectionEnd newCursorPosition)
-                , parser = Parse.succeed formattedNumber
+                        |> Field.updateStringValue formatted
+                        |> Field.updateAttribute (Field.selectionStart cursorPosition)
+                        |> Field.updateAttribute (Field.selectionEnd cursorPosition)
+                , parser = Parse.succeed formatted
                 }
             )
 

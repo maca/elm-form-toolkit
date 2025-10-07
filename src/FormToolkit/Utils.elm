@@ -1,7 +1,4 @@
-module FormToolkit.Utils exposing
-    ( formatMask
-    , calculateCursorPosition
-    )
+module FormToolkit.Utils exposing (formatMask)
 
 {-| Utility functions for form formatting and text manipulation.
 
@@ -11,44 +8,34 @@ module FormToolkit.Utils exposing
 -}
 
 
-{-| Calculate a cursor position by comparing previous and edited input text.
+{-| Apply a formatting mask to input text with cursor position tracking.
 
-    calculateCursorPosition "12345" "1234 5" 4
-    --> 4
+Mask tokens:
 
-    -- with the cursor on pos 5 the user inserts 6
-    calculateCursorPosition "12345" "1234 56" 5
-    --> 6
+  - `{d}` - matches digits
 
-    calculateCursorPosition "1234567890" "12345678 90" 6
-    --> 6
+  - `{D}` - matches non-digits
+
+  - `{w}` - matches word characters (alphanumeric + underscore)
+
+  - `{W}` - matches non-word characters
+
+  - Any other character is treated as a literal
+
+    formatMask { mask = "{d}{d}{d}{d} {d}{d}{d}{d}", input = "12345678", cursorPosition = 4 }
+    --> { formatted = "1234 5678", cursorPosition = 5 }
 
 -}
-calculateCursorPosition : String -> String -> Int -> Int
-calculateCursorPosition original formatted cursorPos =
-    matchChars
-        (String.toList (String.left cursorPos original))
-        (String.toList formatted)
-        0
-
-
-matchChars : List Char -> List Char -> Int -> Int
-matchChars source target targetPos =
-    case source of
-        [] ->
-            targetPos
-
-        sourceChar :: remainingSource ->
-            case target of
-                [] ->
-                    targetPos
-
-                targetChar :: remainingTarget ->
-                    if sourceChar == targetChar then
-                        matchChars remainingSource remainingTarget (targetPos + 1)
-
-                    else
-                        matchChars source remainingTarget (targetPos + 1)
+formatMask : { mask : String, input : String, cursorPosition : Int } -> { formatted : String, cursorPosition : Int }
+formatMask { mask, input, cursorPosition } =
+    formatHelper
+        { maskList = parseMask mask
+        , inputList = String.toList input
+        , cursor = cursorPosition
+        , idx = 0
+        , newCursor = Nothing
+        , acc = []
+        }
 
 
 type MaskToken
@@ -59,58 +46,64 @@ type MaskToken
     | Literal Char
 
 
-{-| Apply a formatting mask to input text.
-
-Mask tokens:
-
-  - `{d}` - matches digits
-  - `{D}` - matches non-digits
-  - `{w}` - matches word characters (alphanumeric + underscore)
-  - `{W}` - matches non-word characters
-  - Any other character is treated as a literal
-
-Example: `formatMask "{d}{d}{d}{d} {d}{d}{d}{d}" "12345678"` returns `"1234 5678"`
-
--}
-formatMask : String -> String -> String
-formatMask mask input =
-    formatHelper (parseMask mask) (String.toList input) []
-        |> String.fromList
-
-
-formatHelper : List MaskToken -> List Char -> List Char -> List Char
-formatHelper maskList inputList acc =
+formatHelper :
+    { maskList : List MaskToken
+    , inputList : List Char
+    , idx : Int
+    , cursor : Int
+    , newCursor : Maybe Int
+    , acc : List Char
+    }
+    ->
+        { formatted : String
+        , cursorPosition : Int
+        }
+formatHelper ({ maskList, inputList, idx, cursor, newCursor, acc } as params) =
     case ( maskList, inputList ) of
-        ( [], _ ) ->
-            List.reverse acc
-
-        ( _, [] ) ->
-            List.reverse acc
-
         ( token :: remMask, char :: remInput ) ->
             case matchingToken token char of
                 Just acceptedChar ->
-                    formatHelper remMask remInput (acceptedChar :: acc)
+                    formatHelper
+                        { params
+                            | maskList = remMask
+                            , inputList = remInput
+                            , idx = idx + 1
+                            , newCursor =
+                                if idx == cursor then
+                                    Just (List.length acc)
+
+                                else
+                                    newCursor
+                            , acc = acceptedChar :: acc
+                        }
 
                 Nothing ->
                     case token of
                         Literal literalChar ->
-                            formatHelper remMask inputList (literalChar :: acc)
+                            formatHelper
+                                { params
+                                    | maskList = remMask
+                                    , newCursor =
+                                        if idx == cursor then
+                                            Just cursor
+
+                                        else
+                                            newCursor
+                                    , acc = literalChar :: acc
+                                }
 
                         _ ->
-                            formatHelper maskList remInput acc
+                            formatHelper
+                                { params
+                                    | inputList = remInput
+                                    , idx = idx + 1
+                                    , newCursor = newCursor
+                                }
 
-
-
--- case ( token, remMask ) of
---     ( Literal litChar, nextToken :: nextRestMask ) ->
---         case matchingToken nextToken char of
---             Just _ ->
---                 formatHelper nextRestMask inputList (litChar :: acc)
---             Nothing ->
---                 formatHelper maskList remInput acc
---     _ ->
---         formatHelper maskList remInput acc
+        _ ->
+            { formatted = String.fromList (List.reverse acc)
+            , cursorPosition = Maybe.withDefault (List.length acc) newCursor
+            }
 
 
 parseMask : String -> List MaskToken
