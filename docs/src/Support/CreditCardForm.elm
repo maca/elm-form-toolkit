@@ -3,6 +3,7 @@ module Support.CreditCardForm exposing (Model, Msg, init, update, view)
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
+import FormToolkit.Utils as Utils
 import Html exposing (Html)
 import Html.Attributes as Attr exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
@@ -204,10 +205,10 @@ creditCardNumberParser =
                         Field.toProperties field
 
                     formattedNumber =
-                        formatMask "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}" rawInput
+                        Utils.formatMask "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}" rawInput
 
                     newCursorPosition =
-                        calculateCursorPosition rawInput formattedNumber selectionStart
+                        Utils.calculateCursorPosition rawInput formattedNumber selectionStart
                 in
                 { field =
                     field
@@ -219,151 +220,3 @@ creditCardNumberParser =
             )
 
 
-calculateCursorPosition : String -> String -> Int -> Int
-calculateCursorPosition original formatted cursorPos =
-    matchChars
-        (String.toList (String.left cursorPos original))
-        (String.toList formatted)
-        0
-
-
-matchChars : List Char -> List Char -> Int -> Int
-matchChars source target targetPos =
-    case source of
-        [] ->
-            targetPos
-
-        sourceChar :: remainingSource ->
-            case target of
-                [] ->
-                    targetPos
-
-                targetChar :: remainingTarget ->
-                    if sourceChar == targetChar then
-                        matchChars remainingSource remainingTarget (targetPos + 1)
-
-                    else
-                        matchChars source remainingTarget (targetPos + 1)
-
-
-type MaskToken
-    = Digit -- {d}
-    | NonDigit -- {D}
-    | WordChar -- {w}
-    | NonWordChar -- {W}
-    | Literal Char -- any other character
-
-
-type alias InputChar =
-    ( Char, MaskToken )
-
-
-formatMask : String -> String -> String
-formatMask mask input =
-    let
-        inputChars =
-            input
-                |> String.toList
-                |> List.map
-                    (\char ->
-                        ( char
-                        , if Char.isDigit char then
-                            Digit
-
-                          else if Char.isAlphaNum char || char == '_' then
-                            WordChar
-
-                          else
-                            NonWordChar
-                        )
-                    )
-    in
-    formatHelper (parseMask mask) inputChars []
-        |> String.fromList
-
-
-formatHelper : List MaskToken -> List InputChar -> List Char -> List Char
-formatHelper maskList inputList acc =
-    case ( maskList, inputList ) of
-        ( [], _ ) ->
-            List.reverse acc
-
-        ( _, [] ) ->
-            List.reverse acc
-
-        ( maskToken :: restMask, ( char, inputToken ) :: restInput ) ->
-            case maskToken of
-                Literal literalChar ->
-                    formatHelper restMask inputList (literalChar :: acc)
-
-                _ ->
-                    if tokensCompatible maskToken inputToken then
-                        formatHelper restMask restInput (char :: acc)
-
-                    else
-                        formatHelper maskList restInput acc
-
-
-parseMask : String -> List MaskToken
-parseMask mask =
-    parseMaskHelper (String.toList mask) []
-
-
-parseMaskHelper : List Char -> List MaskToken -> List MaskToken
-parseMaskHelper chars acc =
-    case chars of
-        [] ->
-            List.reverse acc
-
-        '{' :: 'd' :: '}' :: rest ->
-            parseMaskHelper rest (Digit :: acc)
-
-        '{' :: 'D' :: '}' :: rest ->
-            parseMaskHelper rest (NonDigit :: acc)
-
-        '{' :: 'w' :: '}' :: rest ->
-            parseMaskHelper rest (WordChar :: acc)
-
-        '{' :: 'W' :: '}' :: rest ->
-            parseMaskHelper rest (NonWordChar :: acc)
-
-        char :: rest ->
-            parseMaskHelper rest (Literal char :: acc)
-
-
-tokensCompatible : MaskToken -> MaskToken -> Bool
-tokensCompatible maskToken inputToken =
-    case ( maskToken, inputToken ) of
-        ( Digit, Digit ) ->
-            True
-
-        ( NonDigit, _ ) ->
-            case inputToken of
-                NonDigit ->
-                    True
-
-                WordChar ->
-                    True
-
-                NonWordChar ->
-                    True
-
-                _ ->
-                    False
-
-        ( WordChar, _ ) ->
-            case inputToken of
-                Digit ->
-                    True
-
-                WordChar ->
-                    True
-
-                NonWordChar ->
-                    True
-
-                _ ->
-                    False
-
-        _ ->
-            False

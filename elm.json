@@ -9,7 +9,8 @@
         "FormToolkit.View",
         "FormToolkit.Parse",
         "FormToolkit.Value",
-        "FormToolkit.Error"
+        "FormToolkit.Error",
+        "FormToolkit.Utils"
         
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
