@@ -2,6 +2,7 @@ module FormToolkit.Parse exposing
     ( Parser, parse, parseUpdate
     , field
     , string, int, float, bool, posix, maybe, list
+    , formattedString
     , value, json
     , succeed, fail
     , map, map2, map3, map4, map5, map6, map7, map8
@@ -19,6 +20,7 @@ know `Json.Decode` you know how to use this module ;)
 
 @docs field
 @docs string, int, float, bool, posix, maybe, list
+@docs formattedString
 @docs value, json
 @docs succeed, fail
 
@@ -40,6 +42,7 @@ import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Parse
+import Internal.Utils as Utils
 import Json.Decode
 import Time
 
@@ -637,3 +640,45 @@ parseUpdate (Parser parser) (Field.Msg msg) (Field input) =
 unwrap : Parser id b -> Internal.Parse.Parser id b
 unwrap (Parser parser) =
     parser
+
+
+{-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
+
+    import FormToolkit.Field as Field
+    import FormToolkit.Value as Value
+
+    Field.text [ Field.value (Value.string "1234567890123456") ]
+        |> parse (formattedString "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}")
+        --> Ok "1234 5678 9012 3456"
+        -- And input field displays: "1234 5678 9012 3456"
+
+-}
+formattedString : String -> Parser id String
+formattedString mask =
+    string
+        |> andUpdate
+            (\currentField rawInput ->
+                let
+                    { selectionStart } =
+                        Field.toProperties currentField
+
+                    { formatted, cursorPosition, maskConsumed } =
+                        Utils.formatMask
+                            { mask = mask
+                            , input = rawInput
+                            , cursorPosition = selectionStart
+                            }
+                in
+                { field =
+                    currentField
+                        |> Field.updateStringValue formatted
+                        |> Field.updateAttribute (Field.selectionStart cursorPosition)
+                        |> Field.updateAttribute (Field.selectionEnd cursorPosition)
+                , parser =
+                    if maskConsumed then
+                        succeed formatted
+
+                    else
+                        fail formatted
+                }
+            )

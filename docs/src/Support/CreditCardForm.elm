@@ -3,7 +3,6 @@ module Support.CreditCardForm exposing (Model, Msg, init, update, view)
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
-import FormToolkit.Utils as Utils
 import Html exposing (Html)
 import Html.Attributes as Attr exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
@@ -197,27 +196,4 @@ cardInformationParser =
 
 creditCardNumberParser : Parse.Parser id String
 creditCardNumberParser =
-    Parse.string
-        |> Parse.andUpdate
-            (\field rawInput ->
-                let
-                    { selectionStart } =
-                        Field.toProperties field
-
-                    { formatted, cursorPosition } =
-                        Utils.formatMask 
-                            { mask = "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
-                            , input = rawInput
-                            , cursorPosition = selectionStart
-                            }
-                in
-                { field =
-                    field
-                        |> Field.updateStringValue formatted
-                        |> Field.updateAttribute (Field.selectionStart cursorPosition)
-                        |> Field.updateAttribute (Field.selectionEnd cursorPosition)
-                , parser = Parse.succeed formatted
-                }
-            )
-
-
+    Parse.formattedString "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
