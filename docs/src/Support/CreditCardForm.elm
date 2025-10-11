@@ -29,8 +29,7 @@ type CardFields
     | CardName
     | CardNumber
     | Cvc
-    | ExpireMonth
-    | ExpireYear
+    | Expiration
 
 
 type alias CardInformation =
@@ -169,7 +168,7 @@ creditCardForm =
             [ Field.text
                 [ Field.label "Expiration"
                 , Field.required True
-                , Field.identifier ExpireMonth
+                , Field.identifier Expiration
                 , Field.name "billing-expire-month"
                 , Field.placeholder "MM/YY"
                 ]
@@ -186,14 +185,34 @@ creditCardForm =
 
 cardInformationParser : Parse.Parser CardFields CardInformation
 cardInformationParser =
-    Parse.succeed CardInformation
+    let
+        currentYear =
+            25
+    in
+    Parse.succeed
+        (\name number cvv ( month, year ) ->
+            CardInformation name number cvv month year
+        )
         |> Parse.andMap (Parse.field CardName Parse.string)
-        |> Parse.andMap (Parse.field CardNumber creditCardNumberParser)
+        |> Parse.andMap
+            (Parse.field CardNumber
+                (Parse.formattedString
+                    "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
+                )
+            )
         |> Parse.andMap (Parse.field Cvc Parse.string)
-        |> Parse.andMap (Parse.field ExpireMonth Parse.int)
-        |> Parse.andMap (Parse.field ExpireYear Parse.int)
+        |> Parse.andMap
+            (Parse.field Expiration (Parse.formattedString "{d}{d}/{d}{d}")
+                |> Parse.andThen
+                    (\exp ->
+                        case
+                            String.split "/" exp
+                                |> List.filterMap String.toInt
+                        of
+                            month :: year :: [] ->
+                                Parse.succeed ( month, year )
 
-
-creditCardNumberParser : Parse.Parser id String
-creditCardNumberParser =
-    Parse.formattedString "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
+                            _ ->
+                                Parse.fail "Humm?!"
+                    )
+            )
