@@ -1100,17 +1100,20 @@ mapError transformId error =
         RepeatableHasNoName id ->
             RepeatableHasNoName (Maybe.map transformId id)
 
-        InputNotFound id ->
-            InputNotFound (transformId id)
-
         NoOptionsProvided id ->
             NoOptionsProvided (Maybe.map transformId id)
+
+        PatternError id ->
+            PatternError (Maybe.map transformId id)
+
+        EmailInvalid id ->
+            EmailInvalid (Maybe.map transformId id)
 
         ParseError id ->
             ParseError (Maybe.map transformId id)
 
-        EmailInvalid id ->
-            EmailInvalid (Maybe.map transformId id)
+        InputNotFound id ->
+            InputNotFound (transformId id)
 
 
 dasherize : String -> String

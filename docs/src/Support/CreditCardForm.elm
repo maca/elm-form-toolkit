@@ -1,11 +1,13 @@
 module Support.CreditCardForm exposing (Model, Msg, init, update, view)
 
+import Dict
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import Html exposing (Html)
 import Html.Attributes as Attr exposing (novalidate)
 import Html.Events exposing (onClick, onSubmit)
+import Time exposing (Month(..))
 
 
 
@@ -57,17 +59,19 @@ init =
 -- UPDATE
 
 
-update : Msg -> Model -> Model
-update msg model =
+update : Time.Posix -> Msg -> Model -> Model
+update now msg model =
     case msg of
         FormChanged inputMsg ->
             let
                 ( formFields, result ) =
-                    Parse.parseUpdate cardInformationParser inputMsg model.formFields
+                    model.formFields
+                        |> Parse.parseUpdate (cardInformationParser now) inputMsg
             in
-            { formFields = formFields
-            , result = result
-            , submitted = False
+            { model
+                | formFields = formFields
+                , result = result
+                , submitted = False
             }
 
         FormSubmitted ->
@@ -183,12 +187,8 @@ creditCardForm =
         ]
 
 
-cardInformationParser : Parse.Parser CardFields CardInformation
-cardInformationParser =
-    let
-        currentYear =
-            25
-    in
+cardInformationParser : Time.Posix -> Parse.Parser CardFields CardInformation
+cardInformationParser now =
     Parse.succeed
         (\name number cvv ( month, year ) ->
             CardInformation name number cvv month year
@@ -202,17 +202,55 @@ cardInformationParser =
             )
         |> Parse.andMap (Parse.field Cvc Parse.string)
         |> Parse.andMap
-            (Parse.field Expiration (Parse.formattedString "{d}{d}/{d}{d}")
-                |> Parse.andThen
-                    (\exp ->
-                        case
-                            String.split "/" exp
-                                |> List.filterMap String.toInt
-                        of
-                            month :: year :: [] ->
-                                Parse.succeed ( month, year )
+            (Parse.field Expiration
+                (Parse.formattedString "{d}{d}/{d}{d}"
+                    |> Parse.andThen
+                        (\exp ->
+                            case
+                                String.split "/" exp
+                                    |> List.filterMap String.toInt
+                            of
+                                month :: year :: [] ->
+                                    if month > 12 then
+                                        Parse.fail "The date is invalid"
 
-                            _ ->
-                                Parse.fail "Humm?!"
-                    )
+                                    else
+                                        let
+                                            current =
+                                                (Time.toYear Time.utc now * 100)
+                                                    + monthToInt (Time.toMonth Time.utc now)
+
+                                            provided =
+                                                ((year + 2000) * 100) + month
+                                        in
+                                        if provided <= current then
+                                            Parse.fail "The card has already expired"
+
+                                        else
+                                            Parse.succeed ( month, year )
+
+                                _ ->
+                                    Parse.fail "The date is invalid"
+                        )
+                )
             )
+
+
+months : List Month
+months =
+    [ Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec ]
+
+
+monthToInt : Month -> Int
+monthToInt month =
+    List.foldl
+        (\m ( found, i ) ->
+            if found || m == month then
+                ( True, i )
+
+            else
+                ( False, i + 1 )
+        )
+        ( False, 1 )
+        months
+        |> Tuple.second

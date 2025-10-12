@@ -23,12 +23,13 @@ type Error id
     | IsBlank (Maybe id)
     | CustomError (Maybe id) String
     | ListError (Maybe id) { index : Int, error : Error id }
-    | InputNotFound id
     | RepeatableHasNoName (Maybe id)
     | IsGroupNotInput (Maybe id)
     | NoOptionsProvided (Maybe id)
     | ParseError (Maybe id)
+    | PatternError (Maybe id)
     | EmailInvalid (Maybe id)
+    | InputNotFound id
 
 
 {-| -}
@@ -57,11 +58,14 @@ toEnglish error =
         NoOptionsProvided _ ->
             "No options have been provided"
 
-        CustomError _ message ->
-            message
+        PatternError _ ->
+            "Please check the input format"
 
         EmailInvalid _ ->
             "Please enter a valid email address"
+
+        CustomError _ message ->
+            message
 
         InputNotFound _ ->
             "Couldn't find an input with the given identifier"
@@ -97,17 +101,20 @@ toFieldId error =
         ListError maybeId _ ->
             maybeId
 
-        InputNotFound id ->
-            Just id
-
         RepeatableHasNoName maybeId ->
             maybeId
 
         NoOptionsProvided maybeId ->
             maybeId
 
-        ParseError maybeId ->
+        PatternError maybeId ->
             maybeId
 
         EmailInvalid maybeId ->
             maybeId
+
+        ParseError maybeId ->
+            maybeId
+
+        InputNotFound id ->
+            Just id

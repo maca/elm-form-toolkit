@@ -16,6 +16,7 @@
             "elm/time": "1.0.0",
             "elm-community/list-extra": "8.7.0",
             "elm-community/string-extra": "4.0.1",
+            "justinmimbs/time-extra": "1.2.0",
             "maca/elm-rose-tree": "1.2.1",
             "rtfeldman/elm-iso8601-date-strings": "1.1.4",
             "supermario/elm-countries": "1.1.1"
@@ -27,6 +28,7 @@
             "elm/url": "1.0.0",
             "elm/virtual-dom": "1.0.4",
             "elm-community/array-extra": "2.6.0",
+            "justinmimbs/date": "4.1.0",
             "pablohirafuji/elm-syntax-highlight": "3.7.1",
             "rtfeldman/elm-hex": "1.0.0"
         }

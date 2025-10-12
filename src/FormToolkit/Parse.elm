@@ -37,7 +37,7 @@ know `Json.Decode` you know how to use this module ;)
 
 -}
 
-import FormToolkit.Error exposing (Error)
+import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
 import Internal.Field
@@ -679,6 +679,12 @@ formattedString mask =
                         succeed formatted
 
                     else
-                        fail formatted
+                        Parser
+                            (\node ->
+                                Internal.Parse.failure node
+                                    (Error.PatternError
+                                        (Internal.Field.identifier node)
+                                    )
+                            )
                 }
             )

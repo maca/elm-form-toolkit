@@ -3,6 +3,7 @@ module Internal.Parse exposing
     , field, list, json, custom, maybe
     , map, map2, andThen, andUpdate
     , parseValue, parse, validate
+    , failure
     )
 
 {-|
@@ -11,6 +12,7 @@ module Internal.Parse exposing
 @docs field, list, json, custom, maybe
 @docs map, map2, andThen, andUpdate
 @docs parseValue, parse, validate
+@docs failure
 
 -}
 

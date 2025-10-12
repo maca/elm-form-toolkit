@@ -6,6 +6,11 @@ import ElmBook.Chapter as Chapter exposing (Chapter)
 import Html
 import Support.CreditCardForm as CreditCardForm
 import Task
+import Time
+
+
+type alias Book x =
+    { x | formattingAndValidation : Model }
 
 
 type alias Model =
@@ -13,7 +18,7 @@ type alias Model =
 
 
 type Msg
-    = CreditCardDemoUpdated CreditCardForm.Msg
+    = CreditCardDemoUpdated CreditCardForm.Msg (Maybe Time.Posix)
 
 
 init : Model
@@ -21,21 +26,39 @@ init =
     { creditCard = CreditCardForm.init }
 
 
-update : Msg -> Model -> ( Model, Cmd (ElmBook.Msg state) )
+update : Msg -> Book x -> ( Book x, Cmd (ElmBook.Msg (Book x)) )
 update msg model =
     case msg of
-        CreditCardDemoUpdated creditCardMsg ->
+        CreditCardDemoUpdated innerMsg Nothing ->
+            ( model
+            , Task.perform
+                (\time ->
+                    Actions.updateStateWithCmd
+                        (update
+                            (CreditCardDemoUpdated innerMsg
+                                (Just time)
+                            )
+                        )
+                )
+                Time.now
+            )
+
+        CreditCardDemoUpdated creditCardMsg (Just now) ->
             let
                 creditCard =
-                    CreditCardForm.update creditCardMsg model.creditCard
+                    model.formattingAndValidation.creditCard
+                        |> CreditCardForm.update now creditCardMsg
             in
-            ( { model | creditCard = creditCard }
+            ( { model
+                | formattingAndValidation =
+                    { creditCard = creditCard }
+              }
             , Task.perform (Actions.logActionWithString "Result")
                 (Task.succeed (Debug.toString creditCard.result))
             )
 
 
-chapter : Chapter { x | formattingAndValidation : Model }
+chapter : Chapter (Book x)
 chapter =
     Chapter.chapter "Formatting and Validation"
         |> Chapter.withStatefulComponent
@@ -44,15 +67,8 @@ chapter =
                     |> CreditCardForm.view
                     |> Html.map
                         (Actions.updateStateWithCmdWith
-                            (\msg state ->
-                                update (CreditCardDemoUpdated msg) state.formattingAndValidation
-                                    |> Tuple.mapFirst
-                                        (\formattingAndValidation ->
-                                            { state
-                                                | formattingAndValidation =
-                                                    formattingAndValidation
-                                            }
-                                        )
+                            (\msg ->
+                                update (CreditCardDemoUpdated msg Nothing)
                             )
                         )
             )
