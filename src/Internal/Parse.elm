@@ -1,18 +1,18 @@
 module Internal.Parse exposing
-    ( Parser, ParserResult(..)
-    , field, list, json, custom, maybe
+    ( Parser, ParserResult
+    , field, list, json, maybe
     , map, map2, andThen, andUpdate
     , parseValue, parse, validate
-    , failure
+    , failure, success
     )
 
 {-|
 
 @docs Parser, ParserResult
-@docs field, list, json, custom, maybe
+@docs field, list, json, maybe
 @docs map, map2, andThen, andUpdate
 @docs parseValue, parse, validate
-@docs failure
+@docs failure, success
 
 -}
 
@@ -60,9 +60,7 @@ fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
             if Internal.Field.identifier tree == Just id then
-                ( Just (parser tree)
-                , path
-                )
+                ( Just (parser tree), path )
 
             else
                 acc
@@ -190,16 +188,6 @@ jsonEncodeHelp input acc =
                     Ok acc
 
 
-custom : (Value.Value -> Result String a) -> Parser id a
-custom func =
-    parseHelp
-        (\input ->
-            func (Value.Value (Internal.Field.value input))
-                |> Result.mapError
-                    (CustomError (Internal.Field.identifier input))
-        )
-
-
 andUpdate :
     (Field id -> a -> { field : Field id, parser : Parser id b })
     -> Parser id a
@@ -223,41 +211,39 @@ andUpdate func parser =
 
 parseValue : (Value.Value -> Maybe a) -> Parser id a
 parseValue func =
-    parseHelp
-        (\input ->
-            if Internal.Field.isGroup input then
-                Err (IsGroupNotInput (Internal.Field.identifier input))
-
-            else
-                Internal.Value.toString (Internal.Field.value input)
-                    |> Maybe.andThen
-                        (\key ->
-                            Internal.Field.options input
-                                |> Dict.fromList
-                                |> Dict.get key
-                        )
-                    |> Maybe.withDefault (Internal.Field.value input)
-                    |> (func << Value.Value)
-                    |> Maybe.map Ok
-                    |> Maybe.withDefault
-                        (Err (ParseError (Internal.Field.identifier input)))
-        )
-
-
-parseHelp : (Field id -> Result (Error id) a) -> Parser id a
-parseHelp func =
     \input ->
-        case func input of
-            Ok a ->
-                Success input a
+        if Internal.Field.isGroup input then
+            failure input (IsGroupNotInput (Internal.Field.identifier input))
 
-            Err err ->
-                failure input err
+        else
+            let
+                value =
+                    Internal.Value.toString (Internal.Field.value input)
+                        |> Maybe.andThen
+                            (\key ->
+                                Internal.Field.options input
+                                    |> Dict.fromList
+                                    |> Dict.get key
+                            )
+                        |> Maybe.withDefault (Internal.Field.value input)
+            in
+            case func (Value.Value value) of
+                Just a ->
+                    Success input a
+
+                Nothing ->
+                    failure input
+                        (ParseError (Internal.Field.identifier input))
 
 
 failure : Field id -> Error id -> ParserResult id a
 failure input err =
     Failure (Internal.Field.setErrors [ err ] input) [ err ]
+
+
+success : Field id -> a -> ParserResult id a
+success input a =
+    Success input a
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b

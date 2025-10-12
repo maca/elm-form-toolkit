@@ -277,14 +277,18 @@ decoding pipelines with [andMap](#andMap), or to chain parsers with
 -}
 succeed : a -> Parser id a
 succeed a =
-    custom (always (Ok a))
+    Parser (\node -> Internal.Parse.success node a)
 
 
 {-| A parser that always fails with a custom error.
 -}
 fail : String -> Parser id a
 fail err =
-    custom (always (Err err))
+    Parser
+        (\node ->
+            Internal.Parse.failure node
+                (Error.CustomError (Internal.Field.identifier node) err)
+        )
 
 
 {-| This function can be used for performing custom validations, for
@@ -342,12 +346,6 @@ andUpdate func (Parser parser) =
             { field = modifiedField, parser = newParser }
     in
     Parser (Internal.Parse.andUpdate updateFunc parser)
-
-
-{-| -}
-custom : (Value.Value -> Result String a) -> Parser id a
-custom =
-    Internal.Parse.custom >> Parser
 
 
 parseValue : (Value.Value -> Maybe a) -> Parser id a
