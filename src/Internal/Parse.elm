@@ -1,18 +1,18 @@
 module Internal.Parse exposing
-    ( Parser, ParserResult
+    ( Parser
+    , ParserResult, failure, success
     , field, list, json, maybe
     , map, map2, andThen, andUpdate
     , parseValue, parse, validate
-    , failure, success
     )
 
 {-|
 
-@docs Parser, ParserResult
+@docs Parser
+@docs ParserResult, failure, success
 @docs field, list, json, maybe
 @docs map, map2, andThen, andUpdate
 @docs parseValue, parse, validate
-@docs failure, success
 
 -}
 
@@ -35,6 +35,16 @@ type alias Field id =
 type ParserResult id a
     = Failure (Field id) (List (Error id))
     | Success (Field id) a
+
+
+failure : Field id -> Error id -> ParserResult id a
+failure input err =
+    Failure (Internal.Field.setErrors [ err ] input) [ err ]
+
+
+success : Field id -> a -> ParserResult id a
+success input a =
+    Success input a
 
 
 type alias Parser id a =
@@ -236,16 +246,6 @@ parseValue func =
                         (ParseError (Internal.Field.identifier input))
 
 
-failure : Field id -> Error id -> ParserResult id a
-failure input err =
-    Failure (Internal.Field.setErrors [ err ] input) [ err ]
-
-
-success : Field id -> a -> ParserResult id a
-success input a =
-    Success input a
-
-
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b
 andThen func parser =
     \input ->
@@ -295,21 +295,17 @@ map2 func a b =
 
 parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
 parse parser input =
-    let
-        result =
-            map2 (\_ a -> a) validateNode parser input
-    in
-    ( parseResultToField result, parseResultToResult result )
+    case map2 (\_ a -> a) validateNode parser input of
+        Success input2 a ->
+            ( input2, Ok a )
+
+        Failure input2 errors ->
+            ( input2, Err errors )
 
 
 validate : Field id -> Field id
-validate =
-    validateTree >> parseResultToField
-
-
-parseResultToField : ParserResult id a -> Field id
-parseResultToField parseResult =
-    case parseResult of
+validate input =
+    case validateTree input of
         Success updatedField _ ->
             updatedField
 
@@ -317,21 +313,20 @@ parseResultToField parseResult =
             updatedField
 
 
-parseResultToResult : ParserResult id a -> Result (List (Error id)) a
-parseResultToResult parseResult =
-    case parseResult of
-        Success _ a ->
-            Ok a
-
-        Failure _ errors ->
-            Err errors
-
-
 validateTree : Parser id ()
 validateTree input =
     let
         updated =
-            Tree.map (validateNode >> parseResultToField) input
+            Tree.map
+                (\node ->
+                    case validateNode node of
+                        Success updatedField _ ->
+                            updatedField
+
+                        Failure updatedField _ ->
+                            updatedField
+                )
+                input
     in
     case Internal.Field.errors updated of
         [] ->
