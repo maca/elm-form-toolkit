@@ -11,6 +11,11 @@ import Html.Attributes as Attr
 import Task
 
 
+type ContactFields
+    = Name
+    | Email
+
+
 type alias Book book =
     { book | fields : Model }
 
@@ -29,9 +34,9 @@ type Msg
     | SelectChanged (Field.Msg ())
     | RadioChanged (Field.Msg ())
     | CheckboxChanged (Field.Msg ())
-    | GroupChanged (Field.Msg String)
-    | RepeatableChanged (Field.Msg String)
-    | Repeatable2Changed (Field.Msg String)
+    | GroupChanged (Field.Msg ContactFields)
+    | RepeatableChanged (Field.Msg ContactFields)
+    | Repeatable2Changed (Field.Msg ContactFields)
 
 
 type alias Model =
@@ -48,9 +53,9 @@ type alias Model =
     , select : Field ()
     , radio : Field ()
     , checkbox : Field ()
-    , group : Field String
-    , repeatable : Field String
-    , repeatableWithDefaults : Field String
+    , group : Field ContactFields
+    , repeatable : Field ContactFields
+    , repeatableWithDefaults : Field ContactFields
     }
 
 
@@ -398,7 +403,8 @@ part of the model.
 
 ### Text
 
-Basic text input. Use `Field.placeholder` for user guidance, `Field.hint` for help text, and `Field.required` to enforce validation.
+Basic text input. Use `Field.placeholder` for user guidance, `Field.hint`
+for help text, and `Field.required` to enforce validation.
 
 ```elm
 textField : Field ()
@@ -413,9 +419,13 @@ textField =
 
 <component with-label="Text"/>
 
+Parsed using `Parse.string`.
+
+
 ### Textarea
 
-Multi-line text input. Use `Field.autogrow` to automatically expand the height as content grows.
+Multi-line text input. Use `Field.autogrow` to automatically expand the height
+as content grows.
 
 ```elm
 textareaField : Field ()
@@ -429,6 +439,9 @@ textareaField =
 ```
 
 <component with-label="Textarea"/>
+
+Parsed using `Parse.string`.
+
 
 ### Email
 
@@ -446,6 +459,9 @@ emailField =
 
 <component with-label="Email"/>
 
+Parsed using `Parse.string`.
+
+
 ### Password
 
 Masked input for sensitive data with security features.
@@ -462,9 +478,13 @@ passwordField =
 
 <component with-label="Password"/>
 
+Parsed using `Parse.string`.
+
+
 ### Text with Suggestions
 
-Text input that shows suggestions while allowing free text entry. Use `Field.stringOptions` to provide a list of suggestions.
+Text input that shows suggestions while allowing free text entry. Use
+`Field.stringOptions` to provide a list of suggestions.
 
 ```elm
 autocompleteTextField : Field ()
@@ -479,9 +499,13 @@ autocompleteTextField =
 
 <component with-label="Text with suggestions"/>
 
+Parsed using `Parse.string`.
+
+
 ### Strict Autocomplete
 
-Strict autocomplete that only allows selection from predefined options. Use `Field.strictAutocomplete` instead of `Field.text`.
+Strict autocomplete that only allows selection from predefined options.
+Use `Field.strictAutocomplete` instead of `Field.text`.
 
 ```elm
 autocompleteField : Field ()
@@ -496,9 +520,14 @@ autocompleteField =
 
 <component with-label="Autocomplete"/>
 
+Parsed using `Parse.string`.
+
+
 ### Integer
 
-Integer input with number validation. Use `Field.min` and `Field.max` to set validation boundaries and `Field.step` to control increment steps for numeric values.
+Integer input with number validation. Use `Field.min` and `Field.max` to set
+validation boundaries and `Field.step` to control increment steps for numeric
+values.
 
 ```elm
 intField : Field ()
@@ -515,9 +544,13 @@ intField =
 
 <component with-label="Int"/>
 
+Parsed using `Parse.int`.
+
+
 ### Float
 
-Decimal number input with precision control and validation. Use `Value.float` for floating-point boundaries.
+Decimal number input with precision control and validation. Use `Value.float`
+for floating-point boundaries.
 
 ```elm
 floatField : Field ()
@@ -534,6 +567,9 @@ floatField =
 
 <component with-label="Float"/>
 
+Parsed using `Parse.float`.
+
+
 ### Date
 
 Date picker with built-in validation and date formatting.
@@ -548,6 +584,9 @@ dateField =
 ```
 
 <component with-label="Date"/>
+
+Parsed using `Parse.posix`.
+
 
 ### Month
 
@@ -564,9 +603,13 @@ monthField =
 
 <component with-label="Month"/>
 
+Parsed using `Parse.posix`.
+
+
 ### Select
 
-Dropdown selection from predefined options. Use `Field.options` with tuples of display text and `Value.string` for the underlying values.
+Dropdown selection from predefined options. Use `Field.options` with tuples of
+display text and `Value.string` for the underlying values.
 
 ```elm
 selectField : Field ()
@@ -584,6 +627,9 @@ selectField =
 ```
 
 <component with-label="Select"/>
+
+Parsed using `Parse.string`.
+
 
 ### Radio
 
@@ -605,6 +651,9 @@ radioField =
 
 <component with-label="Radio"/>
 
+Parsed using `Parse.string`.
+
+
 ### Checkbox
 
 Boolean input for yes/no values with proper accessibility.
@@ -619,15 +668,24 @@ checkboxField =
 
 <component with-label="Checkbox"/>
 
+Parsed using `Parse.bool`.
+
 
 ## Groupping Fields
 
+
 ### Group
 
-Group multiple related fields together with shared validation and styling. Use `Field.label` to set the legend text for the group.
+Group multiple related fields together with shared validation and styling. Use
+`Field.label` to set the legend text for the group.
+
 
 ```elm
-groupField : Field String
+type ContactFields
+    = Name
+    | Email
+
+groupField : Field ContactFields
 groupField =
     Field.group
         [ Field.label "Contact Information"
@@ -636,25 +694,41 @@ groupField =
             [ Field.label "Name"
             , Field.placeholder "Enter your name"
             , Field.required True
-            , Field.identifier "name"
+            , Field.identifier Name
             ]
         , Field.email
             [ Field.label "Email"
             , Field.placeholder "your@email.com"
             , Field.required True
-            , Field.identifier "email"
+            , Field.identifier Email
             ]
         ]
 ```
 
 <component with-label="Group"/>
 
+
+Parsed using `contactParser`:
+
+
+```
+contactParser : Parse.Parser ContactFields { name : String, email : String }
+contactParser =
+    Parse.map2 (\\name email -> { name = name, email = email })
+        (Parse.field Name Parse.string)
+        (Parse.field Email Parse.string)
+```
+
+
 ### Repeatable
 
-Create repeatable field groups that allow users to dynamically add and remove field instances. Use `Field.repeatableMin` and `Field.repeatableMax` to set limits, and `Field.copies` to customize button text.
+Create repeatable field groups that allow users to dynamically add and remove
+field instances. Use `Field.repeatableMin` and `Field.repeatableMax` to set
+limits, and `Field.copies` to customize button text.
+
 
 ```elm
-repeatableField : Field String
+repeatableField : Field ContactFields
 repeatableField =
     Field.repeatable
         [ Field.label "Contact Information"
@@ -672,33 +746,39 @@ repeatableField =
                 [ Field.label "Name"
                 , Field.placeholder "Enter contact name"
                 , Field.required True
-                , Field.identifier "name"
+                , Field.identifier Name
                 , Field.name "name"
                 ]
             , Field.email
                 [ Field.label "Email"
                 , Field.placeholder "contact@email.com"
                 , Field.required True
-                , Field.identifier "email"
+                , Field.identifier Email
                 , Field.name "email"
                 ]
             ]
         )
         []
+
+
 ```
 
 <component with-label="Repeatable"/>
+
+Parsed using `Parse.list contactParser`.
 
 
 ### Repeatable With Defaults
 
 Repeatable fields can be initialized with default values by passing a list of
-functions that set field values. The minimum number of fields enforces a lower
-bound - fields cannot be removed below this count. If more defaults are provided
-than the minimum, extra fields are added but remain removable.
+functions that update field attributes.
+
+The minimum number of fields enforces a lower bound - fields cannot be removed
+below this count. If more defaults are provided than the minimum, extra fields
+are added but remain removable.
 
 ```elm
-repeatableFieldWithDefaults : Field String
+repeatableFieldWithDefaults : Field ContactFields
 repeatableFieldWithDefaults =
     Field.repeatable
         [ Field.label "Contact Information"
@@ -716,32 +796,39 @@ repeatableFieldWithDefaults =
                 [ Field.label "Name"
                 , Field.placeholder "Enter contact name"
                 , Field.required True
-                , Field.identifier "name-field"
+                , Field.identifier Name
                 ]
             , Field.email
                 [ Field.label "Email"
                 , Field.placeholder "contact@email.com"
                 , Field.required True
-                , Field.identifier "email-field"
+                , Field.identifier Email
                 ]
             ]
         )
-        [ Field.updateWithId "name-field"  -- Default values for initialization
+        [ -- A list of functions that will be used to
+          -- initialize each of the default repeatable
+          -- fields, only a number of elements up to
+          -- repeatableMax number will be considered, the
+          -- rest will be dropped.
+          Field.updateWithId Name
             (Field.updateValue
-                (Value.string "Default contact 1")
+                (Value.string "Brian Eno")
             )
-        , Field.updateWithId "name-field"
+        , Field.updateWithId Name
             (Field.updateValue
-                (Value.string "Default contact 2")
+                (Value.string "Faust")
             )
-        , Field.updateWithId "name-field"
+        , Field.updateWithId Name
             (Field.updateValue
-                (Value.string "Default contact 3")
+                (Value.string "Neu!")
             )
         ]
 ```
 
 <component with-label="Repeatable With Defaults"/>
+
+Parsed using `Parse.list contactParser`.
 """
 
 
@@ -877,7 +964,7 @@ checkboxField =
         ]
 
 
-groupField : Field String
+groupField : Field ContactFields
 groupField =
     Field.group
         [ Field.label "Contact Information" ]
@@ -885,18 +972,18 @@ groupField =
             [ Field.label "Name"
             , Field.placeholder "Enter your name"
             , Field.required True
-            , Field.identifier "name"
+            , Field.identifier Name
             ]
         , Field.email
             [ Field.label "Email"
             , Field.placeholder "your@email.com"
             , Field.required True
-            , Field.identifier "email"
+            , Field.identifier Email
             ]
         ]
 
 
-repeatableField : Field String
+repeatableField : Field ContactFields
 repeatableField =
     Field.repeatable
         [ Field.label "Contact Information"
@@ -914,20 +1001,20 @@ repeatableField =
                 [ Field.label "Name"
                 , Field.placeholder "Enter contact name"
                 , Field.required True
-                , Field.identifier "name-field"
+                , Field.identifier Name
                 ]
             , Field.email
                 [ Field.label "Email"
                 , Field.placeholder "contact@email.com"
                 , Field.required True
-                , Field.identifier "email-field"
+                , Field.identifier Email
                 ]
             ]
         )
         []
 
 
-repeatableFieldWithDefaults : Field String
+repeatableFieldWithDefaults : Field ContactFields
 repeatableFieldWithDefaults =
     Field.repeatable
         [ Field.label "Contact Information"
@@ -945,33 +1032,33 @@ repeatableFieldWithDefaults =
                 [ Field.label "Name"
                 , Field.placeholder "Enter contact name"
                 , Field.required True
-                , Field.identifier "name-field"
+                , Field.identifier Name
                 ]
             , Field.email
                 [ Field.label "Email"
                 , Field.placeholder "contact@email.com"
                 , Field.required True
-                , Field.identifier "email-field"
+                , Field.identifier Email
                 ]
             ]
         )
-        [ Field.updateWithId "name-field"
+        [ Field.updateWithId Name
             (Field.updateValue
-                (Value.string "Default contact 1")
+                (Value.string "Brian Eno")
             )
-        , Field.updateWithId "name-field"
+        , Field.updateWithId Name
             (Field.updateValue
-                (Value.string "Default contact 2")
+                (Value.string "Faust")
             )
-        , Field.updateWithId "name-field"
+        , Field.updateWithId Name
             (Field.updateValue
-                (Value.string "Default contact 3")
+                (Value.string "Neu!")
             )
         ]
 
 
-contactParser : Parse.Parser String { name : String, email : String }
+contactParser : Parse.Parser ContactFields { name : String, email : String }
 contactParser =
     Parse.map2 (\name email -> { name = name, email = email })
-        (Parse.field "name-field" Parse.string)
-        (Parse.field "email-field" Parse.string)
+        (Parse.field Name Parse.string)
+        (Parse.field Email Parse.string)

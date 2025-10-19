@@ -6,6 +6,7 @@ import Chapters.FormattingAndValidation as FormattingAndValidation
 import Chapters.GettingStarted as GettingStarted
 import Chapters.Internationalization as Internationalization
 import Chapters.Parsing as Parsing
+import Chapters.ParsingCookbook as ParsingCookbook
 import ElmBook exposing (Book, book)
 import ElmBook.Chapter as Chapter
 import ElmBook.StatefulOptions as StatefulOptions
@@ -15,6 +16,7 @@ type alias Model =
     { gettingStarted : GettingStarted.Model
     , fields : Fields.Model
     , parsing : Parsing.Model
+    , parsingCookbook : ParsingCookbook.Model
     , formattingAndValidation : FormattingAndValidation.Model
     , customization : Customization.Model
     , internationalization : Internationalization.Model
@@ -26,6 +28,7 @@ init =
     { gettingStarted = GettingStarted.init
     , fields = Fields.init
     , parsing = Parsing.init
+    , parsingCookbook = ParsingCookbook.init
     , formattingAndValidation = FormattingAndValidation.init
     , customization = Customization.init
     , internationalization = Internationalization.init
@@ -43,6 +46,7 @@ main =
               , [ GettingStarted.chapter
                 , Fields.chapter
                 , Parsing.chapter
+                , ParsingCookbook.chapter
                 , FormattingAndValidation.chapter
                 , Customization.chapter
                 , Internationalization.chapter
