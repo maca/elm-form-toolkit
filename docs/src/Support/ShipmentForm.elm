@@ -24,7 +24,6 @@ type alias Model =
 
 type alias Shipment =
     { shipping : Address
-    , notifiees : List Notifiee
     }
 
 
@@ -32,16 +31,11 @@ type alias Address =
     { firstName : String
     , lastName : String
     , address : String
-    , address2 : String
+    , addressNumber : Int
+    , addressExtra : Maybe String
     , postalCode : String
     , state : String
     , country : Countries.Country
-    }
-
-
-type alias Notifiee =
-    { email : String
-    , name : String
     }
 
 
@@ -50,14 +44,12 @@ type ShipmentFields
     | AddressFirstName
     | AddressLastName
     | AddressStreet
-    | Address2
+    | AddressNumber
+    | AddressExtra
     | LocalityGroup
     | PostalCode
     | AddressState
     | AddressCountry
-    | NotifieeEmail
-    | NotifieeName
-    | Notifiees
 
 
 type Msg
@@ -104,105 +96,92 @@ update msg model =
 
 shipmentForm : Field ShipmentFields
 shipmentForm =
-    Field.group [] [ shippingInformationFields, notifieesFields ]
+    shippingInformationFields
 
 
 shippingInformationFields : Field ShipmentFields
 shippingInformationFields =
     Field.group
-        [ Field.label "Shipping Information" ]
+        []
         [ Field.group
-            [ Field.class "address-name"
+            [ Field.label "Recipient"
+            , Field.name "recipient"
             , Field.identifier AddressNameGroup
+            , Field.class "inline-fields"
             ]
             [ Field.text
                 [ Field.label "First Name"
-                , Field.required True
                 , Field.identifier AddressFirstName
-                , Field.name "shipping-first-name"
+                , Field.name "first-name"
+                , Field.required True
                 ]
             , Field.text
                 [ Field.label "Last Name"
-                , Field.required True
                 , Field.identifier AddressLastName
-                , Field.name "shipping-last-name"
+                , Field.name "last-name"
+                , Field.required True
                 ]
-            ]
-        , Field.text
-            [ Field.label "Street Address"
-            , Field.required True
-            , Field.identifier AddressStreet
-            , Field.name "shipping-address"
-            ]
-        , Field.text
-            [ Field.label "Apt #"
-            , Field.identifier Address2
-            , Field.name "shipping-address-2"
             ]
         , Field.group
-            [ Field.identifier LocalityGroup
-            , Field.class "locality"
+            [ Field.name "address"
+            , Field.label "Address"
             ]
-            [ Field.text
-                [ Field.label "Postal code"
-                , Field.required True
-                , Field.identifier PostalCode
-                , Field.name "postal-code"
+            [ Field.group
+                [ Field.class "inline-fields" ]
+                [ Field.text
+                    [ Field.label "Street Name"
+                    , Field.class "column column-75"
+                    , Field.required True
+                    , Field.identifier AddressStreet
+                    , Field.name "street-name"
+                    ]
+                , Field.text
+                    [ Field.label "Street Number"
+                    , Field.identifier AddressNumber
+                    , Field.required True
+                    , Field.name "address-number"
+                    ]
                 ]
             , Field.text
-                [ Field.label "State"
-                , Field.required True
-                , Field.identifier AddressState
-                , Field.name "shipping-state"
+                [ Field.label "Address 2"
+                , Field.identifier AddressExtra
+                , Field.name "address-2"
                 ]
-            , Field.select
-                [ Field.label "Country"
-                , Field.required True
-                , Field.identifier AddressCountry
-                , Field.name "shipping-country"
-                , Field.options
-                    (Countries.all
-                        |> List.map
-                            (\country ->
-                                ( country.name ++ " " ++ country.flag
-                                , Value.string country.code
+            , Field.group
+                [ Field.identifier LocalityGroup
+                , Field.class "locality"
+                , Field.class "inline-fields"
+                ]
+                [ Field.text
+                    [ Field.label "Postal code"
+                    , Field.required True
+                    , Field.identifier PostalCode
+                    , Field.name "postal-code"
+                    ]
+                , Field.text
+                    [ Field.label "State"
+                    , Field.required True
+                    , Field.identifier AddressState
+                    , Field.name "state"
+                    ]
+                , Field.select
+                    [ Field.label "Country"
+                    , Field.required True
+                    , Field.identifier AddressCountry
+                    , Field.name "country"
+                    , Field.options
+                        (Countries.all
+                            |> List.map
+                                (\country ->
+                                    ( country.name ++ " " ++ country.flag
+                                    , Value.string country.code
+                                    )
                                 )
-                            )
-                    )
+                        )
+                    ]
                 ]
             ]
         ]
-
-
-notifieesFields : Field ShipmentFields
-notifieesFields =
-    Field.repeatable
-        [ Field.label "Notifiees"
-        , Field.identifier Notifiees
-        , Field.repeatableMin 1
-        , Field.repeatableMax 5
-        , Field.copies
-            { addFieldsButton = "Add Notifiee"
-            , removeFieldsButton = "Remove"
-            }
-        ]
-        (Field.group
-            [ Field.class "inline-fields" ]
-            [ Field.text
-                [ Field.label "Notifiee"
-                , Field.required True
-                , Field.identifier NotifieeName
-                , Field.name "notifiee-name"
-                ]
-            , Field.email
-                [ Field.label "Email"
-                , Field.required True
-                , Field.identifier NotifieeEmail
-                , Field.name "notifiee-email"
-                ]
-            ]
-        )
-        []
 
 
 
@@ -211,9 +190,8 @@ notifieesFields =
 
 shipmentParser : Parse.Parser ShipmentFields Shipment
 shipmentParser =
-    Parse.map2 Shipment
+    Parse.map Shipment
         shipmentAddressParser
-        shipmentNotifieesParser
 
 
 shipmentAddressParser : Parse.Parser ShipmentFields Address
@@ -222,7 +200,8 @@ shipmentAddressParser =
         |> Parse.andMap (Parse.field AddressFirstName Parse.string)
         |> Parse.andMap (Parse.field AddressLastName Parse.string)
         |> Parse.andMap (Parse.field AddressStreet Parse.string)
-        |> Parse.andMap (Parse.field Address2 Parse.string)
+        |> Parse.andMap (Parse.field AddressNumber Parse.int)
+        |> Parse.andMap (Parse.field AddressExtra (Parse.maybe Parse.string))
         |> Parse.andMap (Parse.field PostalCode Parse.string)
         |> Parse.andMap (Parse.field AddressState Parse.string)
         |> Parse.andMap shipmentCountryParser
@@ -244,19 +223,6 @@ shipmentCountryParser =
         )
 
 
-shipmentNotifieesParser : Parse.Parser ShipmentFields (List Notifiee)
-shipmentNotifieesParser =
-    Parse.field Notifiees
-        (Parse.list notifieeParser)
-
-
-notifieeParser : Parse.Parser ShipmentFields Notifiee
-notifieeParser =
-    Parse.map2 Notifiee
-        (Parse.field NotifieeEmail Parse.string)
-        (Parse.field NotifieeName Parse.string)
-
-
 
 -- VIEW FOR DEMO COMPONENT
 
@@ -270,8 +236,7 @@ view model =
         , Attr.style "border" "1px solid #d1d1d1"
         , Attr.style "border-radius" "4px"
         ]
-        [ Html.h4 [] [ Html.text "Try the Form" ]
-        , Html.form
+        [ Html.form
             [ onSubmit FormSubmitted, novalidate True ]
             [ Field.toHtml FormChanged model.formFields
             , Html.button
@@ -292,16 +257,19 @@ view model =
                             [ Html.text
                                 ("Parsed Shipment: " ++ shipment.shipping.firstName ++ " " ++ shipment.shipping.lastName)
                             ]
-                        , Html.div
-                            []
-                            [ Html.text
-                                ("Notifiees: " ++ String.fromInt (List.length shipment.notifiees))
-                            ]
                         ]
 
-                Err _ ->
+                Err errors ->
                     failure
-                        [ Html.text "There are some errors" ]
+                        [ Html.text "There are some errors:"
+                        , Html.ul []
+                            (errors
+                                |> List.map
+                                    (\error ->
+                                        Html.li [] [ Html.text (Debug.toString error) ]
+                                    )
+                            )
+                        ]
 
           else
             Html.text ""

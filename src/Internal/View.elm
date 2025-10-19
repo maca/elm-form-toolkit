@@ -693,31 +693,19 @@ visibleErrors input =
     let
         params =
             Tree.value input
-
-        errors =
-            params.errors
-                |> List.filter
-                    (\err ->
-                        case err of
-                            ParseError _ ->
-                                False
-
-                            _ ->
-                                True
-                    )
     in
     case ( params.status, params.inputType ) of
         ( Touched, _ ) ->
-            errors
+            params.errors
 
         ( _, Field.Repeatable _ ) ->
-            errors
+            params.errors
 
         ( _, Field.Group ) ->
-            errors
+            params.errors
 
         _ ->
-            errors
+            params.errors
                 |> List.filter
                     (\err ->
                         case err of

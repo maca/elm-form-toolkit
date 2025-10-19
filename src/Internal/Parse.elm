@@ -247,7 +247,7 @@ parseValue func =
                             && Internal.Field.isBlank input
                     then
                         failure input
-                            (IsBlank (Internal.Field.identifier input))
+                            (ParseError (Internal.Field.identifier input))
 
                     else
                         failure input
