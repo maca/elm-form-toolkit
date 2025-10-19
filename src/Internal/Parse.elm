@@ -242,8 +242,16 @@ parseValue func =
                     Success input a
 
                 Nothing ->
-                    failure input
-                        (ParseError (Internal.Field.identifier input))
+                    if
+                        Internal.Field.isRequired input
+                            && Internal.Field.isBlank input
+                    then
+                        failure input
+                            (IsBlank (Internal.Field.identifier input))
+
+                    else
+                        failure input
+                            (ParseError (Internal.Field.identifier input))
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b

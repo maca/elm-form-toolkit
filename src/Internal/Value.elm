@@ -79,6 +79,9 @@ toInt value =
         Integer val ->
             Just val
 
+        Text string ->
+            String.toInt string
+
         _ ->
             Nothing
 
@@ -88,6 +91,9 @@ toFloat value =
     case value of
         Float val ->
             Just val
+
+        Text string ->
+            String.toFloat string
 
         _ ->
             Nothing
