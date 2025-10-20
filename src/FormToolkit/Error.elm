@@ -30,6 +30,8 @@ type Error id
     | PatternError (Maybe id)
     | EmailInvalid (Maybe id)
     | InputNotFound id
+    | NotNumber (Maybe id)
+    | NotBool (Maybe id)
 
 
 {-| -}
@@ -63,6 +65,12 @@ toEnglish error =
 
         EmailInvalid _ ->
             "Please enter a valid email address"
+
+        NotNumber _ ->
+            "Must be a number"
+
+        NotBool _ ->
+            "Must be true or false"
 
         CustomError _ message ->
             message
@@ -111,6 +119,12 @@ toFieldId error =
             maybeId
 
         EmailInvalid maybeId ->
+            maybeId
+
+        NotNumber maybeId ->
+            maybeId
+
+        NotBool maybeId ->
             maybeId
 
         ParseError maybeId ->

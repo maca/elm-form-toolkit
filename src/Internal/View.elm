@@ -693,6 +693,9 @@ visibleErrors input =
     let
         params =
             Tree.value input
+
+        _ =
+            Debug.log "errrors" params.errors
     in
     case ( params.status, params.inputType ) of
         ( Touched, _ ) ->
@@ -813,6 +816,10 @@ checkboxFieldView { isRequired, label, input, errors, hint, class } =
 
 viewErrors : List String -> Html msg
 viewErrors errors =
+    let
+        _ =
+            Debug.log "errrors" errors
+    in
     case errors of
         err :: _ ->
             Html.p [ Attributes.class "errors" ] [ Html.text err ]

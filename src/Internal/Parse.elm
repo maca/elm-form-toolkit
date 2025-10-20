@@ -219,7 +219,7 @@ andUpdate func parser =
                 Failure input2 errors
 
 
-parseValue : (Value.Value -> Maybe a) -> Parser id a
+parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
 parseValue func =
     \input ->
         if Internal.Field.isGroup input then
@@ -237,21 +237,20 @@ parseValue func =
                             )
                         |> Maybe.withDefault (Internal.Field.value input)
             in
-            case func (Value.Value value) of
-                Just a ->
+            case func (Internal.Field.identifier input) (Value.Value value) of
+                Ok a ->
                     Success input a
 
-                Nothing ->
+                Err err ->
                     if
                         Internal.Field.isRequired input
                             && Internal.Field.isBlank input
                     then
                         failure input
-                            (ParseError (Internal.Field.identifier input))
+                            (IsBlank (Internal.Field.identifier input))
 
                     else
-                        failure input
-                            (ParseError (Internal.Field.identifier input))
+                        failure input err
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b

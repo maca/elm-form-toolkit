@@ -1112,6 +1112,12 @@ mapError transformId error =
         ParseError id ->
             ParseError (Maybe.map transformId id)
 
+        NotNumber id ->
+            NotNumber (Maybe.map transformId id)
+
+        NotBool id ->
+            NotBool (Maybe.map transformId id)
+
         InputNotFound id ->
             InputNotFound (transformId id)
 

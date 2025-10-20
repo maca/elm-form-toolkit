@@ -100,7 +100,13 @@ field id (Parser parser) =
 -}
 string : Parser id String
 string =
-    parseValue Value.toString
+    Parser
+        (Internal.Parse.parseValue
+            (\id val ->
+                Value.toString val
+                    |> Result.fromMaybe (Error.ParseError id)
+            )
+        )
 
 
 {-| Parses the input value as an `Int`.
@@ -115,7 +121,13 @@ string =
 -}
 int : Parser id Int
 int =
-    parseValue Value.toInt
+    Parser
+        (Internal.Parse.parseValue
+            (\id val ->
+                Value.toInt val
+                    |> Result.fromMaybe (Error.NotNumber id)
+            )
+        )
 
 
 {-| Parses the input value as a `Float`.
@@ -130,7 +142,13 @@ int =
 -}
 float : Parser id Float
 float =
-    parseValue Value.toFloat
+    Parser
+        (Internal.Parse.parseValue
+            (\id val ->
+                Value.toFloat val
+                    |> Result.fromMaybe (Error.NotNumber id)
+            )
+        )
 
 
 {-| Parses the input value as a `Bool`.
@@ -145,7 +163,13 @@ float =
 -}
 bool : Parser id Bool
 bool =
-    parseValue Value.toBool
+    Parser
+        (Internal.Parse.parseValue
+            (\id val ->
+                Value.toBool val
+                    |> Result.fromMaybe (Error.NotBool id)
+            )
+        )
 
 
 {-| Parses the input value as a
@@ -153,7 +177,13 @@ bool =
 -}
 posix : Parser id Time.Posix
 posix =
-    parseValue Value.toPosix
+    Parser
+        (Internal.Parse.parseValue
+            (\id val ->
+                Value.toPosix val
+                    |> Result.fromMaybe (Error.ParseError id)
+            )
+        )
 
 
 {-| Allows dealing with blank values without producing an error.
@@ -206,7 +236,7 @@ list (Parser parser) =
 -}
 value : Parser id Value.Value
 value =
-    parseValue Just
+    Parser (Internal.Parse.parseValue (always Ok))
 
 
 {-| Converts the entire input tree into a JSON
@@ -346,11 +376,6 @@ andUpdate func (Parser parser) =
             { field = modifiedField, parser = newParser }
     in
     Parser (Internal.Parse.andUpdate updateFunc parser)
-
-
-parseValue : (Value.Value -> Maybe a) -> Parser id a
-parseValue func =
-    Parser (Internal.Parse.parseValue func)
 
 
 {-| Chains together parsers that depend on previous decoding results.
