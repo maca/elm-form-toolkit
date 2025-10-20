@@ -712,11 +712,11 @@ visibleErrors input =
                 |> List.filter
                     (\err ->
                         case err of
-                            NoOptionsProvided _ ->
-                                True
+                            IsBlank _ ->
+                                False
 
                             _ ->
-                                False
+                                True
                     )
 
 

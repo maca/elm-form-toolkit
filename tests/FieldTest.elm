@@ -113,6 +113,6 @@ suite =
                     datetimeInput
                         |> Field.toProperties
                         |> .inputType
-                        |> Expect.equal Field.Datetime
+                        |> Expect.equal Field.LocalDatetime
             ]
         ]

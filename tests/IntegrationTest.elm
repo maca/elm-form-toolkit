@@ -1,6 +1,7 @@
 module IntegrationTest exposing (suite)
 
 import Expect
+import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
@@ -9,7 +10,7 @@ import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
 import Test.Html.Query as Query
-import Test.Html.Selector exposing (attribute, tag)
+import Test.Html.Selector exposing (attribute, class, containing, tag, text)
 import Time
 
 
@@ -18,6 +19,7 @@ suite =
     describe "Integration Tests"
         [ dateFieldTests
         , datetimeFieldTests
+        , validationFocusBlurTests
         ]
 
 
@@ -109,4 +111,55 @@ datetimeFieldTests =
                     |> Query.fromHtml
                     |> Query.find [ tag "input" ]
                     |> Query.has [ attribute (Attrs.attribute "value" "2024-01-01T12:00:00.000") ]
+        ]
+
+
+validationFocusBlurTests : Test
+validationFocusBlurTests =
+    describe "validation focus and blur behavior" <|
+        [ test "IsBlank error only appears after field is blurred when required" <|
+            \_ ->
+                Field.int
+                    [ Field.required True
+                    , Field.name "the-field"
+                    ]
+                    |> Interaction.init Parse.int
+                    |> fillInput "the-field" ""
+                    |> Expect.all
+                        [ fillInput "the-field" ""
+                            >> .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.hasNot [ class "errors" ]
+                        , blur "the-field"
+                            >> .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Should be provided" ] ]
+                        ]
+        , test "Range validation errors appear regardless of focus/blur status" <|
+            \_ ->
+                Field.int
+                    [ Field.required True
+                    , Field.name "range-field"
+                    , Field.min (Value.int 10)
+                    , Field.max (Value.int 20)
+                    ]
+                    |> Interaction.init Parse.int
+                    |> fillInput "range-field" "25"
+                    |> Expect.all
+                        [ fillInput "range-field" "25"
+                            >> .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Should be between 10 and 20" ] ]
+                        , blur "range-field"
+                            >> .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Should be between 10 and 20" ] ]
+                        ]
         ]
