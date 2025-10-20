@@ -24,6 +24,7 @@ type Msg
     = TextChanged (Field.Msg ())
     | TextareaChanged (Field.Msg ())
     | EmailChanged (Field.Msg ())
+    | FieldWithPatternChanged (Field.Msg ())
     | PasswordChanged (Field.Msg ())
     | AutocompleteTextChanged (Field.Msg ())
     | AutocompleteChanged (Field.Msg ())
@@ -44,6 +45,7 @@ type alias Model =
     { text : Field ()
     , textarea : Field ()
     , email : Field ()
+    , pattern : Field ()
     , password : Field ()
     , autocompleteText : Field ()
     , autocomplete : Field ()
@@ -66,6 +68,7 @@ init =
     { text = textField
     , textarea = textareaField
     , email = emailField
+    , pattern = patternField
     , password = passwordField
     , autocompleteText = autocompleteTextField
     , autocomplete = autocompleteField
@@ -117,6 +120,16 @@ update msg book =
                             Parse.parseUpdate Parse.string fieldMsg model.email
                     in
                     ( { model | email = updatedField }
+                    , Task.perform (Actions.logActionWithString "Result")
+                        (Task.succeed (Debug.toString result))
+                    )
+
+                FieldWithPatternChanged fieldMsg ->
+                    let
+                        ( updatedField, result ) =
+                            Parse.parseUpdate Parse.string fieldMsg model.pattern
+                    in
+                    ( { model | pattern = updatedField }
                     , Task.perform (Actions.logActionWithString "Result")
                         (Task.succeed (Debug.toString result))
                     )
@@ -282,6 +295,14 @@ chapter =
                     Html.div [ Attr.class "milligram" ]
                         [ book.fields.textarea
                             |> Field.toHtml TextareaChanged
+                        ]
+                        |> Html.map (Actions.updateStateWithCmdWith update)
+              )
+            , ( "Field with Pattern"
+              , \book ->
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.fields.pattern
+                            |> Field.toHtml FieldWithPatternChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
@@ -460,6 +481,36 @@ textareaField =
 ```
 
 <component with-label="Textarea"/>
+
+Parsed using `Parse.string`.
+
+
+### Text with Pattern
+
+Text input with pattern validation that formats and validates input according to a mask.
+Only characters matching the pattern will be allowed. The input will be formatted 
+automatically and validated on blur.
+
+```elm
+patternField : Field ()
+patternField =
+    Field.text
+        [ Field.label "Phone Number"
+        , Field.placeholder "Enter phone number"
+        , Field.pattern "({d}{d}{d}) {d}{d}{d}-{d}{d}{d}{d}"
+        , Field.required True
+        ]
+```
+
+<component with-label="Field with Pattern"/>
+
+Mask tokens:
+
+- `{d}` - matches digits
+- `{D}` - matches non-digits  
+- `{w}` - matches word characters (alphanumeric + underscore)
+- `{W}` - matches non-word characters
+- Any other character is treated as a literal
 
 Parsed using `Parse.string`.
 
@@ -887,6 +938,16 @@ textareaField =
         [ Field.label "Textarea Field"
         , Field.placeholder "Enter multiple lines of text"
         , Field.autogrow True
+        , Field.required True
+        ]
+
+
+patternField : Field ()
+patternField =
+    Field.text
+        [ Field.label "Phone Number"
+        , Field.placeholder "Enter phone number"
+        , Field.pattern "({d}{d}{d}) {d}{d}{d}-{d}{d}{d}{d}"
         , Field.required True
         ]
 

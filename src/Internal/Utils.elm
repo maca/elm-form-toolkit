@@ -1,30 +1,16 @@
-module Internal.Utils exposing (formatMask)
+module Internal.Utils exposing
+    ( MaskToken
+    , formatMask, parseMask, formatMaskWithTokens
+    )
 
 {-| Utility functions for form formatting and text manipulation.
 
-@docs formatMask
+@docs MaskToken
+@docs formatMask, parseMask, formatMaskWithTokens
 
 -}
 
 
-{-| Apply a formatting mask to input text with cursor position tracking.
-
-Mask tokens:
-
-  - `{d}` - matches digits
-
-  - `{D}` - matches non-digits
-
-  - `{w}` - matches word characters (alphanumeric + underscore)
-
-  - `{W}` - matches non-word characters
-
-  - Any other character is treated as a literal
-
-    formatMask { mask = "{d}{d}{d}{d} {d}{d}{d}{d}", input = "12345678", cursorPosition = 4 }
-    --> { formatted = "1234 5678", cursorPosition = 5 }
-
--}
 formatMask :
     { mask : String, input : String, cursorPosition : Int }
     ->
@@ -33,6 +19,21 @@ formatMask :
         , maskConsumed : Bool
         }
 formatMask { mask, input, cursorPosition } =
+    formatMaskWithTokens
+        { mask = parseMask mask
+        , input = input
+        , cursorPosition = cursorPosition
+        }
+
+
+formatMaskWithTokens :
+    { mask : List MaskToken, input : String, cursorPosition : Int }
+    ->
+        { formatted : String
+        , cursorPosition : Int
+        , maskConsumed : Bool
+        }
+formatMaskWithTokens { mask, input, cursorPosition } =
     let
         inputLength =
             String.length input
@@ -53,17 +54,17 @@ formatMask { mask, input, cursorPosition } =
     }
 
 
-doFormat : String -> String -> Int -> ( String, Bool )
-doFormat mask input upTo =
-    formatHelper (parseMask mask) (String.toList (String.slice 0 upTo input)) []
-
-
 type MaskToken
     = Digit
     | NonDigit
     | WordChar
     | NonWordChar
     | Literal Char
+
+
+doFormat : List MaskToken -> String -> Int -> ( String, Bool )
+doFormat mask input upTo =
+    formatHelper mask (String.toList (String.slice 0 upTo input)) []
 
 
 formatHelper : List MaskToken -> List Char -> List Char -> ( String, Bool )

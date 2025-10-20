@@ -3,7 +3,7 @@ module Internal.Field exposing
     , Msg(..), update
     , init, isBlank, map
     , updateAttributes
-    , identifier, inputType, max, min, step, name, value
+    , identifier, inputType, max, min, step, name, value, pattern
     , label, hint, placeholder, options
     , isGroup, isRequired, isAutocompleteable
     , errors, setErrors
@@ -28,6 +28,7 @@ module Internal.Field exposing
 
 import Array
 import Dict
+import Internal.Utils
 import Internal.Value exposing (Value)
 import List.Extra
 import RoseTree.Tree as Tree
@@ -83,6 +84,7 @@ type alias Attributes id err =
     , selectionEnd : Int
     , disabled : Bool
     , visible : Bool
+    , pattern : List Internal.Utils.MaskToken
     }
 
 
@@ -117,6 +119,7 @@ init inputType_ =
         , selectionEnd = 0
         , disabled = False
         , visible = True
+        , pattern = []
         }
 
 
@@ -292,6 +295,11 @@ step input =
     Tree.value input |> .step
 
 
+pattern : Field id err -> List Internal.Utils.MaskToken
+pattern input =
+    Tree.value input |> .pattern
+
+
 options : Field id err -> List ( String, Value )
 options input =
     Tree.value input |> .options
@@ -376,6 +384,7 @@ map func errToErr input =
     , selectionEnd = input.selectionEnd
     , disabled = input.disabled
     , visible = input.visible
+    , pattern = input.pattern
     }
 
 
@@ -539,7 +548,6 @@ inputStringToValue input str =
 
         LocalDatetime ->
             Internal.Value.timeFromString str
-                |> Debug.log "datetime-val"
 
         Select ->
             getChoice ()

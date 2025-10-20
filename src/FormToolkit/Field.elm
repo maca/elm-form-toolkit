@@ -9,7 +9,7 @@ module FormToolkit.Field exposing
     , name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
     , options, stringOptions, min, max, step, autogrow
     , class, classList
-    , disabled, visible, noattr
+    , disabled, visible, noattr, pattern
     , copies, repeatableMin, repeatableMax
     , updateAttribute, updateAttributes
     , updateWithId, updateVisibleWithId, updateValueWithId
@@ -43,7 +43,7 @@ their attributes, update, and render them.
 @docs name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
-@docs disabled, visible, noattr
+@docs disabled, visible, noattr, pattern
 
 
 # Groups
@@ -87,6 +87,7 @@ import Internal.Field
         , Msg(..)
         )
 import Internal.Parse
+import Internal.Utils
 import Internal.View
 import RoseTree.Tree as Tree
 import String.Extra
@@ -832,6 +833,36 @@ visible isVisible =
 noattr : Attribute id val
 noattr =
     Attribute identity
+
+
+{-| Sets a pattern for text input. Only characters matching the pattern will be allowed.
+The input will be formatted automatically, and on blur validated.
+Parsing will fail if input doesn't match the pattern.
+
+Mask tokens:
+
+  - `{d}` - matches digits
+
+  - `{D}` - matches non-digits
+
+  - `{w}` - matches word characters (alphanumeric + underscore)
+
+  - `{W}` - matches non-word characters
+
+  - Any other character is treated as a literal
+
+    text
+    [ label "Phone Number"
+    , pattern "({d}{d}{d}) {d}{d}{d}-{d}{d}{d}{d}"
+    ]
+
+-}
+pattern : String -> Attribute id val
+pattern patternString =
+    Attribute
+        (\field ->
+            { field | pattern = Internal.Utils.parseMask patternString }
+        )
 
 
 combineAttrs : Attribute id val -> Attribute id val -> Attribute id val

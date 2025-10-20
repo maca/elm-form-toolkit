@@ -61,7 +61,7 @@ toEnglish error =
             "No options have been provided"
 
         PatternError _ ->
-            "Please check the input format"
+            "Doesn't match the required pattern"
 
         EmailInvalid _ ->
             "Please enter a valid email address"

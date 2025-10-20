@@ -1,12 +1,10 @@
 module IntegrationTest exposing (suite)
 
 import Expect
-import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Html.Attributes as Attrs
-import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
 import Test.Html.Query as Query
@@ -126,8 +124,7 @@ validationFocusBlurTests =
                     |> Interaction.init Parse.int
                     |> fillInput "the-field" ""
                     |> Expect.all
-                        [ fillInput "the-field" ""
-                            >> .field
+                        [ .field
                             >> Field.toHtml (always never)
                             >> Query.fromHtml
                             >> Query.hasNot [ class "errors" ]
@@ -149,8 +146,7 @@ validationFocusBlurTests =
                     |> Interaction.init Parse.int
                     |> fillInput "range-field" "25"
                     |> Expect.all
-                        [ fillInput "range-field" "25"
-                            >> .field
+                        [ .field
                             >> Field.toHtml (always never)
                             >> Query.fromHtml
                             >> Query.find [ class "errors" ]
@@ -161,5 +157,49 @@ validationFocusBlurTests =
                             >> Query.fromHtml
                             >> Query.find [ class "errors" ]
                             >> Query.has [ containing [ text "Should be between 10 and 20" ] ]
+                        ]
+        , test "PatternError only appears after field is blurred" <|
+            \_ ->
+                Field.text
+                    [ Field.name "pattern-field"
+                    , Field.pattern "({d}{d}{d}) {d}{d}{d}-{d}{d}{d}{d}"
+                    ]
+                    |> Interaction.init Parse.string
+                    |> fillInput "pattern-field" "invalid text"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.hasNot [ class "errors" ]
+                        , blur "pattern-field"
+                            >> .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Doesn't match the required pattern" ] ]
+                        ]
+        , test "Valid input gets formatted according to pattern with no errors" <|
+            \_ ->
+                Field.text
+                    [ Field.name "phone-field"
+                    , Field.pattern "{d}{d}-{d}{d}"
+                    ]
+                    |> Interaction.init Parse.string
+                    |> fillInput "phone-field" "1234"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input" ]
+                            >> Query.has [ attribute (Attrs.attribute "value" "12-34") ]
+                        , .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.hasNot [ class "errors" ]
+                        , blur "phone-field"
+                            >> .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.hasNot [ class "errors" ]
                         ]
         ]

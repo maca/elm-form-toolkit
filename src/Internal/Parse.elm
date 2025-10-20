@@ -1,7 +1,7 @@
 module Internal.Parse exposing
     ( Parser
     , ParserResult, failure, success
-    , field, list, json, maybe
+    , field, list, json, maybe, formattedString
     , map, map2, andThen, andUpdate
     , parse, validate
     )
@@ -10,7 +10,7 @@ module Internal.Parse exposing
 
 @docs Parser
 @docs ParserResult, failure, success
-@docs field, list, json, maybe
+@docs field, list, json, maybe, formattedString
 @docs map, map2, andThen, andUpdate
 @docs parse, validate
 
@@ -19,6 +19,7 @@ module Internal.Parse exposing
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Internal.Field
+import Internal.Utils as Utils
 import Internal.Value
 import Json.Decode
 import Json.Encode
@@ -313,36 +314,51 @@ validateTree input =
 
 validateNode : Parser id ()
 validateNode node =
-    case List.filterMap ((|>) node) validations of
+    let
+        ( finalNode, allErrors ) =
+            List.foldl
+                (\validation ( currentNode, errors ) ->
+                    case validation currentNode of
+                        Failure _ validationErrors ->
+                            ( currentNode, errors ++ validationErrors )
+
+                        Success updatedNode _ ->
+                            ( updatedNode, errors )
+                )
+                ( node, [] )
+                validations
+    in
+    case allErrors of
         [] ->
-            Success node ()
+            Success finalNode ()
 
         errors ->
-            Failure (Internal.Field.setErrors errors node) errors
+            Failure (Internal.Field.setErrors errors finalNode) errors
 
 
-validations : List (Field id -> Maybe (Error id))
+validations : List (Parser id ())
 validations =
     [ checkRequired
     , checkInRange
     , checkOptionsProvided
     , checkEmail
+    , checkPattern
     ]
 
 
-checkRequired : Field id -> Maybe (Error id)
+checkRequired : Parser id ()
 checkRequired input =
     if
         Internal.Field.isRequired input
             && Internal.Field.isBlank input
     then
-        Just (IsBlank (Internal.Field.identifier input))
+        failure input (IsBlank (Internal.Field.identifier input))
 
     else
-        Nothing
+        success input ()
 
 
-checkInRange : Field id -> Maybe (Error id)
+checkInRange : Parser id ()
 checkInRange tree =
     let
         val =
@@ -364,34 +380,34 @@ checkInRange tree =
         )
     of
         ( Just LT, Just _ ) ->
-            Just
+            failure tree
                 (ValueNotInRange (Internal.Field.identifier tree)
                     { value = val, min = min, max = max }
                 )
 
         ( Just _, Just GT ) ->
-            Just
+            failure tree
                 (ValueNotInRange (Internal.Field.identifier tree)
                     { value = val, min = min, max = max }
                 )
 
         ( Just LT, Nothing ) ->
-            Just
+            failure tree
                 (ValueTooSmall (Internal.Field.identifier tree)
                     { value = val, min = min }
                 )
 
         ( Nothing, Just GT ) ->
-            Just
+            failure tree
                 (ValueTooLarge (Internal.Field.identifier tree)
                     { value = val, max = max }
                 )
 
         _ ->
-            Nothing
+            success tree ()
 
 
-checkOptionsProvided : Field id -> Maybe (Error id)
+checkOptionsProvided : Parser id ()
 checkOptionsProvided input =
     case
         ( Internal.Field.inputType input
@@ -399,19 +415,19 @@ checkOptionsProvided input =
         )
     of
         ( Internal.Field.Select, [] ) ->
-            Just (NoOptionsProvided (Internal.Field.identifier input))
+            failure input (NoOptionsProvided (Internal.Field.identifier input))
 
         ( Internal.Field.Radio, [] ) ->
-            Just (NoOptionsProvided (Internal.Field.identifier input))
+            failure input (NoOptionsProvided (Internal.Field.identifier input))
 
         ( Internal.Field.StrictAutocomplete, [] ) ->
-            Just (NoOptionsProvided (Internal.Field.identifier input))
+            failure input (NoOptionsProvided (Internal.Field.identifier input))
 
         _ ->
-            Nothing
+            success input ()
 
 
-checkEmail : Field id -> Maybe (Error id)
+checkEmail : Parser id ()
 checkEmail input =
     case Internal.Field.inputType input of
         Internal.Field.Email ->
@@ -424,9 +440,11 @@ checkEmail input =
                         else
                             Just (EmailInvalid (Internal.Field.identifier input))
                     )
+                |> Maybe.map (failure input)
+                |> Maybe.withDefault (success input ())
 
         _ ->
-            Nothing
+            success input ()
 
 
 isValidEmail : String -> Bool
@@ -440,3 +458,94 @@ isValidEmail email =
             Maybe.withDefault Regex.never (Regex.fromString pattern)
     in
     Regex.contains regex email
+
+
+checkPattern : Parser id ()
+checkPattern input =
+    let
+        patternTokens =
+            Internal.Field.pattern input
+    in
+    if List.isEmpty patternTokens then
+        success input ()
+
+    else
+        case Internal.Value.toString (Internal.Field.value input) of
+            Just rawInput ->
+                let
+                    fieldAttributes =
+                        Tree.value input
+
+                    { formatted, cursorPosition, maskConsumed } =
+                        Utils.formatMaskWithTokens
+                            { mask = patternTokens
+                            , input = rawInput
+                            , cursorPosition = fieldAttributes.selectionStart
+                            }
+
+                    updatedField =
+                        Tree.updateValue
+                            (\attrs ->
+                                { attrs
+                                    | value = Internal.Value.fromNonBlankString formatted
+                                    , selectionStart = cursorPosition
+                                    , selectionEnd = cursorPosition
+                                }
+                            )
+                            input
+                in
+                if maskConsumed then
+                    success updatedField ()
+
+                else
+                    failure input (PatternError (Internal.Field.identifier input))
+
+            Nothing ->
+                if Internal.Field.isBlank input then
+                    success input ()
+
+                else
+                    failure input (PatternError (Internal.Field.identifier input))
+
+
+{-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
+-}
+formattedString : String -> Parser id String
+formattedString mask =
+    \input ->
+        case Internal.Value.toString (Internal.Field.value input) of
+            Just rawInput ->
+                let
+                    fieldAttributes =
+                        Tree.value input
+
+                    { formatted, cursorPosition, maskConsumed } =
+                        Utils.formatMask
+                            { mask = mask
+                            , input = rawInput
+                            , cursorPosition = fieldAttributes.selectionStart
+                            }
+
+                    updatedField =
+                        Tree.updateValue
+                            (\attrs ->
+                                { attrs
+                                    | value = Internal.Value.fromNonBlankString formatted
+                                    , selectionStart = cursorPosition
+                                    , selectionEnd = cursorPosition
+                                }
+                            )
+                            input
+                in
+                if maskConsumed then
+                    success updatedField formatted
+
+                else
+                    failure updatedField (PatternError (Internal.Field.identifier input))
+
+            Nothing ->
+                if Internal.Field.isRequired input && Internal.Field.isBlank input then
+                    failure input (IsBlank (Internal.Field.identifier input))
+
+                else
+                    failure input (ParseError (Internal.Field.identifier input))

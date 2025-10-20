@@ -43,7 +43,6 @@ import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Parse
-import Internal.Utils as Utils
 import Internal.Value
 import Json.Decode
 import Time
@@ -434,7 +433,15 @@ parseValue func =
 -}
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b
 andThen func (Parser parser) =
-    Parser (Internal.Parse.andThen (func >> unwrap) parser)
+    Parser
+        (Internal.Parse.andThen
+            (\a ->
+                case func a of
+                    Parser p ->
+                        p
+            )
+            parser
+        )
 
 
 {-| Incrementally apply parsers in a pipeline fashion.
@@ -690,11 +697,6 @@ parseUpdate (Parser parser) (Field.Msg msg) (Field input) =
         |> Tuple.mapFirst Field
 
 
-unwrap : Parser id b -> Internal.Parse.Parser id b
-unwrap (Parser parser) =
-    parser
-
-
 {-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
 
     import FormToolkit.Field as Field
@@ -708,36 +710,4 @@ unwrap (Parser parser) =
 -}
 formattedString : String -> Parser id String
 formattedString mask =
-    string
-        |> andUpdate
-            (\currentField rawInput ->
-                let
-                    { selectionStart } =
-                        Field.toProperties currentField
-
-                    { formatted, cursorPosition, maskConsumed } =
-                        Utils.formatMask
-                            { mask = mask
-                            , input = rawInput
-                            , cursorPosition = selectionStart
-                            }
-                in
-                { field =
-                    currentField
-                        |> Field.updateStringValue formatted
-                        |> Field.updateAttribute (Field.selectionStart cursorPosition)
-                        |> Field.updateAttribute (Field.selectionEnd cursorPosition)
-                , parser =
-                    if maskConsumed then
-                        succeed formatted
-
-                    else
-                        Parser
-                            (\node ->
-                                Internal.Parse.failure node
-                                    (Error.PatternError
-                                        (Internal.Field.identifier node)
-                                    )
-                            )
-                }
-            )
+    Parser (Internal.Parse.formattedString mask)

@@ -715,6 +715,9 @@ visibleErrors input =
                             IsBlank _ ->
                                 False
 
+                            PatternError _ ->
+                                False
+
                             _ ->
                                 True
                     )
