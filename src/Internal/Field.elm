@@ -49,6 +49,7 @@ type FieldType id err
     | Float
     | Month
     | Date
+    | LocalDatetime
     | Select
     | Radio
     | Checkbox
@@ -414,6 +415,9 @@ mapFieldType func errToErr inputType_ =
         Date ->
             Date
 
+        LocalDatetime ->
+            LocalDatetime
+
         Select ->
             Select
 
@@ -463,6 +467,9 @@ inputTypeToString type_ =
 
         Date ->
             "date"
+
+        LocalDatetime ->
+            "datetime-local"
 
         Select ->
             "select"
@@ -529,6 +536,10 @@ inputStringToValue input str =
 
         Date ->
             Internal.Value.dateFromString str
+
+        LocalDatetime ->
+            Internal.Value.timeFromString str
+                |> Debug.log "datetime-val"
 
         Select ->
             getChoice ()

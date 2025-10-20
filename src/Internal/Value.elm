@@ -14,6 +14,7 @@ module Internal.Value exposing
     , isBlank
     , isInvalid
     , monthFromString
+    , timeFromString
     , toBool
     , toFloat
     , toInt
@@ -33,7 +34,7 @@ type Value
     | Float Float
     | Month Posix
     | Date Posix
-    | Time Posix
+    | LocalTime Posix
     | Boolean Bool
     | Invalid
     | Blank
@@ -57,8 +58,9 @@ toString value =
         Date posix ->
             Just <| String.slice 0 10 (Iso8601.fromTime posix)
 
-        Time posix ->
-            Just (Iso8601.fromTime posix)
+        LocalTime posix ->
+            Just <|
+                String.slice 0 23 (Iso8601.fromTime posix)
 
         Boolean True ->
             Nothing
@@ -118,7 +120,7 @@ toPosix value =
         Date val ->
             Just val
 
-        Time val ->
+        LocalTime val ->
             Just val
 
         _ ->
@@ -208,6 +210,14 @@ dateFromString str =
         |> Maybe.withDefault Blank
 
 
+timeFromString : String -> Value
+timeFromString str =
+    Iso8601.toTime str
+        |> Result.map LocalTime
+        |> Result.toMaybe
+        |> Maybe.withDefault Blank
+
+
 compare : Value -> Value -> Maybe Order
 compare a b =
     Maybe.map2 Basics.compare (toNumber a) (toNumber b)
@@ -228,7 +238,7 @@ toNumber value =
         Date posix ->
             Just <| Basics.toFloat (Time.posixToMillis posix)
 
-        Time posix ->
+        LocalTime posix ->
             Just <| Basics.toFloat (Time.posixToMillis posix)
 
         _ ->

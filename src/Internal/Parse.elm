@@ -16,7 +16,6 @@ module Internal.Parse exposing
 
 -}
 
-import Dict
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Internal.Field
@@ -132,13 +131,16 @@ listHelp parser =
 
 json : Parser id Json.Decode.Value
 json =
-    \input ->
-        case jsonEncodeObject input of
-            Ok a ->
-                Success input a
+    map2 (always identity)
+        validateTree
+        (\input ->
+            case jsonEncodeObject input of
+                Ok a ->
+                    Success input a
 
-            Err err ->
-                failure input err
+                Err err ->
+                    failure input err
+        )
 
 
 jsonEncodeObject : Field id -> Result (Error id) Json.Encode.Value
@@ -217,8 +219,6 @@ andUpdate func parser =
 
             Failure input2 errors ->
                 Failure input2 errors
-
-
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b

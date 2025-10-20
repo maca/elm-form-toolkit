@@ -9,6 +9,7 @@ module Support.ExampleInputs exposing
     , blankInput
     , boolInput
     , checkboxInput
+    , datetimeInput
     , floatInput
     , groupWithName
     , intInput
@@ -31,6 +32,7 @@ type FieldId
     | FloatField
     | BoolField
     | PosixField
+    | DatetimeField
     | SelectField
     | BlankField
 
@@ -101,6 +103,16 @@ posixInput =
         [ Field.label "Enter your posix"
         , Field.identifier PosixField
         , Field.value (Value.time (Time.millisToPosix 0))
+        ]
+
+
+datetimeInput : Field FieldId
+datetimeInput =
+    Field.datetime
+        [ Field.label "Enter meeting time"
+        , Field.identifier DatetimeField
+        , Field.name "datetime-field"
+        , Field.value (Value.time (Time.millisToPosix 1609459200000))
         ]
 
 

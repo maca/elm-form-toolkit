@@ -79,7 +79,7 @@ month =
 {-| -}
 time : Posix -> Value
 time =
-    Value << Internal.Time
+    Value << Internal.LocalTime
 
 
 {-| All values except for blank have a string representation.

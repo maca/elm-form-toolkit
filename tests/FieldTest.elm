@@ -4,7 +4,9 @@ import Expect
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
+import Support.ExampleInputs exposing (datetimeInput)
 import Test exposing (..)
+import Time
 
 
 suite : Test
@@ -99,5 +101,18 @@ suite =
                         ]
                         |> Parse.parse (Parse.list Parse.string)
                         |> Expect.equal (Ok [ "default1", "default2", "default3" ])
+            ]
+        , describe "datetime field"
+            [ test "can be created and parsed as posix" <|
+                \_ ->
+                    datetimeInput
+                        |> Parse.parse Parse.posix
+                        |> Expect.equal (Ok (Time.millisToPosix 1609459200000))
+            , test "has correct input type" <|
+                \_ ->
+                    datetimeInput
+                        |> Field.toProperties
+                        |> .inputType
+                        |> Expect.equal Field.Datetime
             ]
         ]

@@ -30,6 +30,7 @@ type Msg
     | IntChanged (Field.Msg ())
     | FloatChanged (Field.Msg ())
     | DateChanged (Field.Msg ())
+    | DatetimeChanged (Field.Msg ())
     | MonthChanged (Field.Msg ())
     | SelectChanged (Field.Msg ())
     | RadioChanged (Field.Msg ())
@@ -49,6 +50,7 @@ type alias Model =
     , int : Field ()
     , float : Field ()
     , date : Field ()
+    , datetime : Field ()
     , month : Field ()
     , select : Field ()
     , radio : Field ()
@@ -70,6 +72,7 @@ init =
     , int = intField
     , float = floatField
     , date = dateField
+    , datetime = datetimeField
     , month = monthField
     , select = selectField
     , radio = radioField
@@ -174,6 +177,16 @@ update msg book =
                             Parse.parseUpdate Parse.posix fieldMsg model.date
                     in
                     ( { model | date = updatedField }
+                    , Task.perform (Actions.logActionWithString "Result")
+                        (Task.succeed (Debug.toString result))
+                    )
+
+                DatetimeChanged fieldMsg ->
+                    let
+                        ( updatedField, result ) =
+                            Parse.parseUpdate Parse.posix fieldMsg model.datetime
+                    in
+                    ( { model | datetime = updatedField }
                     , Task.perform (Actions.logActionWithString "Result")
                         (Task.succeed (Debug.toString result))
                     )
@@ -325,6 +338,14 @@ chapter =
                     Html.div [ Attr.class "milligram" ]
                         [ book.fields.date
                             |> Field.toHtml DateChanged
+                        ]
+                        |> Html.map (Actions.updateStateWithCmdWith update)
+              )
+            , ( "Datetime"
+              , \book ->
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.fields.datetime
+                            |> Field.toHtml DatetimeChanged
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
@@ -584,6 +605,24 @@ dateField =
 ```
 
 <component with-label="Date"/>
+
+Parsed using `Parse.posix`.
+
+
+### Datetime
+
+Datetime picker with built-in validation for date and time selection.
+
+```elm
+datetimeField : Field ()
+datetimeField =
+    Field.datetime
+        [ Field.label "Datetime Field"
+        , Field.required True
+        ]
+```
+
+<component with-label="Datetime"/>
 
 Parsed using `Parse.posix`.
 
@@ -918,6 +957,14 @@ dateField : Field ()
 dateField =
     Field.date
         [ Field.label "Date Field"
+        , Field.required True
+        ]
+
+
+datetimeField : Field ()
+datetimeField =
+    Field.datetime
+        [ Field.label "Datetime Field"
         , Field.required True
         ]
 

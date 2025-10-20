@@ -40,6 +40,10 @@ suite =
                 \_ ->
                     Parse.parse Parse.posix posixInput
                         |> Expect.equal (Ok (Time.millisToPosix 0))
+            , test "decoding datetime" <|
+                \_ ->
+                    Parse.parse Parse.posix datetimeInput
+                        |> Expect.equal (Ok (Time.millisToPosix 1609459200000))
             , test "decoding custom value with field with options" <|
                 \_ ->
                     Field.select
@@ -61,14 +65,14 @@ suite =
                     \_ ->
                         Parse.parse Parse.int stringInput
                             |> Expect.equal
-                                (Err [ ParseError (Just StringField) ])
+                                (Err [ NotNumber (Just StringField) ])
                 ]
             , describe "on field decoding"
                 [ test "produces error" <|
                     \_ ->
                         Field.group [] [ stringInput ]
                             |> Parse.parse (Parse.field StringField Parse.int)
-                            |> Expect.equal (Err [ ParseError (Just StringField) ])
+                            |> Expect.equal (Err [ NotNumber (Just StringField) ])
                 ]
             ]
         , describe "encode json"
@@ -79,6 +83,13 @@ suite =
                         |> Json.Decode.decodeValue
                             (Json.Decode.field "string-field" Json.Decode.string)
                         |> Expect.equal (Ok "A string")
+            , test "datetime" <|
+                \_ ->
+                    Parse.parse Parse.json datetimeInput
+                        |> Result.withDefault (Json.Encode.string "")
+                        |> Json.Decode.decodeValue
+                            (Json.Decode.field "datetime-field" Json.Decode.string)
+                        |> Expect.equal (Ok "2021-01-01T00:00:00.000")
             , test "group with no name" <|
                 \_ ->
                     Parse.parse Parse.json
@@ -143,8 +154,8 @@ suite =
                     result
                         |> Expect.equal
                             (Err
-                                [ ParseError (Just StringField)
-                                , ParseError (Just IntField)
+                                [ NotNumber (Just StringField)
+                                , NotNumber (Just IntField)
                                 ]
                             )
             , test "errors are not repeated" <|
@@ -158,7 +169,7 @@ suite =
                                     (Parse.field StringField Parse.float)
                             )
                         |> Expect.equal
-                            (Err [ ParseError (Just StringField) ])
+                            (Err [ NotNumber (Just StringField) ])
             , test "email validation only applies to email fields" <|
                 \_ ->
                     let
@@ -245,14 +256,38 @@ suite =
                                 , Field.required True
                                 ]
                     in
-                    -- Empty required email field should fail with both ParseError and IsBlank
+                    -- Empty required email field should fail with IsBlank
                     Parse.parse Parse.string emptyEmailField
-                        |> Expect.equal (Err [ ParseError (Just StringField), IsBlank (Just StringField) ])
+                        |> Expect.equal (Err [ IsBlank (Just StringField) ])
             , test "EmailInvalid error has correct English translation" <|
                 \_ ->
                     EmailInvalid (Just StringField)
                         |> Error.toEnglish
                         |> Expect.equal "Please enter a valid email address"
+            , test "parsing json fails when required fields are not filled" <|
+                \_ ->
+                    let
+                        formWithRequiredFields =
+                            Field.group []
+                                [ Field.text
+                                    [ Field.identifier StringField
+                                    , Field.name "name"
+                                    , Field.required True
+                                    ]
+                                , Field.text
+                                    [ Field.identifier IntField
+                                    , Field.name "email"
+                                    , Field.required True
+                                    ]
+                                ]
+                    in
+                    Parse.parse Parse.json formWithRequiredFields
+                        |> Expect.equal
+                            (Err
+                                [ IsBlank (Just StringField)
+                                , IsBlank (Just IntField)
+                                ]
+                            )
 
             -- , describe "and errors are presented in the correct order" []
             -- , test errors are not repeated after multiple updates

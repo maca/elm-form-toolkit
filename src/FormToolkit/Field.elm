@@ -2,7 +2,7 @@ module FormToolkit.Field exposing
     ( Field(..), Msg(..), update, toHtml
     , text, textarea, email, password, strictAutocomplete
     , int, float
-    , date, month
+    , date, month, datetime
     , select, radio, checkbox
     , group, repeatable
     , Attribute
@@ -32,7 +32,7 @@ their attributes, update, and render them.
 
 @docs text, textarea, email, password, strictAutocomplete
 @docs int, float
-@docs date, month
+@docs date, month, datetime
 @docs select, radio, checkbox
 @docs group, repeatable
 
@@ -283,6 +283,18 @@ date =
 month : List (Attribute id val) -> Field id
 month =
     init Internal.Field.Month
+
+
+{-| Builds a datetime-local input field.
+
+    meetingTimeField : Field id
+    meetingTimeField =
+        datetime [ label "Meeting Time", required True ]
+
+-}
+datetime : List (Attribute id val) -> Field id
+datetime =
+    init Internal.Field.LocalDatetime
 
 
 {-| Builds a select input field (dropdown).
@@ -635,7 +647,7 @@ stringOptions values =
 
 
 {-| Sets the minimum value for a field input if its value is scalar:
-`int`, `float`, `date`, `month`, or `time`.
+`int`, `float`, `date`, `month`, `datetime`, or `time`.
 -}
 min : Value.Value -> Attribute id val
 min (Value.Value val) =
@@ -643,7 +655,7 @@ min (Value.Value val) =
 
 
 {-| Sets the maximum value for a field input if its value is scalar:
-`int`, `float`, `date`, `month`, or `time`.
+`int`, `float`, `date`, `month`, `datetime`, or `time`.
 -}
 max : Value.Value -> Attribute id val
 max (Value.Value val) =
@@ -696,6 +708,7 @@ type InputType
     | Float
     | Month
     | Date
+    | LocalDatetime
     | Select
     | Radio
     | Checkbox
@@ -777,6 +790,9 @@ fieldTypeToInputType inputType =
 
         Internal.Field.Date ->
             Date
+
+        Internal.Field.LocalDatetime ->
+            LocalDatetime
 
         Internal.Field.Select ->
             Select
