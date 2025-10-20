@@ -12,6 +12,15 @@ import Html.Events exposing (onClick, onSubmit)
 
 
 
+-- BROWSER.SANDBOX PROGRAM (for standalone usage)
+
+
+main : Program () Model Msg
+main =
+    Browser.sandbox { init = init, update = update, view = view }
+
+
+
 -- TYPES
 
 
@@ -292,12 +301,3 @@ failure =
         , Attr.style "background" "#fde8e8"
         , Attr.style "border-radius" "4px"
         ]
-
-
-
--- BROWSER.SANDBOX PROGRAM (for standalone usage)
-
-
-main : Program () Model Msg
-main =
-    Browser.sandbox { init = init, update = update, view = view }

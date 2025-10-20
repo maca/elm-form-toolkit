@@ -5,9 +5,12 @@ import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
+import FormToolkit.Value as Value
 import Html
 import Html.Attributes as Attr
+import Json.Encode as Encode
 import Support.ShipmentForm as ShipmentForm
+import Support.ViewHelpers exposing (failureDiv, successDiv)
 import Task
 
 
@@ -161,6 +164,7 @@ personParser =
 
 <component with-label="Person Form (Custom Type ID)"/>
 
+
 ## Parser Pipeline with `andMap`
 
 For complex forms with multiple fields, use the applicative pattern with `andMap` to build parsing pipelines.
@@ -244,3 +248,5 @@ personParser =
     Parse.map2 (\first last -> { firstName = first, lastName = last })
         (Parse.field FirstName Parse.string)
         (Parse.field LastName Parse.string)
+
+

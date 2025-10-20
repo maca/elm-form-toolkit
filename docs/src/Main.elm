@@ -5,6 +5,7 @@ import Chapters.Fields as Fields
 import Chapters.FormattingAndValidation as FormattingAndValidation
 import Chapters.GettingStarted as GettingStarted
 import Chapters.Internationalization as Internationalization
+import Chapters.ParsingToJson as ParsingToJson
 import Chapters.Parsing as Parsing
 import Chapters.ParsingCookbook as ParsingCookbook
 import ElmBook exposing (Book, book)
@@ -16,6 +17,7 @@ type alias Model =
     { gettingStarted : GettingStarted.Model
     , fields : Fields.Model
     , parsing : Parsing.Model
+    , parsingToJson : ParsingToJson.Model
     , parsingCookbook : ParsingCookbook.Model
     , formattingAndValidation : FormattingAndValidation.Model
     , customization : Customization.Model
@@ -28,6 +30,7 @@ init =
     { gettingStarted = GettingStarted.init
     , fields = Fields.init
     , parsing = Parsing.init
+    , parsingToJson = ParsingToJson.init
     , parsingCookbook = ParsingCookbook.init
     , formattingAndValidation = FormattingAndValidation.init
     , customization = Customization.init
@@ -46,6 +49,7 @@ main =
               , [ GettingStarted.chapter
                 , Fields.chapter
                 , Parsing.chapter
+                , ParsingToJson.chapter
                 , ParsingCookbook.chapter
                 , FormattingAndValidation.chapter
                 , Customization.chapter
