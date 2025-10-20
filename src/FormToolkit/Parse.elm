@@ -37,12 +37,14 @@ know `Json.Decode` you know how to use this module ;)
 
 -}
 
+import Dict
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Parse
 import Internal.Utils as Utils
+import Internal.Value
 import Json.Decode
 import Time
 
@@ -100,12 +102,10 @@ field id (Parser parser) =
 -}
 string : Parser id String
 string =
-    Parser
-        (Internal.Parse.parseValue
-            (\id val ->
-                Value.toString val
-                    |> Result.fromMaybe (Error.ParseError id)
-            )
+    parseValue
+        (\id val ->
+            Value.toString val
+                |> Result.fromMaybe (Error.ParseError id)
         )
 
 
@@ -121,12 +121,10 @@ string =
 -}
 int : Parser id Int
 int =
-    Parser
-        (Internal.Parse.parseValue
-            (\id val ->
-                Value.toInt val
-                    |> Result.fromMaybe (Error.NotNumber id)
-            )
+    parseValue
+        (\id val ->
+            Value.toInt val
+                |> Result.fromMaybe (Error.NotNumber id)
         )
 
 
@@ -142,12 +140,10 @@ int =
 -}
 float : Parser id Float
 float =
-    Parser
-        (Internal.Parse.parseValue
-            (\id val ->
-                Value.toFloat val
-                    |> Result.fromMaybe (Error.NotNumber id)
-            )
+    parseValue
+        (\id val ->
+            Value.toFloat val
+                |> Result.fromMaybe (Error.NotNumber id)
         )
 
 
@@ -163,12 +159,10 @@ float =
 -}
 bool : Parser id Bool
 bool =
-    Parser
-        (Internal.Parse.parseValue
-            (\id val ->
-                Value.toBool val
-                    |> Result.fromMaybe (Error.NotBool id)
-            )
+    parseValue
+        (\id val ->
+            Value.toBool val
+                |> Result.fromMaybe (Error.NotBool id)
         )
 
 
@@ -177,12 +171,10 @@ bool =
 -}
 posix : Parser id Time.Posix
 posix =
-    Parser
-        (Internal.Parse.parseValue
-            (\id val ->
-                Value.toPosix val
-                    |> Result.fromMaybe (Error.ParseError id)
-            )
+    parseValue
+        (\id val ->
+            Value.toPosix val
+                |> Result.fromMaybe (Error.ParseError id)
         )
 
 
@@ -236,7 +228,7 @@ list (Parser parser) =
 -}
 value : Parser id Value.Value
 value =
-    Parser (Internal.Parse.parseValue (always Ok))
+    parseValue (always Ok)
 
 
 {-| Converts the entire input tree into a JSON
@@ -376,6 +368,44 @@ andUpdate func (Parser parser) =
             { field = modifiedField, parser = newParser }
     in
     Parser (Internal.Parse.andUpdate updateFunc parser)
+
+
+{-| Parse input values using a custom parsing function.
+-}
+parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
+parseValue func =
+    Parser
+        (\input ->
+            if Internal.Field.isGroup input then
+                Internal.Parse.failure input (Error.IsGroupNotInput (Internal.Field.identifier input))
+
+            else
+                let
+                    fieldValue =
+                        Internal.Value.toString (Internal.Field.value input)
+                            |> Maybe.andThen
+                                (\key ->
+                                    Internal.Field.options input
+                                        |> Dict.fromList
+                                        |> Dict.get key
+                                )
+                            |> Maybe.withDefault (Internal.Field.value input)
+                in
+                case func (Internal.Field.identifier input) (Value.Value fieldValue) of
+                    Ok a ->
+                        Internal.Parse.success input a
+
+                    Err err ->
+                        if
+                            Internal.Field.isRequired input
+                                && Internal.Field.isBlank input
+                        then
+                            Internal.Parse.failure input
+                                (Error.IsBlank (Internal.Field.identifier input))
+
+                        else
+                            Internal.Parse.failure input err
+        )
 
 
 {-| Chains together parsers that depend on previous decoding results.

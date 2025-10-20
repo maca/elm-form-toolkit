@@ -3,7 +3,7 @@ module Internal.Parse exposing
     , ParserResult, failure, success
     , field, list, json, maybe
     , map, map2, andThen, andUpdate
-    , parseValue, parse, validate
+    , parse, validate
     )
 
 {-|
@@ -12,7 +12,7 @@ module Internal.Parse exposing
 @docs ParserResult, failure, success
 @docs field, list, json, maybe
 @docs map, map2, andThen, andUpdate
-@docs parseValue, parse, validate
+@docs parse, validate
 
 -}
 
@@ -219,38 +219,6 @@ andUpdate func parser =
                 Failure input2 errors
 
 
-parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
-parseValue func =
-    \input ->
-        if Internal.Field.isGroup input then
-            failure input (IsGroupNotInput (Internal.Field.identifier input))
-
-        else
-            let
-                value =
-                    Internal.Value.toString (Internal.Field.value input)
-                        |> Maybe.andThen
-                            (\key ->
-                                Internal.Field.options input
-                                    |> Dict.fromList
-                                    |> Dict.get key
-                            )
-                        |> Maybe.withDefault (Internal.Field.value input)
-            in
-            case func (Internal.Field.identifier input) (Value.Value value) of
-                Ok a ->
-                    Success input a
-
-                Err err ->
-                    if
-                        Internal.Field.isRequired input
-                            && Internal.Field.isBlank input
-                    then
-                        failure input
-                            (IsBlank (Internal.Field.identifier input))
-
-                    else
-                        failure input err
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b
