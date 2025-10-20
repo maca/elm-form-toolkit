@@ -9,14 +9,12 @@ import FormToolkit.Value as Value
 import Html
 import Html.Attributes as Attr
 import Iso8601
-import Support.ShipmentForm as ShipmentForm
 import Task
 import Time
 
 
 type alias Model =
-    { shipmentDemo : ShipmentForm.Model
-    , eventFields2 : Field EventFields
+    { eventFields : Field EventFields
     }
 
 
@@ -25,14 +23,12 @@ type alias Book book =
 
 
 type Msg
-    = ShipmentDemoMsg ShipmentForm.Msg
-    | EventFields3Changed (Field.Msg EventFields)
+    = EventFieldsChanged (Field.Msg EventFields)
 
 
 init : Model
 init =
-    { shipmentDemo = ShipmentForm.init
-    , eventFields2 = eventFields2
+    { eventFields = eventFields
     }
 
 
@@ -43,21 +39,12 @@ update msg book =
             book.parsingCookbook
     in
     case msg of
-        ShipmentDemoMsg innerMsg ->
-            let
-                shipmentDemo =
-                    ShipmentForm.update innerMsg book.parsingCookbook.shipmentDemo
-            in
-            ( { book | parsingCookbook = { model | shipmentDemo = shipmentDemo } }
-            , Cmd.none
-            )
-
-        EventFields3Changed innerMsg ->
+        EventFieldsChanged innerMsg ->
             let
                 ( updatedField, result ) =
-                    Parse.parseUpdate eventParser3 innerMsg book.parsingCookbook.eventFields2
+                    Parse.parseUpdate eventParser innerMsg book.parsingCookbook.eventFields
             in
-            ( { book | parsingCookbook = { model | eventFields2 = updatedField } }
+            ( { book | parsingCookbook = { model | eventFields = updatedField } }
             , Task.perform (Actions.logActionWithString "Result")
                 (Task.succeed (Debug.toString result))
             )
@@ -70,16 +57,10 @@ chapter =
             [ ( "Event Fields (Conditional)"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.parsingCookbook.eventFields2
-                            |> Field.toHtml EventFields3Changed
+                        [ book.parsingCookbook.eventFields
+                            |> Field.toHtml EventFieldsChanged
                         ]
                         |> Html.map (updateStateWithCmdWith update)
-              )
-            , ( "Advanced Parsing - Shipment Form"
-              , \book ->
-                    book.parsingCookbook.shipmentDemo
-                        |> ShipmentForm.view
-                        |> Html.map (ShipmentDemoMsg >> updateStateWithCmdWith update)
               )
             ]
         |> Chapter.render parsingIntroMarkdown
@@ -218,44 +199,8 @@ fields |>
 
 
 
-### Parsers nesting and `andUpdate` field context.
 
 
-
-## andMap parser Pipeline
-
-
-### Complex Form Structure
-
-```elm
-type alias Shipment =
-    { shipping : Address
-    , recipients : List Recipient
-    }
-
-type alias Address =
-    { firstName : String
-    , lastName : String
-    , address : String
-    , address2 : String
-    , postalCode : String
-    , state : String
-    , country : Countries.Country
-    }
-
-type alias Recipient =
-    { email : String
-    , name : String
-    }
-```
-
-### Parser with andMap Pipeline
-
-
-### Custom Parsing with andThen
-
-
-<component with-label="Advanced Parsing - Shipment Form"/>
 
 
 """
@@ -270,8 +215,8 @@ type EventFields
     | ParticipantEmail
 
 
-eventFields2 : Field EventFields
-eventFields2 =
+eventFields : Field EventFields
+eventFields =
     Field.group
         []
         [ Field.group
@@ -308,8 +253,8 @@ eventFields2 =
         ]
 
 
-eventParser3 : Parse.Parser EventFields { name : String, date : String, participants : List String }
-eventParser3 =
+eventParser : Parse.Parser EventFields { name : String, date : String, participants : List String }
+eventParser =
     Parse.map3
         (\name date participants ->
             { name = name
