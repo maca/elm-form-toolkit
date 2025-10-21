@@ -482,19 +482,20 @@ checkPattern input =
                             , input = rawInput
                             , cursorPosition = fieldAttributes.selectionStart
                             }
-
-                    updatedField =
-                        Tree.updateValue
-                            (\attrs ->
-                                { attrs
-                                    | value = Internal.Value.fromNonBlankString formatted
-                                    , selectionStart = cursorPosition
-                                    , selectionEnd = cursorPosition
-                                }
-                            )
-                            input
                 in
                 if maskConsumed then
+                    let
+                        updatedField =
+                            Tree.updateValue
+                                (\attrs ->
+                                    { attrs
+                                        | value = Internal.Value.fromNonBlankString formatted
+                                        , selectionStart = cursorPosition
+                                        , selectionEnd = cursorPosition
+                                    }
+                                )
+                                input
+                    in
                     success updatedField ()
 
                 else

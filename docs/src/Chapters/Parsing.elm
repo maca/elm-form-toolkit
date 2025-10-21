@@ -65,7 +65,8 @@ update msg book =
                             ShipmentForm.update innerMsg model.shipmentForm
                     in
                     ( { model | shipmentForm = updatedShipmentForm }
-                    , Cmd.none
+                    , Task.perform (Actions.logActionWithString "Demo")
+                        (Task.succeed "Press Submit to see results")
                     )
     in
     ( { book | parsing = newModel }, cmd )
@@ -248,5 +249,3 @@ personParser =
     Parse.map2 (\first last -> { firstName = first, lastName = last })
         (Parse.field FirstName Parse.string)
         (Parse.field LastName Parse.string)
-
-

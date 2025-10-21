@@ -4,6 +4,8 @@ import Expect
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
+import Json.Decode as Decode
+import Json.Encode as Encode
 import Support.ExampleInputs exposing (datetimeInput)
 import Test exposing (..)
 import Time
@@ -115,4 +117,88 @@ suite =
                         |> .inputType
                         |> Expect.equal Field.LocalDatetime
             ]
+        , describe "setValues"
+            [ test "sets values from JSON with two-level structure" <|
+                \_ ->
+                    testForm
+                        |> Field.setValues sampleValues
+                        |> Result.andThen
+                            (\updatedForm ->
+                                updatedForm
+                                    |> Parse.parse
+                                        (Parse.map4
+                                            (\firstName lastName streetName postalCode ->
+                                                { firstName = firstName
+                                                , lastName = lastName
+                                                , streetName = streetName
+                                                , postalCode = postalCode
+                                                }
+                                            )
+                                            (Parse.field "FirstName" Parse.string)
+                                            (Parse.field "LastName" Parse.string)
+                                            (Parse.field "StreetName" Parse.string)
+                                            (Parse.field "PostalCode" Parse.string)
+                                        )
+                            )
+                        |> Expect.equal
+                            (Ok
+                                { firstName = "José"
+                                , lastName = "García"
+                                , streetName = "Avenida Revolución"
+                                , postalCode = "03100"
+                                }
+                            )
+            ]
         ]
+
+
+testForm : Field.Field String
+testForm =
+    Field.group []
+        [ Field.group
+            [ Field.name "recipient" ]
+            [ Field.text
+                [ Field.name "first-name"
+                , Field.identifier "FirstName"
+                ]
+            , Field.text
+                [ Field.name "last-name"
+                , Field.identifier "LastName"
+                ]
+            ]
+        , Field.group
+            [ Field.name "address" ]
+            [ Field.text
+                [ Field.name "street-name"
+                , Field.identifier "StreetName"
+                ]
+            , Field.text
+                [ Field.name "postal-code"
+                , Field.identifier "PostalCode"
+                ]
+            ]
+        ]
+
+
+sampleValuesJson : String
+sampleValuesJson =
+    """{
+  "recipient": {
+    "first-name": "José",
+    "last-name": "García"
+  },
+  "address": {
+    "street-name": "Avenida Revolución",
+    "postal-code": "03100"
+  }
+}"""
+
+
+sampleValues : Encode.Value
+sampleValues =
+    case Decode.decodeString Decode.value sampleValuesJson of
+        Ok value ->
+            value
+        
+        Err _ ->
+            Encode.null

@@ -3,12 +3,13 @@ module Internal.Field exposing
     , Msg(..), update
     , init, isBlank, map
     , updateAttributes
-    , identifier, inputType, max, min, step, name, value, pattern
+    , identifier, inputType, max, min, step, name, value
     , label, hint, placeholder, options
     , isGroup, isRequired, isAutocompleteable
     , errors, setErrors
     , inputIdString, inputStringToValue
-    , error
+    , error, pattern
+    , updateValueWithString
     )
 
 {-|
@@ -22,7 +23,8 @@ module Internal.Field exposing
 @docs isGroup, isRequired, isAutocompleteable
 @docs errors, setErrors
 @docs inputIdString, inputStringToValue
-@docs error
+@docs error, pattern
+@docs updateValueWithString
 
 -}
 
@@ -499,6 +501,17 @@ inputTypeToString type_ =
             "error"
 
 
+updateValueWithString : String -> Field id err -> Field id err
+updateValueWithString str field =
+    Tree.updateValue
+        (\attrs -> { attrs | value = inputStringToValue field str })
+        field
+
+
+
+-- Debug.todo "crash"
+
+
 inputStringToValue : Field id err -> String -> Value
 inputStringToValue input str =
     let
@@ -556,7 +569,15 @@ inputStringToValue input str =
             getChoice ()
 
         Checkbox ->
-            Internal.Value.blank
+            case str of
+                "true" ->
+                    Internal.Value.fromBool True
+
+                "false" ->
+                    Internal.Value.fromBool False
+
+                _ ->
+                    Internal.Value.blank
 
         Group ->
             Internal.Value.blank

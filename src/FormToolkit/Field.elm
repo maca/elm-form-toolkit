@@ -10,6 +10,7 @@ module FormToolkit.Field exposing
     , options, stringOptions, min, max, step, autogrow
     , class, classList
     , disabled, visible, noattr, pattern
+    , setValues
     , copies, repeatableMin, repeatableMax
     , updateAttribute, updateAttributes
     , updateWithId, updateVisibleWithId, updateValueWithId
@@ -44,6 +45,7 @@ their attributes, update, and render them.
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
 @docs disabled, visible, noattr, pattern
+@docs setValues
 
 
 # Groups
@@ -76,6 +78,7 @@ Read a Field properties
 
 -}
 
+import Dict exposing (Dict)
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value exposing (Value)
 import Html exposing (Html)
@@ -89,6 +92,9 @@ import Internal.Field
 import Internal.Parse
 import Internal.Utils
 import Internal.View
+import Json.Decode as Decode
+import Json.Encode as Encode
+import RoseTree.Path as Path
 import RoseTree.Tree as Tree
 import String.Extra
 
@@ -1172,3 +1178,101 @@ mapError transformId error =
 dasherize : String -> String
 dasherize =
     String.Extra.decapitalize >> String.Extra.dasherize
+
+
+namesToPaths : Field id -> Dict String (List Int)
+namesToPaths (Field field) =
+    Tree.foldWithPath
+        (\path node acc ->
+            case Internal.Field.name node of
+                Just n ->
+                    case
+                        List.filter (\( _, p ) -> Path.ancestor [ p, path ] == p) acc
+                    of
+                        [] ->
+                            ( n, path ) :: acc
+
+                        ( mn, _ ) :: _ ->
+                            ( mn ++ "." ++ n, path ) :: acc
+
+                Nothing ->
+                    acc
+        )
+        []
+        field
+        |> Dict.fromList
+
+
+{-| Sets field values from a JSON object. The JSON structure should match the
+form's nested field structure with names corresponding to field paths.
+-}
+setValues : Encode.Value -> Field id -> Result String (Field id)
+setValues jsonValue (Field field) =
+    let
+        namePaths =
+            namesToPaths (Field field)
+    in
+    valueToPathLists jsonValue
+        |> Result.andThen
+            (List.foldl
+                (\( key, val ) ->
+                    Result.andThen
+                        (\node ->
+                            case Dict.get key namePaths of
+                                Just path ->
+                                    Ok
+                                        (Tree.updateAt path
+                                            (Internal.Field.updateValueWithString val)
+                                            node
+                                        )
+
+                                Nothing ->
+                                    Err ("No path found: " ++ key)
+                        )
+                )
+                (Ok field)
+            )
+        |> Result.map Field
+
+
+valueToPathLists : Encode.Value -> Result String (List ( String, String ))
+valueToPathLists jsonValue =
+    Decode.decodeValue recursiveStringListDecoder jsonValue
+        |> Result.map
+            (List.filterMap
+                (\list ->
+                    case List.reverse list of
+                        val :: rest ->
+                            Just ( List.reverse rest |> String.join ".", val )
+
+                        _ ->
+                            Nothing
+                )
+            )
+        |> Result.mapError Decode.errorToString
+
+
+recursiveStringListDecoder : Decode.Decoder (List (List String))
+recursiveStringListDecoder =
+    Decode.oneOf
+        [ Decode.oneOf
+            [ Decode.int |> Decode.map String.fromInt
+            , Decode.float |> Decode.map String.fromFloat
+            , Decode.bool
+                |> Decode.map
+                    (\b ->
+                        if b then
+                            "true"
+
+                        else
+                            "false"
+                    )
+            , Decode.string
+            ]
+            |> Decode.map (List.singleton >> List.singleton)
+        , Decode.dict (Decode.lazy (\() -> recursiveStringListDecoder))
+            |> Decode.map
+                (Dict.toList
+                    >> List.concatMap (\( h, tails ) -> List.map ((::) h) tails)
+                )
+        ]

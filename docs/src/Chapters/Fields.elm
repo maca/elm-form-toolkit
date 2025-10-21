@@ -280,7 +280,7 @@ update msg book =
 
 chapter : Chapter (Book book)
 chapter =
-    Chapter.chapter "Fields"
+    Chapter.chapter "Form building blocks"
         |> Chapter.withStatefulComponentList
             [ ( "Text"
               , \book ->
@@ -438,9 +438,9 @@ markdownContent : String
 markdownContent =
     """
 
-A Field can be a single input field, a group of Fields, or a group of repeatable
-Fields. It has a similar API to Elm Html, but since it tracks state, it should be
-part of the model.
+The building block is `Field`. A Field can be a single input field, a group of
+Fields, or a group of repeatable Fields. It has a similar API to Elm Html, but
+since it tracks state, it should be part of the model.
 
 
 ### Text

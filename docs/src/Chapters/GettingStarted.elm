@@ -74,7 +74,7 @@ any shape, and flexible rendering.
 
 ## Features:
 
-- Declarative and opinionated form building with an Elm-Html-like API
+- Declarative and **opinionated** form field building with an Elm-Html-like API
 - Built-in validation with custom validation support  
 - Parse form data to custom types using a Json.Decode-like interface
 - Flexible rendering with customization options
@@ -100,8 +100,8 @@ type UserFormFields
     | LastName
 
 -- Declare the form
-userForm : Field UserFormFields
-userForm =
+userFields : Field UserFormFields
+userFields =
     Field.group []
         [ Field.text
             [ Field.label "First Name"
@@ -124,17 +124,15 @@ Each field has:
 
 ## Step 2: Setting up the Model
 
-The form should be kept in your model, this keeps track of inputs and values,
-and validation errors, nothing else, so it's safe to keep in the model.
 
 The API was modeled after the Html API with a list of attributes and a list
 of children nodes, but once a Field is built it should be keept in the model
-because it keeps track of the Fields state.
+because it keeps track of the Fields state, and validation errors.
 
 
 ```elm
 type alias Model =
-    { formFields : Field UserFormFields
+    { userFields : Field UserFormFields
     , submitted : Bool
     , user : Maybe User
     }
@@ -146,7 +144,7 @@ type alias User =
 
 init : Model
 init =
-    { formFields = userForm
+    { userFields = userFields
     , submitted = False
     , user = Nothing
     }
@@ -169,11 +167,11 @@ update msg model =
     case msg of
         FormChanged fieldMsg ->
             let
-                ( formFields, result ) =
-                    Parse.parseUpdate userParser fieldMsg model.formFields
+                ( userFields, result ) =
+                    Parse.parseUpdate userParser fieldMsg model.userFields
             in
             { model
-                | formFields = formFields
+                | userFields = userFields
                 , user = Result.toMaybe result
             }
 
@@ -197,14 +195,17 @@ similar as using `field` when using `Json.Decode`
 
 ## Step 4: Render the Form
 
-Use `Field.toHtml` with your `Msg` constructor:
+Use `Field.toHtml` passing a `Msg` constructor, used to tag form messages.
+Use Elm HTML markup to wrap the fields in a form and bind actions to form submit
+and submit button click.
+
 
 ```elm
 view : Model -> Html Msg
 view model =
     Html.form
         [ onSubmit FormSubmitted ]
-        [ Field.toHtml FormChanged model.formFields
+        [ Field.toHtml FormChanged model.userFields
         , Html.button 
             [ onClick FormSubmitted ] 
             [ Html.text "Submit" ]
@@ -216,11 +217,8 @@ view model =
 - **Labels** for each field
 - **Input elements** with appropriate types
 - **Validation errors** when fields are invalid
-- **Required indicators** for mandatory fields
-
-The first argument is a function that wraps `Field.Msg` in your app's `Msg` type.
+- **Required** class for mandatory fields
     
-
     
 ## Complete Example
 
@@ -243,7 +241,7 @@ main =
 
 
 type alias Model =
-    { formFields : Field UserFormFields
+    { userFields : Field UserFormFields
     , submitted : Bool
     , user : Maybe User
     }
@@ -265,7 +263,7 @@ type alias User =
 
 init : Model
 init =
-    { formFields = userForm
+    { userFields = userFields
     , submitted = False
     , user = Nothing
     }
@@ -276,11 +274,11 @@ update msg model =
     case msg of
         FormChanged fieldMsg ->
             let
-                ( formFields, result ) =
-                    Parse.parseUpdate userParser fieldMsg model.formFields
+                ( userFields, result ) =
+                    Parse.parseUpdate userParser fieldMsg model.userFields
             in
             { model
-                | formFields = formFields
+                | userFields = userFields
                 , user = Result.toMaybe result
             }
 
@@ -292,15 +290,15 @@ view : Model -> Html Msg
 view model =
     Html.form
         [ onSubmit FormSubmitted ]
-        [ Field.toHtml FormChanged model.formFields
+        [ Field.toHtml FormChanged model.userFields
         , Html.button
             [ onClick FormSubmitted ]
             [ Html.text "Submit" ]
         ]
 
 
-userForm : Field UserFormFields
-userForm =
+userFields : Field UserFormFields
+userFields =
     Field.group []
         [ Field.text
             [ Field.label "First Name"

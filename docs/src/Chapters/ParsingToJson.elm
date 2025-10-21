@@ -47,7 +47,11 @@ update msg book =
                             JsonPostForm.update innerMsg model.jsonPostForm
                     in
                     ( { model | jsonPostForm = updatedJsonPostForm }
-                    , Cmd.map (JsonPostFormChanged >> Actions.updateStateWithCmdWith update) innerCmd
+                    , Cmd.batch
+                        [ Cmd.map (JsonPostFormChanged >> Actions.updateStateWithCmdWith update) innerCmd
+                        , Task.perform (Actions.logActionWithString "Demo")
+                            (Task.succeed "Press Submit to perform a request and see results")
+                        ]
                     )
     in
     ( { book | parsingToJson = newModel }, cmd )
@@ -81,30 +85,6 @@ This value can then be sent straight to a server without any prior processing.
 
 <component with-label="JSON Post Form"/>
 
-
-```elm
-jsonForm : Field anything
-jsonForm =
-    Field.group []
-        [ Field.text
-            [ Field.label "Username"
-            , Field.required True
-            , Field.name "username"
-            ]
-        , Field.datetime
-            [ Field.label "Preferred Meeting Time"
-            , Field.required True
-            , Field.name "meeting-time"
-            ]
-        , Field.int
-            [ Field.label "Tolerance for Spicy Food"
-            , Field.name "spicy-tolerance"
-            , Field.min (Value.int 1)
-            , Field.max (Value.int 10)
-            ]
-        ]
-
-```
 
 In this case, `Field.identifier` will not be needed, which is the reason behind
 its optionality. The type signature of the form fields can be

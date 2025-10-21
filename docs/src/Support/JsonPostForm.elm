@@ -1,6 +1,7 @@
 module Support.JsonPostForm exposing (Model, Msg, init, update, view)
 
 import Browser
+import Countries
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
@@ -41,6 +42,8 @@ type alias Model =
 type Msg
     = FormChanged (Field.Msg Never)
     | FormSubmitted
+    | FillForm
+    | ClearForm
     | GotResponse (Result Http.Error Encode.Value)
 
 
@@ -78,9 +81,12 @@ update msg model =
         FormSubmitted ->
             case Parse.parse Parse.json model.jsonForm of
                 Ok jsonValue ->
-                    ( { model | submitted = True, result = Nothing }
+                    ( { model
+                        | submitted = True
+                        , result = Nothing
+                      }
                     , Http.post
-                        { url = "https://httpbin.org/post"
+                        { url = "https://httpbin.org/anything"
                         , body = Http.jsonBody jsonValue
                         , expect = Http.expectJson GotResponse Decode.value
                         }
@@ -88,6 +94,28 @@ update msg model =
 
                 Err err ->
                     ( model, Cmd.none )
+
+        FillForm ->
+            ( { model
+                | jsonForm =
+                    case Field.setValues sampleValues model.jsonForm of
+                        Ok fields ->
+                            fields
+
+                        Err _ ->
+                            model.jsonForm
+                , result = Nothing
+              }
+            , Cmd.none
+            )
+
+        ClearForm ->
+            ( { model 
+                | jsonForm = jsonForm
+                , result = Nothing
+              }
+            , Cmd.none
+            )
 
         GotResponse result ->
             ( { model
@@ -102,24 +130,158 @@ update msg model =
 -- FORM DEFINITION
 
 
+sampleValuesJson : String
+sampleValuesJson =
+    """{
+  "recipient": {
+    "first-name": "José",
+    "last-name": "García"
+  },
+  "address": {
+    "street-name": "Avenida Revolución",
+    "address-number": "456",
+    "address-2": "Depto 3A",
+    "postal-code": "03100",
+    "state": "CDMX",
+    "country": "156"
+  },
+  "credit-card": {
+    "card-name": "José García",
+    "card-number": "4532123456789012",
+    "expire-month": "12/25",
+    "cvc": "123"
+  }
+}"""
+
+
+sampleValues : Decode.Value
+sampleValues =
+    case Decode.decodeString Decode.value sampleValuesJson of
+        Ok value ->
+            value
+
+        Err _ ->
+            Encode.null
+
+
 jsonForm : Field Never
 jsonForm =
-    Field.group []
+    Field.group
+        []
+        [ recipientFields
+        , addressFields
+        , creditCardFields
+        ]
+
+
+recipientFields : Field Never
+recipientFields =
+    Field.group
+        [ Field.label "Recipient"
+        , Field.name "recipient"
+        , Field.class "inline-fields"
+        ]
         [ Field.text
-            [ Field.label "Username"
+            [ Field.label "First Name"
+            , Field.name "first-name"
             , Field.required True
-            , Field.name "username"
             ]
-        , Field.datetime
-            [ Field.label "Preferred Meeting Time"
+        , Field.text
+            [ Field.label "Last Name"
+            , Field.name "last-name"
             , Field.required True
-            , Field.name "meeting-time"
             ]
-        , Field.int
-            [ Field.label "Tolerance for Spicy Food"
-            , Field.name "spicy-tolerance"
-            , Field.min (Value.int 1)
-            , Field.max (Value.int 10)
+        ]
+
+
+addressFields : Field Never
+addressFields =
+    Field.group
+        [ Field.name "address"
+        , Field.label "Address"
+        ]
+        [ Field.group
+            [ Field.class "inline-fields" ]
+            [ Field.text
+                [ Field.label "Street Name"
+                , Field.class "column column-75"
+                , Field.required True
+                , Field.name "street-name"
+                ]
+            , Field.text
+                [ Field.label "Street Number"
+                , Field.required True
+                , Field.name "address-number"
+                ]
+            ]
+        , Field.text
+            [ Field.label "Address 2"
+            , Field.name "address-2"
+            ]
+        , Field.group
+            [ Field.class "locality"
+            , Field.class "inline-fields"
+            ]
+            [ Field.text
+                [ Field.label "Postal code"
+                , Field.required True
+                , Field.name "postal-code"
+                ]
+            , Field.text
+                [ Field.label "State"
+                , Field.required True
+                , Field.name "state"
+                ]
+            , Field.select
+                [ Field.label "Country"
+                , Field.required True
+                , Field.name "country"
+                , Field.options
+                    (Countries.all
+                        |> List.map
+                            (\country ->
+                                ( country.name ++ " " ++ country.flag
+                                , Value.string country.code
+                                )
+                            )
+                    )
+                ]
+            ]
+        ]
+
+
+creditCardFields : Field Never
+creditCardFields =
+    Field.group
+        [ Field.label "Card Information"
+        , Field.name "credit-card"
+        ]
+        [ Field.text
+            [ Field.label "Name on Card"
+            , Field.required True
+            , Field.name "card-name"
+            ]
+        , Field.text
+            [ Field.label "Card Number"
+            , Field.required True
+            , Field.name "card-number"
+            ]
+        , Field.group
+            [ Field.class "card-params"
+            , Field.class "inline-fields"
+            ]
+            [ Field.text
+                [ Field.label "Expiration"
+                , Field.required True
+                , Field.name "expire-month"
+                , Field.placeholder "MM/YY"
+                ]
+            , Field.text
+                [ Field.label "CVC"
+                , Field.required True
+                , Field.name "cvc"
+                , Field.placeholder "CVC"
+                ]
             ]
         ]
 
@@ -140,17 +302,31 @@ view model =
         [ Html.form
             [ onSubmit FormSubmitted, novalidate True ]
             [ Field.toHtml FormChanged model.jsonForm
-            , Html.button
-                [ onClick FormSubmitted
-                , Attr.style "margin-top" "1rem"
+            , Html.div
+                [ Attr.style "margin-top" "1rem"
+                , Attr.style "display" "flex"
+                , Attr.style "gap" "1rem"
                 ]
-                [ Html.text
-                    (if model.submitted then
-                        "Submitting..."
+                [ Html.button
+                    [ onClick FormSubmitted ]
+                    [ Html.text
+                        (if model.submitted then
+                            "Submitting..."
 
-                     else
-                        "Submit to httpbin.org"
-                    )
+                         else
+                            "Submit to httpbin.org"
+                        )
+                    ]
+                , Html.button
+                    [ onClick FillForm
+                    , Attr.type_ "button"
+                    ]
+                    [ Html.text "Fill Form" ]
+                , Html.button
+                    [ onClick ClearForm
+                    , Attr.type_ "button"
+                    ]
+                    [ Html.text "Clear Form" ]
                 ]
             ]
         , case model.result of

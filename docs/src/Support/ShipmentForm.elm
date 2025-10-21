@@ -105,11 +105,6 @@ update msg model =
 
 shipmentForm : Field ShipmentFields
 shipmentForm =
-    shippingInformationFields
-
-
-shippingInformationFields : Field ShipmentFields
-shippingInformationFields =
     Field.group
         []
         [ Field.group
@@ -264,7 +259,7 @@ view model =
                         , Html.div
                             []
                             [ Html.text
-                                ("Parsed Shipment: " ++ shipment.shipping.firstName ++ " " ++ shipment.shipping.lastName)
+                                ("Parsed Shipment for: " ++ shipment.shipping.firstName ++ " " ++ shipment.shipping.lastName)
                             ]
                         ]
 
