@@ -120,26 +120,27 @@ suite =
         , describe "setValues"
             [ test "sets values from JSON with two-level structure" <|
                 \_ ->
-                    testForm
-                        |> Field.setValues sampleValues
-                        |> Result.andThen
-                            (\updatedForm ->
-                                updatedForm
-                                    |> Parse.parse
-                                        (Parse.map4
-                                            (\firstName lastName streetName postalCode ->
-                                                { firstName = firstName
-                                                , lastName = lastName
-                                                , streetName = streetName
-                                                , postalCode = postalCode
-                                                }
-                                            )
-                                            (Parse.field "FirstName" Parse.string)
-                                            (Parse.field "LastName" Parse.string)
-                                            (Parse.field "StreetName" Parse.string)
-                                            (Parse.field "PostalCode" Parse.string)
+                    (case Field.setValues sampleValues testForm of
+                        Ok updatedForm ->
+                            updatedForm
+                                |> Parse.parse
+                                    (Parse.map4
+                                        (\firstName lastName streetName postalCode ->
+                                            { firstName = firstName
+                                            , lastName = lastName
+                                            , streetName = streetName
+                                            , postalCode = postalCode
+                                            }
                                         )
-                            )
+                                        (Parse.field "FirstName" Parse.string)
+                                        (Parse.field "LastName" Parse.string)
+                                        (Parse.field "StreetName" Parse.string)
+                                        (Parse.field "PostalCode" Parse.string)
+                                    )
+                        
+                        Err _ ->
+                            Err []
+                    )
                         |> Expect.equal
                             (Ok
                                 { firstName = "José"
