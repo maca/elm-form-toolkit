@@ -5,12 +5,9 @@ import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
-import FormToolkit.Value as Value
 import Html
 import Html.Attributes as Attr
-import Json.Encode as Encode
 import Support.ShipmentForm as ShipmentForm
-import Support.ViewHelpers exposing (failureDiv, successDiv)
 import Task
 
 

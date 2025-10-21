@@ -3,14 +3,8 @@ module Chapters.ParsingToJson exposing (Model, Msg, chapter, init)
 import ElmBook
 import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
-import FormToolkit.Field as Field exposing (Field)
-import FormToolkit.Parse as Parse
-import FormToolkit.Value as Value
 import Html
-import Html.Attributes as Attr
-import Json.Encode as Encode
 import Support.JsonPostForm as JsonPostForm
-import Support.ViewHelpers exposing (failureDiv, successDiv)
 import Task
 
 
@@ -36,13 +30,13 @@ init =
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )
 update msg book =
     let
-        model =
-            book.parsingToJson
-
         ( newModel, cmd ) =
             case msg of
                 JsonPostFormChanged innerMsg ->
                     let
+                        model =
+                            book.parsingToJson
+
                         ( updatedJsonPostForm, innerCmd ) =
                             JsonPostForm.update innerMsg model.jsonPostForm
                     in
@@ -92,25 +86,3 @@ more unconstrained.
 
 
 """
-
-
-jsonForm : Field anything
-jsonForm =
-    Field.group []
-        [ Field.text
-            [ Field.label "Username"
-            , Field.required True
-            , Field.name "username"
-            ]
-        , Field.datetime
-            [ Field.label "Preferred Meeting Time"
-            , Field.required True
-            , Field.name "meeting-time"
-            ]
-        , Field.int
-            [ Field.label "Tolerance for Spicy Food"
-            , Field.name "spicy-tolerance"
-            , Field.min (Value.int 1)
-            , Field.max (Value.int 10)
-            ]
-        ]

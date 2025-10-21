@@ -10,7 +10,6 @@ import Html
 import Html.Attributes as Attr
 import Iso8601
 import Task
-import Time
 
 
 type alias Model =
@@ -34,13 +33,12 @@ init =
 
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )
 update msg book =
-    let
-        model =
-            book.parsingCookbook
-    in
     case msg of
         EventFieldsChanged innerMsg ->
             let
+                model =
+                    book.parsingCookbook
+
                 ( updatedField, result ) =
                     Parse.parseUpdate eventParser innerMsg book.parsingCookbook.eventFields
             in
@@ -209,7 +207,6 @@ fields |>
 type EventFields
     = EventName
     | EventDate
-    | MaxAttendees
     | NotifyParticipants
     | Participants
     | ParticipantEmail

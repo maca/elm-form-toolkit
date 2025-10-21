@@ -11,7 +11,6 @@ import Html.Events exposing (onClick, onSubmit)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Task
 
 
 
@@ -92,7 +91,7 @@ update msg model =
                         }
                     )
 
-                Err err ->
+                Err _ ->
                     ( model, Cmd.none )
 
         FillForm ->
@@ -110,7 +109,7 @@ update msg model =
             )
 
         ClearForm ->
-            ( { model 
+            ( { model
                 | jsonForm = jsonForm
                 , result = Nothing
               }

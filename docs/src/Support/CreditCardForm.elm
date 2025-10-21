@@ -1,6 +1,5 @@
 module Support.CreditCardForm exposing (Model, Msg, init, update, view)
 
-import Dict
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
