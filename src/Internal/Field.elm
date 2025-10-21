@@ -5,7 +5,7 @@ module Internal.Field exposing
     , updateAttributes
     , identifier, inputType, max, min, step, name, value
     , label, hint, placeholder, options
-    , isGroup, isRequired, isAutocompleteable
+    , isGroup, isRepeatable, isRequired, isAutocompleteable
     , errors, setErrors
     , inputIdString, inputStringToValue
     , error, pattern
@@ -20,7 +20,7 @@ module Internal.Field exposing
 @docs updateAttributes
 @docs identifier, inputType, max, min, step, name, value
 @docs label, hint, placeholder, options
-@docs isGroup, isRequired, isAutocompleteable
+@docs isGroup, isRepeatable, isRequired, isAutocompleteable
 @docs errors, setErrors
 @docs inputIdString, inputStringToValue
 @docs error, pattern
@@ -331,6 +331,16 @@ isGroup input =
         Group ->
             True
 
+        Repeatable _ ->
+            True
+
+        _ ->
+            False
+
+
+isRepeatable : Field id err -> Bool
+isRepeatable input =
+    case Tree.value input |> .inputType of
         Repeatable _ ->
             True
 

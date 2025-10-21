@@ -1183,23 +1183,51 @@ dasherize =
 namesToPaths : Field id -> Dict String (List Int)
 namesToPaths (Field field) =
     Tree.foldWithPath
-        (\path node acc ->
+        (\path node ( keys, repeatableNamePath ) ->
             case Internal.Field.name node of
                 Just n ->
-                    case
-                        List.filter (\( _, p ) -> Path.ancestor [ p, path ] == p) acc
-                    of
-                        [] ->
-                            ( n, path ) :: acc
+                    let
+                        namePath =
+                            case
+                                List.filter
+                                    (\( _, p ) ->
+                                        Path.ancestor [ p, path ] == p
+                                    )
+                                    keys
+                            of
+                                [] ->
+                                    [ n ]
 
-                        ( mn, _ ) :: _ ->
-                            ( mn ++ "." ++ n, path ) :: acc
+                                ( mn, _ ) :: _ ->
+                                    [ mn
+                                    , if mn == repeatableNamePath then
+                                        List.reverse path
+                                            |> List.head
+                                            |> Maybe.map
+                                                (String.fromInt >> List.singleton)
+                                            |> Maybe.withDefault []
+
+                                      else
+                                        []
+                                    , [ n ]
+                                    ]
+                                        |> List.concat
+                    in
+                    ( ( namePath, path ) :: keys
+                    , if Internal.Field.isRepeatable node then
+                        namePath
+
+                      else
+                        repeatableNamePath
+                    )
 
                 Nothing ->
-                    acc
+                    ( keys, repeatableNamePath )
         )
-        []
+        ( [], [] )
         field
+        |> Tuple.first
+        |> List.map (Tuple.mapFirst (String.join "."))
         |> Dict.fromList
 
 
@@ -1270,6 +1298,10 @@ recursiveStringListDecoder =
             , Decode.string
             ]
             |> Decode.map (List.singleton >> List.singleton)
+        , Decode.list
+            (Decode.lazy (\() -> recursiveStringListDecoder))
+            |> Decode.map List.concat
+            |> Decode.map (List.indexedMap (\i -> (::) (String.fromInt i)))
         , Decode.dict (Decode.lazy (\() -> recursiveStringListDecoder))
             |> Decode.map
                 (Dict.toList
