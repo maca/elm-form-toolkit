@@ -223,7 +223,8 @@ list (Parser parser) =
     Field.text [ Field.value (Value.string "success!") ]
         |> parse (oneOf [ fail "not really ;)", string ])
         --> Ok "success!"
-        --
+
+
     Field.text [ Field.value (Value.string "success!") ]
         |> parse (oneOf [ string, fail "not really ;)" ])
         --> Ok "success!"

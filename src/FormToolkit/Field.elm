@@ -847,22 +847,18 @@ noattr =
 The input will be formatted automatically, and on blur validated.
 Parsing will fail if input doesn't match the pattern.
 
-Mask tokens:
-
   - `{d}` - matches digits
-
   - `{D}` - matches non-digits
-
   - `{w}` - matches word characters (alphanumeric + underscore)
-
   - `{W}` - matches non-word characters
-
   - Any other character is treated as a literal
 
-    text
+```
+text
     [ label "Phone Number"
     , pattern "({d}{d}{d}) {d}{d}{d}-{d}{d}{d}{d}"
     ]
+```
 
 -}
 pattern : String -> Attribute id val
@@ -1231,7 +1227,28 @@ namesToPaths (Field field) =
 
 
 {-| Sets field values from a JSON object. The JSON structure should match the
-form's nested field structure with names corresponding to field paths.
+form's nested field structure with `name`, groups with no name will not be
+structurally considered.
+
+    import Json.Decode as Decode
+    import FormToolkit.Parse as Parse
+
+    jsonString =
+        """{"user":{"name":"Alice","email":"alice@example.com"}}"""
+
+    form =
+        group []
+            [ group [ name "user" ]
+                [ text [ name "name" ]
+                , text [ name "email", identifier "email" ]
+                ]
+            ]
+
+    Decode.decodeString Decode.value jsonString
+        |> Result.andThen (\jsonValue -> setValues jsonValue form)
+        |> Result.andThen (Parse.parse (Parse.field "email" Parse.string))
+    -- Ok "alice@example.com"
+
 -}
 setValues : Encode.Value -> Field id -> Result String (Field id)
 setValues jsonValue (Field field) =
@@ -1307,3 +1324,7 @@ recursiveStringListDecoder =
                     >> List.concatMap (\( h, tails ) -> List.map ((::) h) tails)
                 )
         ]
+
+
+jsonString =
+    """{"user":{"name":"Alice","email":"alice@example.com"}}"""
