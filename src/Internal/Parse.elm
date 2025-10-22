@@ -1,7 +1,7 @@
 module Internal.Parse exposing
     ( Parser
     , ParserResult, failure, success
-    , field, list, json, maybe, formattedString
+    , field, list, json, maybe, formattedString, oneOf
     , map, map2, andThen, andUpdate
     , parse, validate
     )
@@ -10,7 +10,7 @@ module Internal.Parse exposing
 
 @docs Parser
 @docs ParserResult, failure, success
-@docs field, list, json, maybe, formattedString
+@docs field, list, json, maybe, formattedString, oneOf
 @docs map, map2, andThen, andUpdate
 @docs parse, validate
 
@@ -130,6 +130,32 @@ listHelp parser =
             ( [], Ok [] )
 
 
+oneOf : List (Parser id a) -> Parser id a
+oneOf parsers =
+    \input ->
+        oneOfHelp parsers input []
+
+
+oneOfHelp : List (Parser id a) -> Field id -> List (Error id) -> ParserResult id a
+oneOfHelp parsers input accErrors =
+    case parsers of
+        [] ->
+            case accErrors of
+                [] ->
+                    failure input (ParseError (Internal.Field.identifier input))
+                
+                errors ->
+                    failure input (OneOf (Internal.Field.identifier input) (List.reverse errors))
+
+        parser :: rest ->
+            case parser input of
+                Success input2 a ->
+                    Success input2 a
+
+                Failure _ newErrors ->
+                    oneOfHelp rest input (newErrors ++ accErrors)
+
+
 json : Parser id Json.Decode.Value
 json =
     map2 (always identity)
@@ -162,9 +188,7 @@ jsonEncodeHelp input acc =
 
                 Nothing ->
                     Err
-                        (RepeatableHasNoName
-                            (Internal.Field.identifier input)
-                        )
+                        (HasNoName (Internal.Field.identifier input))
     in
     case Internal.Field.inputType input of
         Internal.Field.Group ->

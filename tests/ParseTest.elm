@@ -131,6 +131,23 @@ suite =
                             )
                         |> Expect.equal
                             (Ok [ ( "A string", 1 ) ])
+            , test "oneOf succeeds with first matching parser" <|
+                \_ ->
+                    Parse.parse (Parse.oneOf [ Parse.string, Parse.int |> Parse.map String.fromInt ]) stringInput
+                        |> Expect.equal (Ok "A string")
+            , test "oneOf succeeds with second parser when first fails" <|
+                \_ ->
+                    Parse.parse (Parse.oneOf [ Parse.int |> Parse.map String.fromInt, Parse.string ]) stringInput
+                        |> Expect.equal (Ok "A string")
+            , test "oneOf fails when all parsers fail" <|
+                \_ ->
+                    Parse.parse (Parse.oneOf [ Parse.int, Parse.fail "Custom error message" ]) stringInput
+                        |> Expect.equal (Err [ OneOf (Just StringField) [ NotNumber (Just StringField), CustomError (Just StringField) "Custom error message" ] ])
+            , test "oneOf with empty list fails" <|
+                \_ ->
+                    Parse.parse (Parse.oneOf []) stringInput
+                        |> Result.toMaybe
+                        |> Expect.equal Nothing
             ]
         , describe "validates"
             [ test "presence" <|

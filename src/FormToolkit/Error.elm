@@ -12,7 +12,8 @@ import FormToolkit.Value as Value
 {-| Represents an error that occurred during decoding or validation.
 -}
 type Error id
-    = ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
+    = IsBlank (Maybe id)
+    | ValueTooLarge (Maybe id) { value : Value.Value, max : Value.Value }
     | ValueTooSmall (Maybe id) { value : Value.Value, min : Value.Value }
     | ValueNotInRange
         (Maybe id)
@@ -20,18 +21,17 @@ type Error id
         , min : Value.Value
         , max : Value.Value
         }
-    | IsBlank (Maybe id)
-    | CustomError (Maybe id) String
-    | ListError (Maybe id) { index : Int, error : Error id }
-    | RepeatableHasNoName (Maybe id)
-    | IsGroupNotInput (Maybe id)
-    | NoOptionsProvided (Maybe id)
-    | ParseError (Maybe id)
-    | PatternError (Maybe id)
-    | EmailInvalid (Maybe id)
-    | InputNotFound id
     | NotNumber (Maybe id)
     | NotBool (Maybe id)
+    | HasNoName (Maybe id)
+    | PatternError (Maybe id)
+    | EmailInvalid (Maybe id)
+    | IsGroupNotInput (Maybe id)
+    | NoOptionsProvided (Maybe id)
+    | InputNotFound id
+    | OneOf (Maybe id) (List (Error id))
+    | ParseError (Maybe id)
+    | CustomError (Maybe id) String
 
 
 {-| -}
@@ -42,6 +42,9 @@ toEnglish error =
             Value.toString >> Maybe.withDefault ""
     in
     case error of
+        IsBlank _ ->
+            "Should be provided"
+
         ValueTooLarge _ data ->
             "Should be lesser than " ++ toString data.max
 
@@ -51,14 +54,14 @@ toEnglish error =
         ValueNotInRange _ data ->
             "Should be between " ++ toString data.min ++ " and " ++ toString data.max
 
-        IsBlank _ ->
-            "Should be provided"
+        NotNumber _ ->
+            "Must be a number"
 
-        IsGroupNotInput _ ->
-            "A group cannot have a value but the decoder is attempting to read the value"
+        NotBool _ ->
+            "Must be true or false"
 
-        NoOptionsProvided _ ->
-            "No options have been provided"
+        HasNoName _ ->
+            "Couldn't parse"
 
         PatternError _ ->
             "Doesn't match the required pattern"
@@ -66,20 +69,23 @@ toEnglish error =
         EmailInvalid _ ->
             "Please enter a valid email address"
 
-        NotNumber _ ->
-            "Must be a number"
+        IsGroupNotInput _ ->
+            "A group cannot have a value but the decoder is attempting to read the value"
 
-        NotBool _ ->
-            "Must be true or false"
-
-        CustomError _ message ->
-            message
+        NoOptionsProvided _ ->
+            "No options have been provided"
 
         InputNotFound _ ->
             "Couldn't find an input with the given identifier"
 
-        _ ->
+        OneOf _ errors ->
+            "All of the following failed: " ++ String.join ", " (List.map toEnglish errors)
+
+        ParseError _ ->
             "Couldn't parse"
+
+        CustomError _ message ->
+            message
 
 
 {-| Obtain the identifier for the field corresponding to the error, if the
@@ -88,6 +94,9 @@ field has identifier.
 toFieldId : Error id -> Maybe id
 toFieldId error =
     case error of
+        IsBlank maybeId ->
+            maybeId
+
         ValueTooLarge maybeId _ ->
             maybeId
 
@@ -97,22 +106,13 @@ toFieldId error =
         ValueNotInRange maybeId _ ->
             maybeId
 
-        IsGroupNotInput maybeId ->
+        NotNumber maybeId ->
             maybeId
 
-        IsBlank maybeId ->
+        NotBool maybeId ->
             maybeId
 
-        CustomError maybeId _ ->
-            maybeId
-
-        ListError maybeId _ ->
-            maybeId
-
-        RepeatableHasNoName maybeId ->
-            maybeId
-
-        NoOptionsProvided maybeId ->
+        HasNoName maybeId ->
             maybeId
 
         PatternError maybeId ->
@@ -121,14 +121,20 @@ toFieldId error =
         EmailInvalid maybeId ->
             maybeId
 
-        NotNumber maybeId ->
+        IsGroupNotInput maybeId ->
             maybeId
 
-        NotBool maybeId ->
+        NoOptionsProvided maybeId ->
+            maybeId
+
+        InputNotFound id ->
+            Just id
+
+        OneOf maybeId _ ->
             maybeId
 
         ParseError maybeId ->
             maybeId
 
-        InputNotFound id ->
-            Just id
+        CustomError maybeId _ ->
+            maybeId

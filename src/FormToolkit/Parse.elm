@@ -1,7 +1,7 @@
 module FormToolkit.Parse exposing
     ( Parser, parse, parseUpdate
     , field
-    , string, int, float, bool, posix, maybe, list
+    , string, int, float, bool, posix, maybe, list, oneOf
     , formattedString
     , value, json
     , succeed, fail
@@ -19,7 +19,7 @@ know `Json.Decode` you know how to use this module ;)
 # Traversing and parsing
 
 @docs field
-@docs string, int, float, bool, posix, maybe, list
+@docs string, int, float, bool, posix, maybe, list, oneOf
 @docs formattedString
 @docs value, json
 @docs succeed, fail
@@ -213,6 +213,25 @@ maybe (Parser parser) =
 list : Parser id a -> Parser id (List a)
 list (Parser parser) =
     Parser (Internal.Parse.list parser)
+
+
+{-| Tries a list of parsers in order until one succeeds.
+
+    import FormToolkit.Field as Field
+    import FormToolkit.Value as Value
+
+    Field.text [ Field.value (Value.string "success!") ]
+        |> parse (oneOf [ fail "not really ;)", string ])
+        --> Ok "success!"
+        --
+    Field.text [ Field.value (Value.string "success!") ]
+        |> parse (oneOf [ string, fail "not really ;)" ])
+        --> Ok "success!"
+
+-}
+oneOf : List (Parser id a) -> Parser id a
+oneOf parsers =
+    Parser (Internal.Parse.oneOf (List.map (\(Parser p) -> p) parsers))
 
 
 {-| Returns the raw value of the input without any decoding.

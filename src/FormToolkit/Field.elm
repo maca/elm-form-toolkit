@@ -6,7 +6,8 @@ module FormToolkit.Field exposing
     , select, radio, checkbox
     , group, repeatable
     , Attribute
-    , name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
+    , name, identifier, value, required, label, placeholder, hint
+    , selectionStart, selectionEnd
     , options, stringOptions, min, max, step, autogrow
     , class, classList
     , disabled, visible, noattr, pattern
@@ -41,7 +42,8 @@ their attributes, update, and render them.
 # Attributes
 
 @docs Attribute
-@docs name, identifier, value, required, label, placeholder, hint, selectionStart, selectionEnd
+@docs name, identifier, value, required, label, placeholder, hint
+@docs selectionStart, selectionEnd
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
 @docs disabled, visible, noattr, pattern
@@ -1144,14 +1146,8 @@ mapError transformId error =
         CustomError id err ->
             CustomError (Maybe.map transformId id) err
 
-        ListError id params ->
-            ListError (Maybe.map transformId id)
-                { index = params.index
-                , error = mapError transformId params.error
-                }
-
-        RepeatableHasNoName id ->
-            RepeatableHasNoName (Maybe.map transformId id)
+        HasNoName id ->
+            HasNoName (Maybe.map transformId id)
 
         NoOptionsProvided id ->
             NoOptionsProvided (Maybe.map transformId id)
@@ -1173,6 +1169,9 @@ mapError transformId error =
 
         InputNotFound id ->
             InputNotFound (transformId id)
+
+        OneOf id errorList ->
+            OneOf (Maybe.map transformId id) (List.map (mapError transformId) errorList)
 
 
 dasherize : String -> String
