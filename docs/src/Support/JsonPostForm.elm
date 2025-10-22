@@ -97,7 +97,7 @@ update msg model =
         FillForm ->
             ( { model
                 | jsonForm =
-                    case Field.setValues sampleValues model.jsonForm of
+                    case Field.updateValuesFromJson sampleValues model.jsonForm of
                         Ok fields ->
                             fields
 

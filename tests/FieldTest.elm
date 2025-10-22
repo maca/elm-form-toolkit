@@ -20,7 +20,7 @@ suite =
         [ updateAttributesTests
         , repeatableTests
         , datetimeFieldTests
-        , setValuesTests
+        , updateValuesFromJsonTests
         ]
 
 
@@ -139,12 +139,12 @@ datetimeFieldTests =
         ]
 
 
-setValuesTests : Test
-setValuesTests =
-    describe "setValues"
+updateValuesFromJsonTests : Test
+updateValuesFromJsonTests =
+    describe "updateValuesFromJson"
         [ test "sets values from JSON with two-level structure" <|
             \_ ->
-                case Field.setValues sampleValues testForm of
+                case Field.updateValuesFromJson sampleValues testForm of
                     Ok updatedForm ->
                         updatedForm
                             |> Field.toHtml (always never)
@@ -161,10 +161,10 @@ setValuesTests =
                                 ]
 
                     Err _ ->
-                        Expect.fail "setValues should succeed"
+                        Expect.fail "updateValuesFromJson should succeed"
         , test "sets values from JSON for form with repeatable hobby fields" <|
                 \_ ->
-                    case Field.setValues hobbiesFormValues hobbiesForm of
+                    case Field.updateValuesFromJson hobbiesFormValues hobbiesForm of
                         Ok updatedForm ->
                             updatedForm
                                 |> Field.toHtml (always never)
@@ -184,7 +184,7 @@ setValuesTests =
                                     ]
 
                         Err _ ->
-                            Expect.fail "setValues should succeed for repeatable fields"
+                            Expect.fail "updateValuesFromJson should succeed for repeatable fields"
         ]
 
 
