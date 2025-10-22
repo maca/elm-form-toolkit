@@ -1231,26 +1231,32 @@ form's nested field structure with `name`, groups with no name will not be
 structurally considered.
 
     import Json.Decode as Decode
+    import Json.Encode as Encode
     import FormToolkit.Parse as Parse
 
-    jsonString =
-        """{"user":{"name":"Alice","email":"alice@example.com"}}"""
 
-    form =
+    json : Encode.Value
+    json =
+        """{"user":{"name":"Alice","email":"alice@example.com"}}"""
+            |> Decode.decodeString Decode.value
+            |> Result.withDefault Encode.null
+
+
+    fields : Field String
+    fields =
         group []
             [ group [ name "user" ]
                 [ text [ name "name" ]
-                , text [ name "email", identifier "email" ]
+                , text [ name "email", identifier "email-field" ]
                 ]
             ]
 
-    Decode.decodeString Decode.value jsonString
-        |> Result.andThen (\jsonValue -> setValues jsonValue form)
-        |> Result.andThen (Parse.parse (Parse.field "email" Parse.string))
-    -- Ok "alice@example.com"
+    setValues json fields
+        |> Result.andThen (Parse.parse (Parse.field "email-field" Parse.string))
+    --> Ok "alice@example.com"
 
 -}
-setValues : Encode.Value -> Field id -> Result String (Field id)
+setValues : Encode.Value -> Field id -> Result (List (Error id)) (Field id)
 setValues jsonValue (Field field) =
     let
         namePaths =
@@ -1271,7 +1277,10 @@ setValues jsonValue (Field field) =
                                         )
 
                                 Nothing ->
-                                    Err ("No path found: " ++ key)
+                                    Err
+                                        [ CustomError Nothing
+                                            ("No name path: " ++ key ++ " was found")
+                                        ]
                         )
                 )
                 (Ok field)
@@ -1279,7 +1288,7 @@ setValues jsonValue (Field field) =
         |> Result.map Field
 
 
-valueToPathLists : Encode.Value -> Result String (List ( String, String ))
+valueToPathLists : Encode.Value -> Result (List (Error id)) (List ( String, String ))
 valueToPathLists jsonValue =
     Decode.decodeValue recursiveStringListDecoder jsonValue
         |> Result.map
@@ -1293,7 +1302,7 @@ valueToPathLists jsonValue =
                             Nothing
                 )
             )
-        |> Result.mapError Decode.errorToString
+        |> Result.mapError (Decode.errorToString >> CustomError Nothing >> List.singleton)
 
 
 recursiveStringListDecoder : Decode.Decoder (List (List String))
@@ -1324,7 +1333,3 @@ recursiveStringListDecoder =
                     >> List.concatMap (\( h, tails ) -> List.map ((::) h) tails)
                 )
         ]
-
-
-jsonString =
-    """{"user":{"name":"Alice","email":"alice@example.com"}}"""
