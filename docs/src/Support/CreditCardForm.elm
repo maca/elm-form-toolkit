@@ -159,21 +159,24 @@ creditCardFields =
             , Field.identifier CardName
             , Field.name "billing-card-name"
             ]
-        , Field.text
-            [ Field.label "Card Number"
-            , Field.required True
-            , Field.identifier CardNumber
-            , Field.name "billing-card-number"
-            ]
         , Field.group
-            [ Field.class "card-params"
+            [ Field.class "inline-fields"
             ]
             [ Field.text
+                [ Field.label "Card Number"
+                , Field.required True
+                , Field.identifier CardNumber
+                , Field.name "billing-card-number"
+                , Field.class "column-50"
+                , Field.pattern "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
+                ]
+            , Field.text
                 [ Field.label "Expiration"
                 , Field.required True
                 , Field.identifier Expiration
                 , Field.name "billing-expire-month"
                 , Field.placeholder "MM/YY"
+                , Field.pattern "{d}{d}/{d}{d}"
                 ]
             , Field.text
                 [ Field.label "CVC"
@@ -181,6 +184,7 @@ creditCardFields =
                 , Field.identifier Cvc
                 , Field.name "billing-cvc"
                 , Field.placeholder "CVC"
+                , Field.pattern "{d}{d}{d}"
                 ]
             ]
         ]
@@ -193,16 +197,11 @@ cardInformationParser now =
             CardInformation name number cvv month year
         )
         |> Parse.andMap (Parse.field CardName Parse.string)
-        |> Parse.andMap
-            (Parse.field CardNumber
-                (Parse.formattedString
-                    "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
-                )
-            )
+        |> Parse.andMap (Parse.field CardNumber Parse.string)
         |> Parse.andMap (Parse.field Cvc Parse.string)
         |> Parse.andMap
             (Parse.field Expiration
-                (Parse.formattedString "{d}{d}/{d}{d}"
+                (Parse.string
                     |> Parse.andThen
                         (\exp ->
                             case

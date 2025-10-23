@@ -902,15 +902,15 @@ repeatableFieldWithDefaults =
           -- repeatableMax number will be considered, the
           -- rest will be dropped.
           Field.updateWithId Name
-            (Field.updateValue
+            (Field.value
                 (Value.string "Brian Eno")
             )
         , Field.updateWithId Name
-            (Field.updateValue
+            (Field.value
                 (Value.string "Faust")
             )
         , Field.updateWithId Name
-            (Field.updateValue
+            (Field.value
                 (Value.string "Neu!")
             )
         ]
@@ -1150,18 +1150,9 @@ repeatableFieldWithDefaults =
                 ]
             ]
         )
-        [ Field.updateWithId Name
-            (Field.updateValue
-                (Value.string "Brian Eno")
-            )
-        , Field.updateWithId Name
-            (Field.updateValue
-                (Value.string "Faust")
-            )
-        , Field.updateWithId Name
-            (Field.updateValue
-                (Value.string "Neu!")
-            )
+        [ Field.updateWithId Name (Field.stringValue "Brian Eno")
+        , Field.updateWithId Name (Field.stringValue "Faust")
+        , Field.updateWithId Name (Field.stringValue "Neu!")
         ]
 
 

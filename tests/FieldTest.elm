@@ -46,60 +46,35 @@ updateAttributesTests =
             \_ ->
                 input
                     |> Field.updateWithId "NestedField"
-                        (Field.updateAttribute
-                            (Field.value (Value.string "Updated value"))
-                        )
-                    |> Result.andThen
-                        (\field ->
-                            Parse.parse
-                                (Parse.map2 Tuple.pair
-                                    (Parse.field "NestedField" Parse.string)
-                                    (Parse.field "NestedField2" Parse.string)
-                                )
-                                field
+                        (Field.value (Value.string "Updated value"))
+                    |> Parse.parse
+                        (Parse.map2 Tuple.pair
+                            (Parse.field "NestedField" Parse.string)
+                            (Parse.field "NestedField2" Parse.string)
                         )
                     |> Expect.equal (Ok ( "Updated value", "Value2" ))
         , test "updating multiple attributes succeeds" <|
             \_ ->
                 input
                     |> Field.updateWithId "NestedField"
-                        (Field.updateAttributes
-                            [ Field.value (Value.string "Updated value") ]
-                        )
-                    |> Result.andThen
-                        (\field ->
-                            Parse.parse
-                                (Parse.map2 Tuple.pair
-                                    (Parse.field "NestedField" Parse.string)
-                                    (Parse.field "NestedField2" Parse.string)
-                                )
-                                field
+                        (Field.value (Value.string "Updated value"))
+                    |> Parse.parse
+                        (Parse.map2 Tuple.pair
+                            (Parse.field "NestedField" Parse.string)
+                            (Parse.field "NestedField2" Parse.string)
                         )
                     |> Expect.equal (Ok ( "Updated value", "Value2" ))
-        , test "it preserves identifier" <|
-            \_ ->
-                input
-                    |> Field.updateWithId "NestedField"
-                        (Field.updateAttribute (Field.identifier "OtherField"))
-                    |> Result.andThen
-                        (\field ->
-                            Parse.parse
-                                (Parse.map2 Tuple.pair
-                                    (Parse.field "NestedField" Parse.string)
-                                    (Parse.field "NestedField2" Parse.string)
-                                )
-                                field
-                        )
-                    |> Expect.equal (Ok ( "Value", "Value2" ))
-        , test "fails when no matching id" <|
+        , test "returns unchanged field when no matching id" <|
             \_ ->
                 input
                     |> Field.updateWithId "NotExisting"
-                        (Field.updateAttribute
-                            (Field.value (Value.string "Updated value"))
+                        (Field.value (Value.string "Updated value"))
+                    |> Parse.parse
+                        (Parse.map2 Tuple.pair
+                            (Parse.field "NestedField" Parse.string)
+                            (Parse.field "NestedField2" Parse.string)
                         )
-                    |> Result.toMaybe
-                    |> Expect.equal Nothing
+                    |> Expect.equal (Ok ( "Value", "Value2" ))
         ]
 
 
@@ -113,9 +88,9 @@ repeatableTests =
                     , Field.repeatableMax 5
                     ]
                     (Field.text [ Field.identifier "field" ])
-                    [ \field -> Ok (Field.updateValue (Value.string "default1") field)
-                    , \field -> Ok (Field.updateValue (Value.string "default2") field)
-                    , \field -> Ok (Field.updateValue (Value.string "default3") field)
+                    [ Field.updateAttribute (Field.stringValue "default1")
+                    , Field.updateAttribute (Field.stringValue "default2")
+                    , Field.updateAttribute (Field.stringValue "default3")
                     ]
                     |> Parse.parse (Parse.list Parse.string)
                     |> Expect.equal (Ok [ "default1", "default2", "default3" ])
@@ -163,28 +138,28 @@ updateValuesFromJsonTests =
                     Err _ ->
                         Expect.fail "updateValuesFromJson should succeed"
         , test "sets values from JSON for form with repeatable hobby fields" <|
-                \_ ->
-                    case Field.updateValuesFromJson hobbiesFormValues hobbiesForm of
-                        Ok updatedForm ->
-                            updatedForm
-                                |> Field.toHtml (always never)
-                                |> Query.fromHtml
-                                |> Expect.all
-                                    [ Query.find [ tag "input", attribute (Attrs.name "name") ]
-                                        >> Query.has [ attribute (Attrs.value "Alice") ]
-                                    , Query.findAll [ tag "input", attribute (Attrs.name "hobby") ]
-                                        >> Query.index 0
-                                        >> Query.has [ attribute (Attrs.value "reading") ]
-                                    , Query.findAll [ tag "input", attribute (Attrs.name "hobby") ]
-                                        >> Query.index 1
-                                        >> Query.has [ attribute (Attrs.value "cycling") ]
-                                    , Query.findAll [ tag "input", attribute (Attrs.name "hobby") ]
-                                        >> Query.index 2
-                                        >> Query.has [ attribute (Attrs.value "cooking") ]
-                                    ]
+            \_ ->
+                case Field.updateValuesFromJson hobbiesFormValues hobbiesForm of
+                    Ok updatedForm ->
+                        updatedForm
+                            |> Field.toHtml (always never)
+                            |> Query.fromHtml
+                            |> Expect.all
+                                [ Query.find [ tag "input", attribute (Attrs.name "name") ]
+                                    >> Query.has [ attribute (Attrs.value "Alice") ]
+                                , Query.findAll [ tag "input", attribute (Attrs.name "hobby") ]
+                                    >> Query.index 0
+                                    >> Query.has [ attribute (Attrs.value "reading") ]
+                                , Query.findAll [ tag "input", attribute (Attrs.name "hobby") ]
+                                    >> Query.index 1
+                                    >> Query.has [ attribute (Attrs.value "cycling") ]
+                                , Query.findAll [ tag "input", attribute (Attrs.name "hobby") ]
+                                    >> Query.index 2
+                                    >> Query.has [ attribute (Attrs.value "cooking") ]
+                                ]
 
-                        Err _ ->
-                            Expect.fail "updateValuesFromJson should succeed for repeatable fields"
+                    Err _ ->
+                        Expect.fail "updateValuesFromJson should succeed for repeatable fields"
         ]
 
 
@@ -252,9 +227,9 @@ hobbiesForm =
             , Field.identifier "UserHobbies"
             ]
             (Field.text [ Field.name "hobby" ])
-            [ \field -> Ok (Field.updateValue Value.blank field)
-            , \field -> Ok (Field.updateValue Value.blank field)
-            , \field -> Ok (Field.updateValue Value.blank field)
+            [ Field.updateAttribute (Field.stringValue "")
+            , Field.updateAttribute (Field.stringValue "")
+            , Field.updateAttribute (Field.stringValue "")
             ]
         ]
 

@@ -6,18 +6,15 @@ module FormToolkit.Field exposing
     , select, radio, checkbox
     , group, repeatable
     , Attribute
-    , name, identifier, value, required, label, placeholder, hint
+    , name, identifier, value, stringValue, required, label, placeholder, hint
     , selectionStart, selectionEnd
     , options, stringOptions, min, max, step, autogrow
     , class, classList
-    , disabled, visible, noattr, pattern
+    , disabled, hidden, noattr, pattern
     , copies, repeatableMin, repeatableMax
-    , updateAttribute, updateAttributes
-    , updateWithId, updateVisibleWithId, updateValueWithId
+    , updateAttribute, updateAttributes, updateWithId
     , updateValuesFromJson
-    , updateValue, updateStringValue, updateVisible
     , InputType(..), Properties, toProperties
-    , errors
     , map
     )
 
@@ -42,11 +39,11 @@ their attributes, update, and render them.
 # Attributes
 
 @docs Attribute
-@docs name, identifier, value, required, label, placeholder, hint
+@docs name, identifier, value, stringValue, required, label, placeholder, hint
 @docs selectionStart, selectionEnd
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
-@docs disabled, visible, noattr, pattern
+@docs disabled, hidden, noattr, pattern
 
 
 # Groups
@@ -56,10 +53,8 @@ their attributes, update, and render them.
 
 # Update attributes
 
-@docs updateAttribute, updateAttributes
-@docs updateWithId, updateVisibleWithId, updateValueWithId
+@docs updateAttribute, updateAttributes, updateWithId
 @docs updateValuesFromJson
-@docs updateValue, updateStringValue, updateVisible
 
 
 # Properties
@@ -67,11 +62,6 @@ their attributes, update, and render them.
 Read a Field properties
 
 @docs InputType, Properties, toProperties
-
-
-# Error
-
-@docs errors
 
 
 # Mapping and composition
@@ -93,6 +83,7 @@ import Internal.Field
         )
 import Internal.Parse
 import Internal.Utils
+import Internal.Value
 import Internal.View
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -388,28 +379,29 @@ Relevant attributes are [repeatableMin](#repeatableMin),
     emailsFields : Field id
     emailsFields =
         repeatable
-            [ name "emails"
-            , repeatableMin 1
+            [ repeatableMin 1
             , repeatableMax 5
             , copies
-                { addFieldsButton = "Add email address"
+                { addFieldsButton = "Add name"
                 , removeFieldsButton = "Remove"
                 }
             ]
-            (text [ placeholder "Enter email address" ])
-            [ Ok << updateValue (Value.string "email@example.com")
-            , Ok << updateValue (Value.string "other-email@example.com")
+            (text [ placeholder "Musician name" ])
+            [ updateAttribute (stringValue "Brian Eno")
+            , updateAttribute (stringValue "Faust")
+            , updateAttribute (stringValue "Neu!")
             ]
+
 
     emailsFields
         |> Parse.parse (Parse.list Parse.string)
-    --> Ok [ "email@example.com", "other-email@example.com" ]
+    --> Ok [ "Brian Eno", "Faust", "Neu!" ]
 
 -}
 repeatable :
     List (Attribute id val)
     -> Field id
-    -> List (Field id -> Result (List (Error id)) (Field id))
+    -> List (Field id -> Field id)
     -> Field id
 repeatable attributes (Field template) updates =
     let
@@ -422,15 +414,9 @@ repeatable attributes (Field template) updates =
                 [ updates
                     |> List.map
                         (\fn ->
-                            case
-                                fn (Field template)
-                                    |> Result.map (\(Field fields) -> fields)
-                            of
-                                Ok field ->
-                                    field
-
-                                Err err ->
-                                    Internal.Field.error err
+                            case fn (Field template) of
+                                Field f ->
+                                    f
                         )
                 , List.repeat
                     (params.repeatableMin - List.length updates)
@@ -555,6 +541,14 @@ identifier id =
 value : Value.Value -> Attribute id val
 value (Value.Value inputValue) =
     Attribute (\field -> { field | value = inputValue })
+
+
+{-| TODO
+-}
+stringValue : String -> Attribute id val
+stringValue str =
+    Attribute
+        (\field -> { field | value = Internal.Value.Text str })
 
 
 {-| Marks a field as required, parsing and validation will fail and the missing
@@ -740,7 +734,7 @@ type alias Properties id =
     , hintText : Maybe String
     , idString : String
     , isRequired : Bool
-    , isVisible : Bool
+    , isHidden : Bool
     }
 
 
@@ -766,7 +760,7 @@ toProperties (Field field) =
     , selectionStart = unwrappedField.selectionStart
     , selectionEnd = unwrappedField.selectionEnd
     , isRequired = unwrappedField.isRequired
-    , isVisible = unwrappedField.visible
+    , isHidden = unwrappedField.hidden
     }
 
 
@@ -829,11 +823,11 @@ disabled isDisabled =
     Attribute (\field -> { field | disabled = isDisabled })
 
 
-{-| Sets the visibility of a field. When set to False, the field will not be rendered.
+{-| Sets whether a field is hidden. When set to True, the field will not be rendered.
 -}
-visible : Bool -> Attribute id val
-visible isVisible =
-    Attribute (\field -> { field | visible = isVisible })
+hidden : Bool -> Attribute id val
+hidden isHidden =
+    Attribute (\field -> { field | hidden = isHidden })
 
 
 {-| An attribute that does nothing.
@@ -904,8 +898,7 @@ repeatableMax integer =
 
 
 {-| Traverses the field tree updating a descendant field matching the
-[identifier](#identifier), if the descendant is not found it will produce an
-error.
+[identifier](#identifier), if the descendant is not found it will return Nothing.
 
     import FormToolkit.Parse as Parse
     import FormToolkit.Value as Value
@@ -916,79 +909,27 @@ error.
             , value (Value.string "Value")
             ]
         ]
-        |> updateWithId "Field"
-            (updateAttribute
-                (value (Value.string "Updated"))
-            )
-        |> Result.andThen
-            (\field ->
-                field
-                    |> Parse.parse (Parse.field "Field" Parse.string)
-                        )
+        |> updateWithId "Field" (value (Value.string "Updated"))
+        |> Parse.parse (Parse.field "Field" Parse.string)
         --> Ok "Updated"
 
 -}
-updateWithId : id -> (Field id -> Field id) -> Field id -> Result (List (Error id)) (Field id)
-updateWithId id fn (Field field) =
-    if
-        Tree.any (\node -> Internal.Field.identifier node == Just id)
-            field
-    then
-        Ok
-            (field
-                |> Tree.map
-                    (\node ->
-                        if Internal.Field.identifier node == Just id then
-                            let
-                                (Field updated) =
-                                    fn (Field node)
-                            in
-                            updated
+updateWithId : id -> Attribute id val -> Field id -> Field id
+updateWithId id (Attribute fn) (Field field) =
+    if Tree.any (\node -> Internal.Field.identifier node == Just id) field then
+        field
+            |> Tree.mapValues
+                (\attrs ->
+                    if attrs.identifier == Just id then
+                        fn attrs
 
-                        else
-                            node
-                    )
-                |> Field
-            )
+                    else
+                        attrs
+                )
+            |> Field
 
     else
-        Err [ InputNotFound id ]
-
-
-{-| Traverses the field tree updating the visibility of a descendant field matching the
-[identifier](#identifier), if the descendant is not found it will produce an
-error.
--}
-updateVisibleWithId : id -> Bool -> Field id -> Result (List (Error id)) (Field id)
-updateVisibleWithId id isVisible =
-    updateWithId id (updateAttribute (visible isVisible))
-
-
-{-| Traverses the field tree updating the value of a descendant field matching the
-[identifier](#identifier), if the descendant is not found it will produce an
-error.
-
-    import FormToolkit.Parse as Parse
-    import FormToolkit.Value as Value
-
-    group []
-        [ text
-            [ identifier "Field"
-            , value (Value.string "Original")
-            ]
-        ]
-        |> updateValueWithId "Field" (Value.string "Updated")
-        |> Result.andThen
-            (\field ->
-                field
-                    |> Parse.parse (Parse.field "Field" Parse.string)
-            )
-        --> Ok "Updated"
-
--}
-updateValueWithId : id -> Value.Value -> Field id -> Result (List (Error id)) (Field id)
-updateValueWithId id newValue =
-    updateWithId id (updateAttribute (value newValue))
+        Field field
 
 
 {-| Updates a field attribute.
@@ -1144,34 +1085,6 @@ recursiveStringListDecoder =
                     >> List.concatMap (\( h, tails ) -> List.map ((::) h) tails)
                 )
         ]
-
-
-{-| Convienience function for updating the value of a Field.
--}
-updateValue : Value.Value -> Field id -> Field id
-updateValue val =
-    updateAttributes [ value val ]
-
-
-{-| Convienience function for updating the value of a Field with a String.
--}
-updateStringValue : String -> Field id -> Field id
-updateStringValue strVal =
-    updateValue (Value.string strVal)
-
-
-{-| Convienience function for updating the value of a Field with a String.
--}
-updateVisible : Bool -> Field id -> Field id
-updateVisible isVisible =
-    updateAttribute (visible isVisible)
-
-
-{-| Collects all errors from a field and its children.
--}
-errors : Field id -> List (Error id)
-errors (Field field) =
-    Internal.Field.errors field
 
 
 {-| Transforms identifiers or errors in a field, useful for combining fields

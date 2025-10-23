@@ -91,19 +91,27 @@ maybe parser =
 list : Parser id a -> Parser id (List a)
 list parser =
     \input ->
-        let
-            ( children, result ) =
-                listHelp parser input
+        if Tree.value input |> .hidden then
+            Success
+                (Tree.map (Tree.updateValue (\f -> { f | errors = [] }))
+                    input
+                )
+                []
 
-            input2 =
-                Tree.branch (Tree.value input) children
-        in
-        case result of
-            Ok elements ->
-                Success input2 elements
+        else
+            let
+                ( children, result ) =
+                    listHelp parser input
 
-            Err errors ->
-                Failure input2 errors
+                input2 =
+                    Tree.branch (Tree.value input) children
+            in
+            case result of
+                Ok elements ->
+                    Success input2 elements
+
+                Err errors ->
+                    Failure input2 errors
 
 
 listHelp : Parser id a -> Field id -> ( List (Field id), Result (List (Error id)) (List a) )

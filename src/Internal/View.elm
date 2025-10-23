@@ -170,58 +170,58 @@ toHtml { field, path, attributes } =
                 , class = String.join " " unwrappedField.classList
                 }
     in
-    case ( unwrappedField.visible, unwrappedField.inputType ) of
-        ( False, _ ) ->
+    case ( unwrappedField.hidden, unwrappedField.inputType ) of
+        ( True, _ ) ->
             Html.text ""
 
-        ( True, Field.Group ) ->
+        ( False, Field.Group ) ->
             groupToHtml attributes path field
 
-        ( True, Field.Repeatable _ ) ->
+        ( False, Field.Repeatable _ ) ->
             repeatableToHtml attributes path field
 
-        ( True, Field.Text ) ->
+        ( False, Field.Text ) ->
             wrapInput (inputToHtml attributes "text" path field [])
 
-        ( True, Field.StrictAutocomplete ) ->
+        ( False, Field.StrictAutocomplete ) ->
             wrapInput (inputToHtml attributes "text" path field [])
 
-        ( True, Field.Email ) ->
+        ( False, Field.Email ) ->
             wrapInput (inputToHtml attributes "email" path field [])
 
-        ( True, Field.Password ) ->
+        ( False, Field.Password ) ->
             wrapInput (inputToHtml attributes "password" path field [])
 
-        ( True, Field.TextArea ) ->
+        ( False, Field.TextArea ) ->
             wrapInput (textAreaToHtml attributes path field)
 
-        ( True, Field.Integer ) ->
+        ( False, Field.Integer ) ->
             inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
                 |> wrapInput
 
-        ( True, Field.Float ) ->
+        ( False, Field.Float ) ->
             inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
                 |> wrapInput
 
-        ( True, Field.Date ) ->
+        ( False, Field.Date ) ->
             wrapInput (inputToHtml attributes "date" path field [])
 
-        ( True, Field.Month ) ->
+        ( False, Field.Month ) ->
             wrapInput (inputToHtml attributes "month" path field [])
 
-        ( True, Field.LocalDatetime ) ->
+        ( False, Field.LocalDatetime ) ->
             wrapInput (inputToHtml attributes "datetime-local" path field [])
 
-        ( True, Field.Select ) ->
+        ( False, Field.Select ) ->
             wrapInput (selectToHtml attributes path field)
 
-        ( True, Field.Radio ) ->
+        ( False, Field.Radio ) ->
             wrapInput (radioToHtml attributes path field)
 
-        ( True, Field.Checkbox ) ->
+        ( False, Field.Checkbox ) ->
             checkboxToHtml attributes path field
 
-        ( True, Field.Error errorList ) ->
+        ( False, Field.Error errorList ) ->
             viewErrors (List.map attributes.errorToString errorList)
 
 

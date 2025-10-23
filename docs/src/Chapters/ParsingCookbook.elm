@@ -82,62 +82,10 @@ visible and parse the list if it is visible, or just succeed with an empty list.
 
 
 ```elm
-eventFields : Field EventFields
-eventFields =
-    Field.group []
-        [ Field.group
-            [ Field.class "inline-fields"
-            ]
-            [ Field.text
-                [ Field.label "Event Name"
-                , Field.required True
-                , Field.identifier EventName
-                ]
-            , Field.date
-                [ Field.label "Event Date"
-                , Field.required True
-                , Field.identifier EventDate
-                ]
-            ]
-        , Field.checkbox
-            [ Field.label "Notify Participants"
-            , Field.identifier NotifyParticipants
-            , Field.value (Value.bool True)
-            ]
-        , Field.repeatable
-            [ Field.label "Participant Emails"
-            , Field.identifier Participants
-            , Field.repeatableMin 1
-            , Field.repeatableMax 5
-            ]
-            (Field.email
-                [ Field.required True
-                , Field.identifier ParticipantEmail
-                ]
-            )
-            []
-        ]
+
+FIX
 
 
-eventParser : Parse.Parser EventFields { name : String, date : String, participants : List String }
-eventParser =
-    Parse.map3 (\\name date participants -> { name = name , date = date , participants = participants } )
-        (Parse.field EventName Parse.string)
-        (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
-        (Parse.field NotifyParticipants Parse.bool
-            |> Parse.andUpdate
-                (\\rootGroup notify ->
-                    { field =
-                        Field.updateVisibleWithId Participants notify rootGroup
-                            |> Result.withDefault rootGroup
-                     , parser =
-                        if notify then
-                            Parse.field Participants (Parse.list Parse.string)
-                        else
-                            Parse.succeed []
-                    }
-                )
-        )
 ```
 
 <component with-label="Event Fields (Conditional)"/>
@@ -195,12 +143,6 @@ fields |>
     )
 ```
 
-
-
-
-
-
-
 """
 
 
@@ -237,9 +179,9 @@ eventFields =
             ]
         , Field.repeatable
             [ Field.label "Participant Emails"
-            , Field.identifier Participants
             , Field.repeatableMin 1
             , Field.repeatableMax 5
+            , Field.identifier Participants
             ]
             (Field.email
                 [ Field.required True
@@ -252,27 +194,22 @@ eventFields =
 
 eventParser : Parse.Parser EventFields { name : String, date : String, participants : List String }
 eventParser =
-    Parse.map3
-        (\name date participants ->
+    Parse.succeed
+        (\name date notify participants ->
             { name = name
             , date = date
             , participants = participants
             }
         )
-        (Parse.field EventName Parse.string)
-        (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
-        (Parse.field NotifyParticipants Parse.bool
-            |> Parse.andUpdate
-                (\field notify ->
-                    { field =
-                        Field.updateVisibleWithId Participants notify field
-                            |> Result.withDefault field
-                    , parser =
-                        if notify then
-                            Parse.field Participants (Parse.list Parse.string)
-
-                        else
-                            Parse.succeed []
-                    }
-                )
-        )
+        |> Parse.andMap (Parse.field EventName Parse.string)
+        |> Parse.andMap (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
+        |> Parse.andMap
+            (Parse.field NotifyParticipants Parse.bool
+                |> Parse.andUpdate
+                    (\field notify ->
+                        { field = Field.updateWithId Participants (Field.hidden (not notify)) field
+                        , parser = Parse.succeed notify
+                        }
+                    )
+            )
+        |> Parse.andMap (Parse.field Participants (Parse.list Parse.string))

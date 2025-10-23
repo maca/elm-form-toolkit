@@ -203,8 +203,8 @@ maybe (Parser parser) =
 
     Field.repeatable [ ]
         (Field.text [ ])
-        [ Ok << Field.updateValue (Value.string "mango")
-        , Ok << Field.updateValue (Value.string "banana")
+        [ Field.updateAttribute (Field.stringValue "mango")
+        , Field.updateAttribute (Field.stringValue "banana")
         ]
         |> parse (list string)
         --> Ok [ "mango", "banana" ]
@@ -274,8 +274,8 @@ Useful if you just want to forward the form values to a backend.
             ]
         , Field.repeatable [ Field.name "fruits" ]
             (Field.text [ Field.name "fruit" ])
-            [ Ok << Field.updateValue (Value.string "mango")
-            , Ok << Field.updateValue (Value.string "banana")
+            [ Field.updateAttribute (Field.stringValue "mango")
+            , Field.updateAttribute (Field.stringValue "banana")
             ]
         ]
         |> parse json

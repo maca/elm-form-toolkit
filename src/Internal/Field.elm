@@ -87,7 +87,7 @@ type alias Attributes id err =
     , selectionStart : Int
     , selectionEnd : Int
     , disabled : Bool
-    , visible : Bool
+    , hidden : Bool
     , pattern : List Internal.Utils.MaskToken
     }
 
@@ -122,7 +122,7 @@ init inputType_ =
         , selectionStart = 0
         , selectionEnd = 0
         , disabled = False
-        , visible = True
+        , hidden = False
         , pattern = []
         }
 
@@ -407,7 +407,7 @@ map func errToErr input =
     , selectionStart = input.selectionStart
     , selectionEnd = input.selectionEnd
     , disabled = input.disabled
-    , visible = input.visible
+    , hidden = input.hidden
     , pattern = input.pattern
     }
 

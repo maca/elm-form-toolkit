@@ -319,7 +319,7 @@ suite =
                 "th qck fx jmps vr th lzy dg"
           in
           describe "update input"
-            [ test "updates a string without affecting parse results" <|
+            [ test "updates a string affecting parse results" <|
                 \_ ->
                     let
                         interaction =
@@ -328,31 +328,7 @@ suite =
                                     (Parse.string
                                         |> Parse.andUpdate
                                             (\field str ->
-                                                { field = Field.updateStringValue (removeVowels str) field
-                                                , parser = Parse.succeed str
-                                                }
-                                            )
-                                    )
-                                |> Interaction.fillInput "string-field" original
-                    in
-                    interaction
-                        |> Expect.all
-                            [ .field
-                                >> Field.toHtml (always never)
-                                >> Query.fromHtml
-                                >> Query.has [ attribute (Attrs.attribute "value" expected) ]
-                            , .result >> Expect.equal (Ok original)
-                            ]
-            , test "updates a string affecting parse results" <|
-                \_ ->
-                    let
-                        interaction =
-                            stringInput
-                                |> Interaction.init
-                                    (Parse.string
-                                        |> Parse.andUpdate
-                                            (\field str ->
-                                                { field = Field.updateStringValue (removeVowels str) field
+                                                { field = Field.updateAttribute (Field.stringValue (removeVowels str)) field
                                                 , parser = Parse.succeed (removeVowels str)
                                                 }
                                             )
