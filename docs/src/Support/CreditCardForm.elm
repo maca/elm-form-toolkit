@@ -14,7 +14,7 @@ import Time exposing (Month(..))
 
 
 type alias Model =
-    { formFields : Field CardFields
+    { cardFields : Field CardFields
     , submitted : Bool
     , result : Result (List (Error CardFields)) CardInformation
     }
@@ -48,7 +48,7 @@ type alias CardInformation =
 
 init : Model
 init =
-    { formFields = creditCardForm
+    { cardFields = creditCardFields
     , submitted = False
     , result = Err [ Error.CustomError Nothing "Waiting for input" ]
     }
@@ -63,12 +63,12 @@ update now msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                ( formFields, result ) =
-                    model.formFields
+                ( cardFields, result ) =
+                    model.cardFields
                         |> Parse.parseUpdate (cardInformationParser now) inputMsg
             in
             { model
-                | formFields = formFields
+                | cardFields = cardFields
                 , result = result
                 , submitted = False
             }
@@ -93,7 +93,7 @@ view model =
         [ Html.h4 [] [ Html.text "Try the Credit Card Form" ]
         , Html.form
             [ onSubmit FormSubmitted, novalidate True ]
-            [ Field.toHtml FormChanged model.formFields
+            [ Field.toHtml FormChanged model.cardFields
             , Html.button
                 [ onClick FormSubmitted
                 , Attr.style "margin-top" "1rem"
@@ -147,8 +147,8 @@ failure =
 -- FORM DEFINITION
 
 
-creditCardForm : Field CardFields
-creditCardForm =
+creditCardFields : Field CardFields
+creditCardFields =
     Field.group
         [ Field.label "Card Information"
         , Field.identifier CardInfo

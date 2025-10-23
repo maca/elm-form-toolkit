@@ -516,8 +516,8 @@ for added type safety.
         = FirstName
         | LastName
 
-    form : Field Fields
-    form =
+    fields : Field Fields
+    fields =
         group []
             [ text
                 [ label "First name"
@@ -531,7 +531,7 @@ for added type safety.
                 ]
             ]
 
-    form
+    fields
         |> Parse.parse
             (Parse.field FirstName Parse.string)
         --> Ok "Juan"

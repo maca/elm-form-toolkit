@@ -1,5 +1,5 @@
 module FormToolkit.Parse exposing
-    ( Parser, parse, parseUpdate
+    ( Parser, parse, parseUpdate, parseValidate
     , field
     , string, int, float, bool, posix, maybe, list, oneOf
     , formattedString
@@ -13,7 +13,7 @@ module FormToolkit.Parse exposing
 {-| Map the values of an input or group of inputs to any shape you want, if you
 know `Json.Decode` you know how to use this module ;)
 
-@docs Parser, parse, parseUpdate
+@docs Parser, parse, parseUpdate, parseValidate
 
 
 # Traversing and parsing
@@ -64,8 +64,8 @@ type Parser id a
         = FirstName
         | LastName
 
-    form : Field Fields
-    form =
+    fields : Field Fields
+    fields =
         Field.group []
             [ Field.text
                 [ Field.label "First name"
@@ -79,7 +79,7 @@ type Parser id a
                 ]
             ]
 
-    form
+    fields
         |> parse (field FirstName string)
     --> Ok "Brian"
 
@@ -480,8 +480,8 @@ andThen func (Parser parser) =
         | LastName
         | Age
 
-    form : Field Fields
-    form =
+    fields : Field Fields
+    fields =
         Field.group []
             [ Field.text
                 [ Field.identifier FirstName
@@ -505,7 +505,7 @@ andThen func (Parser parser) =
             |> andMap (field Age int)
 
 
-    form
+    fields
         |> parse personParse
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
@@ -576,8 +576,8 @@ map2 func (Parser a) (Parser b) =
             (field "LastName" string)
             (field "Age" int)
 
-    form : Field String
-    form =
+    fields : Field String
+    fields =
         Field.group []
             [ Field.text
                 [ Field.identifier "FirstName"
@@ -593,7 +593,7 @@ map2 func (Parser a) (Parser b) =
                 ]
             ]
 
-    form
+    fields
         |> parse personParse
     --> Ok { firstName = "Penny", lastName = "Rimbaud", age = 81 }
 
@@ -678,8 +678,7 @@ map8 func a b c d e f g h =
     map7 func a b c d e f g |> andMap h
 
 
-{-| Parses an input and updates the tree- in case the parser
-produces validation errors or it updates the input value.
+{-| Parses an input.
 
     import FormToolkit.Field as Field exposing (Field)
     import FormToolkit.Value as Value
@@ -714,6 +713,27 @@ parseUpdate : Parser id a -> Msg id -> Field id -> ( Field id, Result (List (Err
 parseUpdate (Parser parser) (Field.Msg msg) (Field input) =
     Internal.Field.update msg input
         |> Internal.Parse.parse parser
+        |> Tuple.mapFirst Field
+
+
+{-| Parses an input and updates the tree revealing errors.
+
+    import FormToolkit.Field as Field exposing (Field)
+    import FormToolkit.Value as Value
+
+    Field.text
+        [ Field.value (Value.string "A string")
+        , Field.required True
+        ]
+        |> parseValidate string
+        |> Tuple.second
+    -->  Ok "A string"
+
+-}
+parseValidate : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
+parseValidate (Parser parser) (Field input) =
+    Internal.Parse.parse parser input
+        |> Tuple.mapFirst Internal.Field.touchTree
         |> Tuple.mapFirst Field
 
 

@@ -11,6 +11,7 @@ import Html.Events exposing (onClick, onSubmit)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
+import Time
 
 
 
@@ -32,14 +33,14 @@ main =
 
 
 type alias Model =
-    { jsonForm : Field Never
+    { shipmentFields : Field String
     , submitted : Bool
     , result : Maybe (Result Http.Error Encode.Value)
     }
 
 
 type Msg
-    = FormChanged (Field.Msg Never)
+    = FormChanged (Field.Msg String)
     | FormSubmitted
     | FillForm
     | ClearForm
@@ -52,7 +53,7 @@ type Msg
 
 init : Model
 init =
-    { jsonForm = jsonForm
+    { shipmentFields = shipmentFields
     , submitted = False
     , result = Nothing
     }
@@ -68,20 +69,21 @@ update msg model =
         FormChanged fieldMsg ->
             let
                 updatedField =
-                    Field.update fieldMsg model.jsonForm
+                    Field.update fieldMsg model.shipmentFields
             in
             ( { model
-                | jsonForm = updatedField
+                | shipmentFields = updatedField
                 , result = Nothing
               }
             , Cmd.none
             )
 
         FormSubmitted ->
-            case Parse.parse Parse.json model.jsonForm of
-                Ok jsonValue ->
+            case Parse.parseValidate Parse.json model.shipmentFields of
+                ( updatedField, Ok jsonValue ) ->
                     ( { model
-                        | submitted = True
+                        | shipmentFields = updatedField
+                        , submitted = True
                         , result = Nothing
                       }
                     , Http.post
@@ -91,18 +93,18 @@ update msg model =
                         }
                     )
 
-                Err _ ->
-                    ( model, Cmd.none )
+                ( updatedField, Err _ ) ->
+                    ( { model | shipmentFields = updatedField }, Cmd.none )
 
         FillForm ->
             ( { model
-                | jsonForm =
-                    case Field.updateValuesFromJson sampleValues model.jsonForm of
+                | shipmentFields =
+                    case Field.updateValuesFromJson sampleValues model.shipmentFields of
                         Ok fields ->
                             fields
 
                         Err _ ->
-                            model.jsonForm
+                            model.shipmentFields
                 , result = Nothing
               }
             , Cmd.none
@@ -110,7 +112,7 @@ update msg model =
 
         ClearForm ->
             ( { model
-                | jsonForm = jsonForm
+                | shipmentFields = shipmentFields
                 , result = Nothing
               }
             , Cmd.none
@@ -163,8 +165,8 @@ sampleValues =
             Encode.null
 
 
-jsonForm : Field Never
-jsonForm =
+shipmentFields : Field String
+shipmentFields =
     Field.group
         []
         [ recipientFields
@@ -173,7 +175,7 @@ jsonForm =
         ]
 
 
-recipientFields : Field Never
+recipientFields : Field String
 recipientFields =
     Field.group
         [ Field.label "Recipient"
@@ -193,7 +195,7 @@ recipientFields =
         ]
 
 
-addressFields : Field Never
+addressFields : Field String
 addressFields =
     Field.group
         [ Field.name "address"
@@ -207,7 +209,7 @@ addressFields =
                 , Field.required True
                 , Field.name "street-name"
                 ]
-            , Field.text
+            , Field.int
                 [ Field.label "Street Number"
                 , Field.required True
                 , Field.name "address-number"
@@ -249,7 +251,7 @@ addressFields =
         ]
 
 
-creditCardFields : Field Never
+creditCardFields : Field String
 creditCardFields =
     Field.group
         [ Field.label "Card Information"
@@ -304,7 +306,7 @@ view model =
         ]
         [ Html.form
             [ onSubmit FormSubmitted, novalidate True ]
-            [ Field.toHtml FormChanged model.jsonForm
+            [ Field.toHtml FormChanged model.shipmentFields
             , Html.div
                 [ Attr.style "margin-top" "1rem"
                 , Attr.style "display" "flex"
@@ -339,19 +341,15 @@ view model =
                         [ Html.text "Successfully posted to httpbin.org!" ]
                     , Html.div []
                         [ Html.text "Server response:" ]
-                    , Html.pre
-                        [ Attr.style "white-space" "pre-wrap"
-                        , Attr.style "margin-top" "0.5rem"
-                        , Attr.style "font-size" "0.8rem"
-                        ]
-                        [ Html.text (Encode.encode 2 responseValue) ]
+                    , viewJson responseValue
                     ]
 
             Just (Err httpError) ->
                 failure
-                    [ Html.text "HTTP request failed:"
-                    , Html.div []
-                        [ Html.text (httpErrorToString httpError) ]
+                    [ Html.text "httpbin.org is failing while I wanted post this JSON:"
+                    , Parse.parse Parse.json model.shipmentFields
+                        |> Result.map viewJson
+                        |> Result.withDefault (Html.text "")
                     ]
 
             Nothing ->
@@ -359,23 +357,13 @@ view model =
         ]
 
 
-httpErrorToString : Http.Error -> String
-httpErrorToString error =
-    case error of
-        Http.BadUrl url ->
-            "Bad URL: " ++ url
-
-        Http.Timeout ->
-            "Request timed out"
-
-        Http.NetworkError ->
-            "Network error"
-
-        Http.BadStatus status ->
-            "Bad status: " ++ String.fromInt status
-
-        Http.BadBody body ->
-            "Bad body: " ++ body
+viewJson : Decode.Value -> Html msg
+viewJson value =
+    Html.pre
+        [ Attr.style "white-space" "pre-wrap"
+        , Attr.style "margin-top" "0.5rem"
+        ]
+        [ Html.text (Encode.encode 2 value) ]
 
 
 success : List (Html msg) -> Html msg

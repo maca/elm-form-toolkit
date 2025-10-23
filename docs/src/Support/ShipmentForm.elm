@@ -25,7 +25,7 @@ main =
 
 
 type alias Model =
-    { formFields : Field ShipmentFields
+    { shipmentFields : Field ShipmentFields
     , submitted : Bool
     , result : Result (List (Error ShipmentFields)) Shipment
     }
@@ -72,7 +72,7 @@ type Msg
 
 init : Model
 init =
-    { formFields = shipmentForm
+    { shipmentFields = shipmentFieldsDefinition
     , submitted = False
     , result = Err [ Error.CustomError Nothing "Waiting for input" ]
     }
@@ -87,10 +87,10 @@ update msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                ( formFields, result ) =
-                    Parse.parseUpdate shipmentParser inputMsg model.formFields
+                ( shipmentFields, result ) =
+                    Parse.parseUpdate shipmentParser inputMsg model.shipmentFields
             in
-            { formFields = formFields
+            { shipmentFields = shipmentFields
             , result = result
             , submitted = False
             }
@@ -103,8 +103,8 @@ update msg model =
 -- FORM DEFINITION
 
 
-shipmentForm : Field ShipmentFields
-shipmentForm =
+shipmentFieldsDefinition : Field ShipmentFields
+shipmentFieldsDefinition =
     Field.group
         []
         [ Field.group
@@ -242,7 +242,7 @@ view model =
         ]
         [ Html.form
             [ onSubmit FormSubmitted, novalidate True ]
-            [ Field.toHtml FormChanged model.formFields
+            [ Field.toHtml FormChanged model.shipmentFields
             , Html.button
                 [ onClick FormSubmitted
                 , Attr.style "margin-top" "1rem"

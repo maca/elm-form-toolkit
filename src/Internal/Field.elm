@@ -10,6 +10,7 @@ module Internal.Field exposing
     , inputIdString, inputStringToValue
     , error, pattern
     , updateValueWithString
+    , touchTree
     )
 
 {-|
@@ -24,6 +25,7 @@ module Internal.Field exposing
 @docs errors, setErrors, clearErrors
 @docs inputIdString, inputStringToValue
 @docs error, pattern
+@docs touch
 @docs updateValueWithString
 
 -}
@@ -214,6 +216,11 @@ focus input =
             else
                 input.value
     }
+
+
+touchTree : Field id err -> Field id err
+touchTree =
+    Tree.mapValues (\node -> { node | status = Touched })
 
 
 blur : Attributes id err -> Attributes id err
