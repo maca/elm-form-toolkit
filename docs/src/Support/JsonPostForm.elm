@@ -260,26 +260,30 @@ creditCardFields =
             , Field.required True
             , Field.name "card-name"
             ]
-        , Field.text
-            [ Field.label "Card Number"
-            , Field.required True
-            , Field.name "card-number"
-            ]
         , Field.group
             [ Field.class "card-params"
             , Field.class "inline-fields"
             ]
             [ Field.text
+                [ Field.label "Card Number"
+                , Field.required True
+                , Field.name "card-number"
+                , Field.class "column-50"
+                , Field.pattern "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
+                ]
+            , Field.text
                 [ Field.label "Expiration"
                 , Field.required True
                 , Field.name "expire-month"
                 , Field.placeholder "MM/YY"
+                , Field.pattern "{d}{d}/{d}{d}"
                 ]
             , Field.text
                 [ Field.label "CVC"
                 , Field.required True
                 , Field.name "cvc"
                 , Field.placeholder "CVC"
+                , Field.pattern "{d}{d}{d}"
                 ]
             ]
         ]
@@ -320,12 +324,12 @@ view model =
                     [ onClick FillForm
                     , Attr.type_ "button"
                     ]
-                    [ Html.text "Fill Form" ]
+                    [ Html.text "Fill fields from JSON" ]
                 , Html.button
                     [ onClick ClearForm
                     , Attr.type_ "button"
                     ]
-                    [ Html.text "Clear Form" ]
+                    [ Html.text "Clear fields" ]
                 ]
             ]
         , case model.result of

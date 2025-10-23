@@ -143,7 +143,7 @@ oneOfHelp parsers input accErrors =
             case accErrors of
                 [] ->
                     failure input (ParseError (Internal.Field.identifier input))
-                
+
                 errors ->
                     failure input (OneOf (Internal.Field.identifier input) (List.reverse errors))
 
@@ -343,8 +343,8 @@ validateNode node =
             List.foldl
                 (\validation ( currentNode, errors ) ->
                     case validation currentNode of
-                        Failure _ validationErrors ->
-                            ( currentNode, errors ++ validationErrors )
+                        Failure updatedNode validationErrors ->
+                            ( updatedNode, errors ++ validationErrors )
 
                         Success updatedNode _ ->
                             ( updatedNode, errors )
@@ -486,57 +486,28 @@ isValidEmail email =
 
 checkPattern : Parser id ()
 checkPattern input =
-    let
-        patternTokens =
-            Internal.Field.pattern input
-    in
-    if List.isEmpty patternTokens then
-        success input ()
+    case Internal.Field.pattern input of
+        [] ->
+            Success input ()
 
-    else
-        case Internal.Value.toString (Internal.Field.value input) of
-            Just rawInput ->
-                let
-                    fieldAttributes =
-                        Tree.value input
+        patternTokens ->
+            case formattedStringHelp patternTokens input of
+                Success input2 _ ->
+                    Success input2 ()
 
-                    { formatted, cursorPosition, maskConsumed } =
-                        Utils.formatMaskWithTokens
-                            { mask = patternTokens
-                            , input = rawInput
-                            , cursorPosition = fieldAttributes.selectionStart
-                            }
-                in
-                if maskConsumed then
-                    let
-                        updatedField =
-                            Tree.updateValue
-                                (\attrs ->
-                                    { attrs
-                                        | value = Internal.Value.fromNonBlankString formatted
-                                        , selectionStart = cursorPosition
-                                        , selectionEnd = cursorPosition
-                                    }
-                                )
-                                input
-                    in
-                    success updatedField ()
-
-                else
-                    failure input (PatternError (Internal.Field.identifier input))
-
-            Nothing ->
-                if Internal.Field.isBlank input then
-                    success input ()
-
-                else
-                    failure input (PatternError (Internal.Field.identifier input))
+                Failure input2 errors ->
+                    Failure input2 errors
 
 
 {-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
 -}
 formattedString : String -> Parser id String
 formattedString mask =
+    formattedStringHelp (Utils.parseMask mask)
+
+
+formattedStringHelp : List Utils.MaskToken -> Parser id String
+formattedStringHelp mask =
     \input ->
         case Internal.Value.toString (Internal.Field.value input) of
             Just rawInput ->
@@ -545,7 +516,7 @@ formattedString mask =
                         Tree.value input
 
                     { formatted, cursorPosition, maskConsumed } =
-                        Utils.formatMask
+                        Utils.formatMaskWithTokens
                             { mask = mask
                             , input = rawInput
                             , cursorPosition = fieldAttributes.selectionStart

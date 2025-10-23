@@ -1,29 +1,14 @@
 module Internal.Utils exposing
     ( MaskToken
-    , formatMask, parseMask, formatMaskWithTokens
+    , parseMask, formatMaskWithTokens
     )
 
 {-| Utility functions for form formatting and text manipulation.
 
 @docs MaskToken
-@docs formatMask, parseMask, formatMaskWithTokens
+@docs parseMask, formatMaskWithTokens
 
 -}
-
-
-formatMask :
-    { mask : String, input : String, cursorPosition : Int }
-    ->
-        { formatted : String
-        , cursorPosition : Int
-        , maskConsumed : Bool
-        }
-formatMask { mask, input, cursorPosition } =
-    formatMaskWithTokens
-        { mask = parseMask mask
-        , input = input
-        , cursorPosition = cursorPosition
-        }
 
 
 formatMaskWithTokens :
