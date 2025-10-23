@@ -1,4 +1,4 @@
-module Support.JsonPostForm exposing (Model, Msg, init, update, view)
+module Support.JsonPostForm exposing (Model, Msg, init, main, update, view)
 
 import Browser
 import Countries
@@ -11,7 +11,6 @@ import Html.Events exposing (onClick, onSubmit)
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Time
 
 
 
@@ -344,7 +343,7 @@ view model =
                     , viewJson responseValue
                     ]
 
-            Just (Err httpError) ->
+            Just (Err _) ->
                 failure
                     [ Html.text "httpbin.org is failing while I wanted post this JSON:"
                     , Parse.parse Parse.json model.shipmentFields

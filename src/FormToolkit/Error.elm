@@ -1,8 +1,8 @@
-module FormToolkit.Error exposing (Error(..), toEnglish, toFieldId)
+module FormToolkit.Error exposing (Error(..), toEnglish)
 
 {-|
 
-@docs Error, toEnglish, toFieldId
+@docs Error, toEnglish
 
 -}
 
@@ -86,55 +86,3 @@ toEnglish error =
 
         CustomError _ message ->
             message
-
-
-{-| Obtain the identifier for the field corresponding to the error, if the
-field has identifier.
--}
-toFieldId : Error id -> Maybe id
-toFieldId error =
-    case error of
-        IsBlank maybeId ->
-            maybeId
-
-        ValueTooLarge maybeId _ ->
-            maybeId
-
-        ValueTooSmall maybeId _ ->
-            maybeId
-
-        ValueNotInRange maybeId _ ->
-            maybeId
-
-        NotNumber maybeId ->
-            maybeId
-
-        NotBool maybeId ->
-            maybeId
-
-        HasNoName maybeId ->
-            maybeId
-
-        PatternError maybeId ->
-            maybeId
-
-        EmailInvalid maybeId ->
-            maybeId
-
-        IsGroupNotInput maybeId ->
-            maybeId
-
-        NoOptionsProvided maybeId ->
-            maybeId
-
-        InputNotFound id ->
-            Just id
-
-        OneOf maybeId _ ->
-            maybeId
-
-        ParseError maybeId ->
-            maybeId
-
-        CustomError maybeId _ ->
-            maybeId

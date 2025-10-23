@@ -9,8 +9,8 @@ module Internal.Field exposing
     , errors, setErrors, clearErrors
     , inputIdString, inputStringToValue
     , error, pattern
-    , updateValueWithString
     , touchTree
+    , updateValueWithString
     )
 
 {-|
@@ -25,7 +25,7 @@ module Internal.Field exposing
 @docs errors, setErrors, clearErrors
 @docs inputIdString, inputStringToValue
 @docs error, pattern
-@docs touch
+@docs touchTree
 @docs updateValueWithString
 
 -}

@@ -47,7 +47,7 @@ update msg book =
 
 chapter : Chapter (Book book)
 chapter =
-    Chapter.chapter "Parsing to JSON"
+    Chapter.chapter "Parsing to JSON - Demo"
         |> Chapter.withStatefulComponentList
             [ ( "JSON Post Form"
               , \book ->
