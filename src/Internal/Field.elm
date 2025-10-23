@@ -6,7 +6,7 @@ module Internal.Field exposing
     , identifier, inputType, max, min, step, name, value
     , label, hint, placeholder, options
     , isGroup, isRepeatable, isRequired, isAutocompleteable
-    , errors, setErrors
+    , errors, setErrors, clearErrors
     , inputIdString, inputStringToValue
     , error, pattern
     , updateValueWithString
@@ -21,7 +21,7 @@ module Internal.Field exposing
 @docs identifier, inputType, max, min, step, name, value
 @docs label, hint, placeholder, options
 @docs isGroup, isRepeatable, isRequired, isAutocompleteable
-@docs errors, setErrors
+@docs errors, setErrors, clearErrors
 @docs inputIdString, inputStringToValue
 @docs error, pattern
 @docs updateValueWithString
@@ -368,6 +368,11 @@ setErrors errorList =
                 | errors = List.Extra.unique (errorList ++ input.errors)
             }
         )
+
+
+clearErrors : Field id err -> Field id err
+clearErrors =
+    Tree.updateValue (\input -> { input | errors = [] })
 
 
 map : (a -> b) -> (err1 -> err2) -> Attributes a err1 -> Attributes b err2

@@ -1096,7 +1096,7 @@ updateValuesFromJson jsonValue (Field field) =
                 )
                 (Ok field)
             )
-        |> Result.map Field
+        |> Result.map (Internal.Parse.validate >> Field)
 
 
 valueToPathLists : Encode.Value -> Result (List (Error id)) (List ( String, String ))
@@ -1333,5 +1333,3 @@ namesToPaths (Field field) =
         |> Tuple.first
         |> List.map (Tuple.mapFirst (String.join "."))
         |> Dict.fromList
-
-
