@@ -1013,7 +1013,7 @@ structurally considered.
     --> Ok "alice@example.com"
 
 -}
-updateValuesFromJson : Encode.Value -> Field id -> Result (List (Error id)) (Field id)
+updateValuesFromJson : Encode.Value -> Field id -> Result (Error id) (Field id)
 updateValuesFromJson jsonValue (Field field) =
     let
         namePaths =
@@ -1035,9 +1035,9 @@ updateValuesFromJson jsonValue (Field field) =
 
                                 Nothing ->
                                     Err
-                                        [ CustomError Nothing
+                                        (CustomError Nothing
                                             ("No name path: " ++ key ++ " was found")
-                                        ]
+                                        )
                         )
                 )
                 (Ok field)
@@ -1045,7 +1045,7 @@ updateValuesFromJson jsonValue (Field field) =
         |> Result.map (Internal.Parse.validate >> Field)
 
 
-valueToPathLists : Encode.Value -> Result (List (Error id)) (List ( String, String ))
+valueToPathLists : Encode.Value -> Result (Error id) (List ( String, String ))
 valueToPathLists jsonValue =
     Decode.decodeValue recursiveStringListDecoder jsonValue
         |> Result.map
@@ -1059,7 +1059,7 @@ valueToPathLists jsonValue =
                             Nothing
                 )
             )
-        |> Result.mapError (Decode.errorToString >> CustomError Nothing >> List.singleton)
+        |> Result.mapError (Decode.errorToString >> CustomError Nothing)
 
 
 recursiveStringListDecoder : Decode.Decoder (List (List String))
@@ -1193,8 +1193,8 @@ mapError transformId error =
         InputNotFound id ->
             InputNotFound (transformId id)
 
-        OneOf id errorList ->
-            OneOf (Maybe.map transformId id) (List.map (mapError transformId) errorList)
+        ErrorList id errorList ->
+            ErrorList (Maybe.map transformId id) (List.map (mapError transformId) errorList)
 
 
 dasherize : String -> String

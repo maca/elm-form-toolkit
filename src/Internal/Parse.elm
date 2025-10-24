@@ -19,7 +19,7 @@ module Internal.Parse exposing
 -}
 
 import Dict
-import FormToolkit.Error exposing (Error(..))
+import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Utils as Utils
@@ -36,13 +36,17 @@ type alias Field id =
 
 
 type ParserResult id a
-    = Failure (Field id) (List (Error id))
+    = Failure (Field id) (Error id)
     | Success (Field id) a
+
+
+type alias Parser id a =
+    Field id -> ParserResult id a
 
 
 failure : Field id -> Error id -> ParserResult id a
 failure input err =
-    Failure (Internal.Field.setErrors [ err ] input) [ err ]
+    Failure (Internal.Field.setErrors [ err ] input) err
 
 
 success : Field id -> a -> ParserResult id a
@@ -50,8 +54,16 @@ success input a =
     Success input a
 
 
-type alias Parser id a =
-    Field id -> ParserResult id a
+combineErrors : Maybe id -> Error id -> Error id -> Error id
+combineErrors identifier err1 err2 =
+    if err1 == err2 then
+        err1
+
+    else
+        ErrorList identifier
+            (List.concat [ Error.toList err1, Error.toList err2 ]
+                |> List.Extra.unique
+            )
 
 
 field : id -> Parser id a -> Parser id a
@@ -114,7 +126,7 @@ list parser node =
                 Failure input2 errors
 
 
-listHelp : Parser id a -> Field id -> ( List (Field id), Result (List (Error id)) (List a) )
+listHelp : Parser id a -> Field id -> ( List (Field id), Result (Error id) (List a) )
 listHelp parser =
     Tree.children
         >> List.foldr
@@ -125,14 +137,14 @@ listHelp parser =
                         , Result.map2 (::) (Ok a) result
                         )
 
-                    Failure node2 errors2 ->
+                    Failure node2 error2 ->
                         ( node2 :: nodes
                         , case result of
                             Ok _ ->
-                                Err errors2
+                                Err error2
 
-                            Err errors ->
-                                Err (List.Extra.unique (errors2 ++ errors))
+                            Err error ->
+                                Err (combineErrors (Tree.value node |> .identifier) error error2)
                         )
             )
             ( [], Ok [] )
@@ -140,30 +152,36 @@ listHelp parser =
 
 oneOf : List (Parser id a) -> Parser id a
 oneOf parsers node =
-    oneOfHelp parsers node []
+    oneOfHelp parsers node Nothing
 
 
-oneOfHelp : List (Parser id a) -> Field id -> List (Error id) -> ParserResult id a
-oneOfHelp parsers input accErrors =
+oneOfHelp : List (Parser id a) -> Field id -> Maybe (Error id) -> ParserResult id a
+oneOfHelp parsers input accError =
     case parsers of
         [] ->
-            case accErrors of
-                [] ->
+            case accError of
+                Nothing ->
                     failure input (ParseError (Tree.value input |> .identifier))
 
-                errors ->
-                    failure input
-                        (OneOf (Tree.value input |> .identifier)
-                            (List.reverse errors)
-                        )
+                Just error ->
+                    failure input error
 
         parser :: rest ->
             case parser input of
                 Success input2 a ->
                     Success input2 a
 
-                Failure _ newErrors ->
-                    oneOfHelp rest input (newErrors ++ accErrors)
+                Failure _ newError ->
+                    let
+                        combinedError =
+                            case accError of
+                                Nothing ->
+                                    newError
+
+                                Just err ->
+                                    combineErrors (Tree.value input |> .identifier) err newError
+                    in
+                    oneOfHelp rest input (Just combinedError)
 
 
 json : Parser id Json.Decode.Value
@@ -285,32 +303,37 @@ mapHelp func parser input =
 
 map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
 map2 func a b node =
+    let
+        { identifier } =
+            Tree.value node
+    in
     case a node of
         Success tree2 res ->
             case b tree2 of
                 Success tree3 res2 ->
                     Success tree3 (func res res2)
 
-                Failure tree3 errors ->
-                    Failure tree3 errors
+                Failure tree3 error ->
+                    Failure tree3 error
 
-        Failure tree2 errors ->
+        Failure tree2 error ->
             case b tree2 of
                 Success tree3 _ ->
-                    Failure tree3 errors
+                    Failure tree3 error
 
-                Failure tree3 errors2 ->
-                    Failure tree3 (List.Extra.unique (errors2 ++ errors))
+                Failure tree3 error2 ->
+                    Failure tree3
+                        (combineErrors identifier error2 error)
 
 
-parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
+parse : Parser id a -> Field id -> ( Field id, Result (Error id) a )
 parse parser input =
     case map2 (\a _ -> a) parser validateNodeParser input of
         Success input2 a ->
             ( input2, Ok a )
 
-        Failure input2 errors ->
-            ( input2, Err errors )
+        Failure input2 error ->
+            ( input2, Err error )
 
 
 validate : Field id -> Field id
@@ -343,8 +366,13 @@ validateTreeParser input =
         [] ->
             Success updated ()
 
-        errors ->
-            Failure updated errors
+        firstError :: restErrors ->
+            Failure updated
+                (List.foldl
+                    (\err acc -> combineErrors (Tree.value input |> .identifier) acc err)
+                    firstError
+                    restErrors
+                )
 
 
 validateVisible : Field id -> Field id
@@ -377,25 +405,32 @@ validateVisible tree =
 validateNodeParser : Parser id ()
 validateNodeParser node =
     let
-        ( finalNode, allErrors ) =
+        ( finalNode, maybeError ) =
             List.foldl
-                (\validation ( currentNode, errors ) ->
+                (\validation ( currentNode, accError ) ->
                     case validation currentNode of
-                        Failure updatedNode validationErrors ->
-                            ( updatedNode, errors ++ validationErrors )
+                        Failure updatedNode validationError ->
+                            ( updatedNode
+                            , case accError of
+                                Nothing ->
+                                    Just validationError
+
+                                Just err ->
+                                    Just (combineErrors (Tree.value node |> .identifier) err validationError)
+                            )
 
                         Success updatedNode _ ->
-                            ( updatedNode, errors )
+                            ( updatedNode, accError )
                 )
-                ( Internal.Field.clearErrors node, [] )
+                ( Internal.Field.clearErrors node, Nothing )
                 validations
     in
-    case allErrors of
-        [] ->
+    case maybeError of
+        Nothing ->
             Success finalNode ()
 
-        errors ->
-            Failure (Internal.Field.setErrors errors finalNode) errors
+        Just error ->
+            Failure (Internal.Field.setErrors [ error ] finalNode) error
 
 
 validations : List (Parser id ())
@@ -625,8 +660,23 @@ parseValue func =
                 ( _, Ok a, [] ) ->
                     Success node a
 
-                ( _, Ok _, errs ) ->
-                    Failure node errs
+                ( _, Ok _, firstError :: restErrors ) ->
+                    Failure node
+                        (List.foldl
+                            (\err acc -> combineErrors identifier acc err)
+                            firstError
+                            restErrors
+                        )
 
-                ( _, Err err, errs ) ->
-                    Failure (Internal.Field.setErrors [ err ] node) (err :: errs)
+                ( _, Err err, [] ) ->
+                    failure node err
+
+                ( _, Err err, firstError :: restErrors ) ->
+                    let
+                        combinedError =
+                            List.foldl
+                                (\e acc -> combineErrors identifier acc e)
+                                firstError
+                                (restErrors ++ [ err ])
+                    in
+                    Failure (Internal.Field.setErrors [ combinedError ] node) combinedError

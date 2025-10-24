@@ -16,7 +16,7 @@ import Html.Events exposing (onClick, onSubmit)
 type alias Model =
     { formFields : Field UserFormFields
     , submitted : Bool
-    , result : Result (List (Error UserFormFields)) User
+    , result : Result (Error UserFormFields) User
     }
 
 
@@ -44,7 +44,7 @@ init : Model
 init =
     { formFields = userForm
     , submitted = False
-    , result = Err [ Error.CustomError Nothing "Waiting for input" ]
+    , result = Err (Error.CustomError Nothing "Waiting for input")
     }
 
 

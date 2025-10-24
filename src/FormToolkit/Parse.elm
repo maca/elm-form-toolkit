@@ -659,7 +659,7 @@ map8 func a b c d e f g h =
     --> Ok "A string"
 
 -}
-parse : Parser id a -> Field id -> Result (List (Error id)) a
+parse : Parser id a -> Field id -> Result (Error id) a
 parse (Parser parser) (Field input) =
     Internal.Parse.parse parser input |> Tuple.second
 
@@ -677,7 +677,7 @@ parse (Parser parser) (Field input) =
     --> Ok "A string"
 
 -}
-parseUpdate : Parser id a -> Msg id -> Field id -> ( Field id, Result (List (Error id)) a )
+parseUpdate : Parser id a -> Msg id -> Field id -> ( Field id, Result (Error id) a )
 parseUpdate (Parser parser) (Field.Msg msg) (Field input) =
     Internal.Field.update msg input
         |> Internal.Parse.parse parser
@@ -698,7 +698,7 @@ parseUpdate (Parser parser) (Field.Msg msg) (Field input) =
     -->  Ok "A string"
 
 -}
-parseValidate : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
+parseValidate : Parser id a -> Field id -> ( Field id, Result (Error id) a )
 parseValidate (Parser parser) (Field input) =
     Internal.Parse.parse parser input
         |> Tuple.mapFirst Internal.Field.touchTree

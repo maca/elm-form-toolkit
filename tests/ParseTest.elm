@@ -65,14 +65,14 @@ suite =
                     \_ ->
                         Parse.parse Parse.int stringInput
                             |> Expect.equal
-                                (Err [ NotNumber (Just StringField) ])
+                                (Err (NotNumber (Just StringField)))
                 ]
             , describe "on field decoding"
                 [ test "produces error" <|
                     \_ ->
                         Field.group [] [ stringInput ]
                             |> Parse.parse (Parse.field StringField Parse.int)
-                            |> Expect.equal (Err [ NotNumber (Just StringField) ])
+                            |> Expect.equal (Err (NotNumber (Just StringField)))
                 ]
             ]
         , describe "encode json"
@@ -142,7 +142,7 @@ suite =
             , test "oneOf fails when all parsers fail" <|
                 \_ ->
                     Parse.parse (Parse.oneOf [ Parse.int, Parse.fail "Custom error message" ]) stringInput
-                        |> Expect.equal (Err [ OneOf (Just StringField) [ NotNumber (Just StringField), CustomError (Just StringField) "Custom error message" ] ])
+                        |> Expect.equal (Err (ErrorList (Just StringField) [ NotNumber (Just StringField), CustomError (Just StringField) "Custom error message" ]))
             , test "oneOf with empty list fails" <|
                 \_ ->
                     Parse.parse (Parse.oneOf []) stringInput
@@ -154,7 +154,7 @@ suite =
                 \_ ->
                     Parse.parse (Parse.succeed ()) blankInput
                         |> Expect.equal
-                            (Err [ IsBlank (Just BlankField) ])
+                            (Err (IsBlank (Just BlankField)))
             , test "errors are presented in correct order" <|
                 \_ ->
                     let
@@ -171,9 +171,11 @@ suite =
                     result
                         |> Expect.equal
                             (Err
-                                [ NotNumber (Just StringField)
-                                , NotNumber (Just IntField)
-                                ]
+                                (ErrorList Nothing
+                                    [ NotNumber (Just StringField)
+                                    , NotNumber (Just IntField)
+                                    ]
+                                )
                             )
             , test "errors are not repeated" <|
                 \_ ->
@@ -186,7 +188,7 @@ suite =
                                     (Parse.field StringField Parse.float)
                             )
                         |> Expect.equal
-                            (Err [ NotNumber (Just StringField) ])
+                            (Err (NotNumber (Just StringField)))
             , test "email validation only applies to email fields" <|
                 \_ ->
                     let
@@ -211,7 +213,7 @@ suite =
                                 |> Expect.equal (Ok invalidEmail)
                         , \_ ->
                             Parse.parse Parse.string emailField
-                                |> Expect.equal (Err [ EmailInvalid (Just StringField) ])
+                                |> Expect.equal (Err (EmailInvalid (Just StringField)))
                         ]
                         ()
             , test "valid email passes validation" <|
@@ -247,7 +249,7 @@ suite =
 
                             else
                                 case result of
-                                    Err [ EmailInvalid (Just StringField) ] ->
+                                    Err (EmailInvalid (Just StringField)) ->
                                         Expect.pass
 
                                     _ ->
@@ -275,7 +277,7 @@ suite =
                     in
                     -- Empty required email field should fail with IsBlank
                     Parse.parse Parse.string emptyEmailField
-                        |> Expect.equal (Err [ IsBlank (Just StringField) ])
+                        |> Expect.equal (Err (IsBlank (Just StringField)))
             , test "EmailInvalid error has correct English translation" <|
                 \_ ->
                     EmailInvalid (Just StringField)
@@ -301,9 +303,11 @@ suite =
                     Parse.parse Parse.json formWithRequiredFields
                         |> Expect.equal
                             (Err
-                                [ IsBlank (Just StringField)
-                                , IsBlank (Just IntField)
-                                ]
+                                (ErrorList Nothing
+                                    [ IsBlank (Just StringField)
+                                    , IsBlank (Just IntField)
+                                    ]
+                                )
                             )
 
             -- , describe "and errors are presented in the correct order" []

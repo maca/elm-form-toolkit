@@ -16,7 +16,7 @@ import Time exposing (Month(..))
 type alias Model =
     { cardFields : Field CardFields
     , submitted : Bool
-    , result : Result (List (Error CardFields)) CardInformation
+    , result : Result (Error CardFields) CardInformation
     }
 
 
@@ -50,7 +50,7 @@ init : Model
 init =
     { cardFields = creditCardFields
     , submitted = False
-    , result = Err [ Error.CustomError Nothing "Waiting for input" ]
+    , result = Err (Error.CustomError Nothing "Waiting for input")
     }
 
 

@@ -29,7 +29,7 @@ type Error id
     | IsGroupNotInput (Maybe id)
     | NoOptionsProvided (Maybe id)
     | InputNotFound id
-    | OneOf (Maybe id) (List (Error id))
+    | ErrorList (Maybe id) (List (Error id))
     | ParseError (Maybe id)
     | CustomError (Maybe id) String
 
@@ -78,7 +78,7 @@ toEnglish error =
         InputNotFound _ ->
             "Couldn't find an input with the given identifier"
 
-        OneOf _ errors ->
+        ErrorList _ errors ->
             "All of the following failed: " ++ String.join ", " (List.map toEnglish errors)
 
         ParseError _ ->
@@ -92,7 +92,7 @@ toEnglish error =
 toList : Error id -> List (Error id)
 toList error =
     case error of
-        OneOf _ errs ->
+        ErrorList _ errs ->
             List.concatMap toList errs
 
         _ ->

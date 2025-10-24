@@ -22,7 +22,7 @@ import Test.Html.Selector exposing (attribute, containing, tag, text)
 type alias Interaction id a =
     { field : Field id
     , decoder : Parse.Parser id a
-    , result : Result (List (Error id)) a
+    , result : Result (Error id) a
     }
 
 
@@ -55,7 +55,7 @@ init : Parse.Parser id a -> Field id -> Interaction id a
 init decoder input =
     { field = input
     , decoder = decoder
-    , result = Err [ CustomError Nothing "Not modified" ]
+    , result = Err (CustomError Nothing "Not modified")
     }
 
 

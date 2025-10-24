@@ -27,7 +27,7 @@ main =
 type alias Model =
     { shipmentFields : Field ShipmentFields
     , submitted : Bool
-    , result : Result (List (Error ShipmentFields)) Shipment
+    , result : Result (Error ShipmentFields) Shipment
     }
 
 
@@ -74,7 +74,7 @@ init : Model
 init =
     { shipmentFields = shipmentFieldsDefinition
     , submitted = False
-    , result = Err [ Error.CustomError Nothing "Waiting for input" ]
+    , result = Err (Error.CustomError Nothing "Waiting for input")
     }
 
 
@@ -263,14 +263,14 @@ view model =
                             ]
                         ]
 
-                Err errors ->
+                Err error ->
                     failure
                         [ Html.text "There are some errors:"
                         , Html.ul []
-                            (errors
+                            (Error.toList error
                                 |> List.map
-                                    (\error ->
-                                        Html.li [] [ Html.text (Debug.toString error) ]
+                                    (\e ->
+                                        Html.li [] [ Html.text (Debug.toString e) ]
                                     )
                             )
                         ]
