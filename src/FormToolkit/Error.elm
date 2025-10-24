@@ -1,8 +1,8 @@
-module FormToolkit.Error exposing (Error(..), toEnglish)
+module FormToolkit.Error exposing (Error(..), toEnglish, toList)
 
 {-|
 
-@docs Error, toEnglish
+@docs Error, toEnglish, toList
 
 -}
 
@@ -86,3 +86,14 @@ toEnglish error =
 
         CustomError _ message ->
             message
+
+
+{-| -}
+toList : Error id -> List (Error id)
+toList error =
+    case error of
+        OneOf _ errs ->
+            List.concatMap toList errs
+
+        _ ->
+            [ error ]

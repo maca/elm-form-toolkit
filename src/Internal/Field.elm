@@ -292,15 +292,9 @@ isRepeatable input =
 
 
 errors : Field id err -> List err
-errors tree =
-    case Tree.children tree of
-        [] ->
-            Tree.value tree |> .errors
-
-        children ->
-            (Tree.value tree |> .errors)
-                :: List.map errors children
-                |> List.concat
+errors =
+    Tree.foldl (\node acc -> List.concat [ acc, (Tree.value node).errors ]) []
+        >> List.Extra.unique
 
 
 setErrors : List err -> Field id err -> Field id err
