@@ -221,9 +221,6 @@ toHtml { field, path, attributes } =
         ( False, Field.Checkbox ) ->
             checkboxToHtml attributes path field
 
-        ( False, Field.Error errorList ) ->
-            viewErrors (List.map attributes.errorToString errorList)
-
 
 labelToHtml : Maybe String -> List Int -> Field id -> (UserAttributes -> Html msg)
 labelToHtml label path input element =

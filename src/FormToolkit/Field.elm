@@ -815,9 +815,6 @@ fieldTypeToInputType inputType =
         Internal.Field.Group ->
             Text
 
-        Internal.Field.Error _ ->
-            Text
-
 
 {-| Sets whether a field is disabled. When set to True, the field input will have the disabled HTML attribute.
 -}

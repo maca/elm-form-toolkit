@@ -1,21 +1,24 @@
 module Internal.Parse exposing
     ( Parser
     , ParserResult, failure, success
-    , field, list, json, maybe, formattedString, oneOf
+    , field, list, string, email, json, maybe, formattedString, oneOf
     , map, map2, andThen, andUpdate
     , parse, validate, validateNode
+    , parseValue
     )
 
 {-|
 
 @docs Parser
 @docs ParserResult, failure, success
-@docs field, list, json, maybe, formattedString, oneOf
+@docs field, list, string, email, json, maybe, formattedString, oneOf
 @docs map, map2, andThen, andUpdate
 @docs parse, validate, validateNode
+@docs parseValue
 
 -}
 
+import Dict
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Internal.Field
@@ -52,17 +55,16 @@ type alias Parser id a =
 
 
 field : id -> Parser id a -> Parser id a
-field id parser =
-    \tree ->
-        case fieldHelp id (map2 (\_ a -> a) validateTreeParser parser) tree of
-            ( Just (Success node a), path ) ->
-                Success (Tree.replaceAt path node tree) a
+field id parser tree =
+    case fieldHelp id (map2 (\_ a -> a) validateTreeParser parser) tree of
+        ( Just (Success node a), path ) ->
+            Success (Tree.replaceAt path node tree) a
 
-            ( Just (Failure node errors), path ) ->
-                Failure (Tree.replaceAt path node tree) errors
+        ( Just (Failure node errors), path ) ->
+            Failure (Tree.replaceAt path node tree) errors
 
-            ( Nothing, _ ) ->
-                failure tree (InputNotFound id)
+        ( Nothing, _ ) ->
+            failure tree (InputNotFound id)
 
 
 fieldHelp : id -> Parser id a -> Field id -> ( Maybe (ParserResult id a), List Int )
@@ -79,39 +81,37 @@ fieldHelp id parser =
 
 
 maybe : Parser id a -> Parser id (Maybe a)
-maybe parser =
-    \input ->
-        if Internal.Field.isBlank input then
-            Success input Nothing
+maybe parser node =
+    if Internal.Field.isBlank node then
+        Success node Nothing
 
-        else
-            mapHelp Just parser input
+    else
+        mapHelp Just parser node
 
 
 list : Parser id a -> Parser id (List a)
-list parser =
-    \input ->
-        if Tree.value input |> .hidden then
-            Success
-                (Tree.map (Tree.updateValue (\f -> { f | errors = [] }))
-                    input
-                )
-                []
+list parser node =
+    if Tree.value node |> .hidden then
+        Success
+            (Tree.map (Tree.updateValue (\f -> { f | errors = [] }))
+                node
+            )
+            []
 
-        else
-            let
-                ( children, result ) =
-                    listHelp parser input
+    else
+        let
+            ( children, result ) =
+                listHelp parser node
 
-                input2 =
-                    Tree.branch (Tree.value input) children
-            in
-            case result of
-                Ok elements ->
-                    Success input2 elements
+            input2 =
+                Tree.branch (Tree.value node) children
+        in
+        case result of
+            Ok elements ->
+                Success input2 elements
 
-                Err errors ->
-                    Failure input2 errors
+            Err errors ->
+                Failure input2 errors
 
 
 listHelp : Parser id a -> Field id -> ( List (Field id), Result (List (Error id)) (List a) )
@@ -139,9 +139,8 @@ listHelp parser =
 
 
 oneOf : List (Parser id a) -> Parser id a
-oneOf parsers =
-    \input ->
-        oneOfHelp parsers input []
+oneOf parsers node =
+    oneOfHelp parsers node []
 
 
 oneOfHelp : List (Parser id a) -> Field id -> List (Error id) -> ParserResult id a
@@ -153,7 +152,10 @@ oneOfHelp parsers input accErrors =
                     failure input (ParseError (Tree.value input |> .identifier))
 
                 errors ->
-                    failure input (OneOf (Tree.value input |> .identifier) (List.reverse errors))
+                    failure input
+                        (OneOf (Tree.value input |> .identifier)
+                            (List.reverse errors)
+                        )
 
         parser :: rest ->
             case parser input of
@@ -240,32 +242,30 @@ andUpdate :
     (Field id -> a -> { field : Field id, parser : Parser id b })
     -> Parser id a
     -> Parser id b
-andUpdate func parser =
-    \input ->
-        case parser input of
-            Success input2 a ->
-                let
-                    result =
-                        func input2 a
+andUpdate func parser node =
+    case parser node of
+        Success input2 a ->
+            let
+                result =
+                    func input2 a
 
-                    newParser =
-                        result.parser
-                in
-                newParser result.field
+                newParser =
+                    result.parser
+            in
+            newParser result.field
 
-            Failure input2 errors ->
-                Failure input2 errors
+        Failure input2 errors ->
+            Failure input2 errors
 
 
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b
-andThen func parser =
-    \input ->
-        case parser input of
-            Success input2 a ->
-                func a input2
+andThen func parser node =
+    case parser node of
+        Success input2 a ->
+            func a input2
 
-            Failure input2 errors ->
-                Failure input2 errors
+        Failure input2 errors ->
+            Failure input2 errors
 
 
 map : (a -> b) -> Parser id a -> Parser id b
@@ -284,44 +284,33 @@ mapHelp func parser input =
 
 
 map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
-map2 func a b =
-    \tree ->
-        case a tree of
-            Success tree2 res ->
-                case b tree2 of
-                    Success tree3 res2 ->
-                        Success tree3 (func res res2)
+map2 func a b node =
+    case a node of
+        Success tree2 res ->
+            case b tree2 of
+                Success tree3 res2 ->
+                    Success tree3 (func res res2)
 
-                    Failure tree3 errors ->
-                        Failure tree3 errors
+                Failure tree3 errors ->
+                    Failure tree3 errors
 
-            Failure tree2 errors ->
-                case b tree2 of
-                    Success tree3 _ ->
-                        Failure tree3 errors
+        Failure tree2 errors ->
+            case b tree2 of
+                Success tree3 _ ->
+                    Failure tree3 errors
 
-                    Failure tree3 errors2 ->
-                        Failure tree3 (List.Extra.unique (errors2 ++ errors))
+                Failure tree3 errors2 ->
+                    Failure tree3 (List.Extra.unique (errors2 ++ errors))
 
 
 parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
 parse parser input =
-    case parser input of
+    case map2 (\a _ -> a) parser validateNodeParser input of
         Success input2 a ->
-            case validateNodeParser input2 of
-                Success input3 _ ->
-                    ( input3, Ok a )
-
-                Failure input3 errors ->
-                    ( input3, Err errors )
+            ( input2, Ok a )
 
         Failure input2 errors ->
-            case validateNodeParser input2 of
-                Success input3 _ ->
-                    ( input3, Err errors )
-
-                Failure input3 errors2 ->
-                    ( input3, Err (errors2 ++ errors) )
+            ( input2, Err errors )
 
 
 validate : Field id -> Field id
@@ -420,26 +409,23 @@ validations =
 
 
 checkRequired : Parser id ()
-checkRequired input =
+checkRequired node =
     let
         { isRequired, identifier } =
-            Tree.value input
+            Tree.value node
     in
-    if
-        isRequired
-            && Internal.Field.isBlank input
-    then
-        failure input (IsBlank identifier)
+    if isRequired && Internal.Field.isBlank node then
+        failure node (IsBlank identifier)
 
     else
-        success input ()
+        success node ()
 
 
 checkInRange : Parser id ()
-checkInRange tree =
+checkInRange node =
     let
         { value, min, max, identifier } =
-            Tree.value tree
+            Tree.value node
 
         val =
             Value.Value value
@@ -456,79 +442,79 @@ checkInRange tree =
         )
     of
         ( Just LT, Just _ ) ->
-            failure tree
+            failure node
                 (ValueNotInRange identifier
                     { value = val, min = minVal, max = maxVal }
                 )
 
         ( Just _, Just GT ) ->
-            failure tree
+            failure node
                 (ValueNotInRange identifier
                     { value = val, min = minVal, max = maxVal }
                 )
 
         ( Just LT, Nothing ) ->
-            failure tree
+            failure node
                 (ValueTooSmall identifier
                     { value = val, min = minVal }
                 )
 
         ( Nothing, Just GT ) ->
-            failure tree
+            failure node
                 (ValueTooLarge identifier
                     { value = val, max = maxVal }
                 )
 
         _ ->
-            success tree ()
+            success node ()
 
 
 checkOptionsProvided : Parser id ()
-checkOptionsProvided input =
+checkOptionsProvided node =
     let
         { inputType, options, identifier } =
-            Tree.value input
+            Tree.value node
     in
     case ( inputType, options ) of
         ( Internal.Field.Select, [] ) ->
-            failure input (NoOptionsProvided identifier)
+            failure node (NoOptionsProvided identifier)
 
         ( Internal.Field.Radio, [] ) ->
-            failure input (NoOptionsProvided identifier)
+            failure node (NoOptionsProvided identifier)
 
         ( Internal.Field.StrictAutocomplete, [] ) ->
-            failure input (NoOptionsProvided identifier)
+            failure node (NoOptionsProvided identifier)
 
         _ ->
-            success input ()
+            success node ()
 
 
 checkEmail : Parser id ()
-checkEmail input =
-    let
-        { inputType, value, identifier } =
-            Tree.value input
-    in
-    case inputType of
+checkEmail node =
+    case (Tree.value node).inputType of
         Internal.Field.Email ->
-            Internal.Value.toString value
-                |> Maybe.andThen
-                    (\val ->
-                        if isValidEmail val then
-                            Nothing
-
-                        else
-                            Just (EmailInvalid identifier)
-                    )
-                |> Maybe.map (failure input)
-                |> Maybe.withDefault (success input ())
+            (email |> map (always ())) node
 
         _ ->
-            success input ()
+            success node ()
+
+
+email : Parser id String
+email =
+    string
+        |> andThen
+            (\str ->
+                \input ->
+                    if isValidEmail str then
+                        success input str
+
+                    else
+                        failure input (EmailInvalid (Tree.value input).identifier)
+            )
 
 
 isValidEmail : String -> Bool
-isValidEmail email =
+isValidEmail =
     let
         -- Standard HTML5 email validation pattern used by browsers
         pattern =
@@ -537,7 +523,7 @@ isValidEmail email =
         regex =
             Maybe.withDefault Regex.never (Regex.fromString pattern)
     in
-    Regex.contains regex email
+    Regex.contains regex
 
 
 checkPattern : Parser id ()
@@ -547,58 +533,100 @@ checkPattern input =
             Success input ()
 
         patternTokens ->
-            case formattedStringHelp patternTokens input of
-                Success input2 _ ->
-                    Success input2 ()
-
-                Failure input2 errors ->
-                    Failure input2 errors
+            (string
+                |> andThen (maskedString patternTokens)
+                |> map (always ())
+            )
+                input
 
 
 {-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
 -}
 formattedString : String -> Parser id String
 formattedString mask =
-    formattedStringHelp (Utils.parseMask mask)
+    string |> andThen (maskedString (Utils.parseMask mask))
 
 
-formattedStringHelp : List Utils.MaskToken -> Parser id String
-formattedStringHelp mask =
-    \input ->
-        let
-            { value, identifier, isRequired, selectionStart } =
-                Tree.value input
-        in
-        case Internal.Value.toString value of
-            Just rawInput ->
-                let
-                    { formatted, cursorPosition, maskConsumed } =
-                        Utils.formatMaskWithTokens
-                            { mask = mask
-                            , input = rawInput
-                            , cursorPosition = selectionStart
-                            }
+{-| -}
+string : Parser id String
+string =
+    parseValue
+        (\id val ->
+            Value.toString val
+                |> Result.fromMaybe (ParseError id)
+        )
 
-                    updatedField =
-                        Tree.updateValue
-                            (\attrs ->
-                                { attrs
-                                    | value = Internal.Value.fromNonBlankString formatted
-                                    , selectionStart = cursorPosition
-                                    , selectionEnd = cursorPosition
-                                }
-                            )
-                            input
-                in
+
+maskedString : List Utils.MaskToken -> String -> Field id -> ParserResult id String
+maskedString mask str node =
+    let
+        { identifier, selectionStart } =
+            Tree.value node
+
+        { formatted, cursorPosition, maskConsumed } =
+            Utils.formatMaskWithTokens
+                { mask = mask
+                , input = str
+                , cursorPosition = selectionStart
+                }
+    in
+    node
+        |> Tree.updateValue
+            (\attrs ->
+                { attrs
+                    | value = Internal.Value.fromNonBlankString formatted
+                    , selectionStart = cursorPosition
+                    , selectionEnd = cursorPosition
+                }
+            )
+        |> (\updatedField ->
                 if maskConsumed then
                     success updatedField formatted
 
                 else
                     failure updatedField (PatternError identifier)
+           )
 
-            Nothing ->
-                if isRequired && Internal.Field.isBlank input then
-                    failure input (IsBlank identifier)
 
-                else
-                    failure input (ParseError identifier)
+{-| Parse input values using a custom parsing function.
+-}
+parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
+parseValue func =
+    \node ->
+        let
+            ({ identifier, options, errors, isRequired } as attrs) =
+                Tree.value node
+        in
+        if Internal.Field.isGroup node then
+            failure node (IsGroupNotInput identifier)
+
+        else
+            let
+                fieldValue =
+                    Internal.Value.toString attrs.value
+                        |> Maybe.andThen
+                            (\key ->
+                                options
+                                    |> Dict.fromList
+                                    |> Dict.get key
+                            )
+                        |> Maybe.withDefault attrs.value
+                        |> Value.Value
+            in
+            case
+                ( isRequired && Internal.Field.isBlank node
+                , func identifier fieldValue
+                , errors
+                )
+            of
+                ( True, _, _ ) ->
+                    failure node (IsBlank identifier)
+
+                ( _, Ok a, [] ) ->
+                    Success node a
+
+                ( _, Ok _, errs ) ->
+                    Failure node errs
+
+                ( _, Err err, errs ) ->
+                    Failure (Internal.Field.setErrors [ err ] node) (err :: errs)

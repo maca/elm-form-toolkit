@@ -2,7 +2,7 @@ module FormToolkit.Parse exposing
     ( Parser, parse, parseUpdate, parseValidate
     , field
     , string, int, float, bool, posix, maybe, list, oneOf
-    , formattedString
+    , formattedString, email
     , value, json
     , succeed, fail
     , map, map2, map3, map4, map5, map6, map7, map8
@@ -20,7 +20,7 @@ know `Json.Decode` you know how to use this module ;)
 
 @docs field
 @docs string, int, float, bool, posix, maybe, list, oneOf
-@docs formattedString
+@docs formattedString, email
 @docs value, json
 @docs succeed, fail
 
@@ -37,13 +37,11 @@ know `Json.Decode` you know how to use this module ;)
 
 -}
 
-import Dict
 import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Parse
-import Internal.Value
 import Json.Decode
 import RoseTree.Tree as Tree
 import Time
@@ -102,11 +100,7 @@ field id (Parser parser) =
 -}
 string : Parser id String
 string =
-    parseValue
-        (\id val ->
-            Value.toString val
-                |> Result.fromMaybe (Error.ParseError id)
-        )
+    Parser Internal.Parse.string
 
 
 {-| Parses the input value as an `Int`.
@@ -251,6 +245,17 @@ value =
     parseValue (always Ok)
 
 
+{-| -}
+email : Parser id String
+email =
+    Parser Internal.Parse.email
+
+
+parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
+parseValue =
+    Parser << Internal.Parse.parseValue
+
+
 {-| Converts the entire input tree into a JSON
 [Value](https://package.elm-lang.org/packages/elm/json/latest/Json-Encode#Value).
 Field `name` property will be used as the key, if an input name is not present
@@ -388,52 +393,6 @@ andUpdate func (Parser parser) =
             { field = modifiedField, parser = newParser }
     in
     Parser (Internal.Parse.andUpdate updateFunc parser)
-
-
-{-| Parse input values using a custom parsing function.
--}
-parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
-parseValue func =
-    Parser
-        (\node ->
-            let
-                ({ identifier, options, errors, isRequired } as attrs) =
-                    Tree.value node
-            in
-            if Internal.Field.isGroup node then
-                Internal.Parse.failure node (Error.IsGroupNotInput identifier)
-
-            else
-                let
-                    fieldValue =
-                        Internal.Value.toString attrs.value
-                            |> Maybe.andThen
-                                (\key ->
-                                    options
-                                        |> Dict.fromList
-                                        |> Dict.get key
-                                )
-                            |> Maybe.withDefault attrs.value
-                            |> Value.Value
-                in
-                case ( func identifier fieldValue, errors ) of
-                    ( Ok a, [] ) ->
-                        Internal.Parse.success node a
-
-                    ( Ok a, errs ) ->
-                        Internal.Parse.success node a
-
-                    ( Err err, errs ) ->
-                        if
-                            isRequired
-                                && Internal.Field.isBlank node
-                        then
-                            Internal.Parse.failure node
-                                (Error.IsBlank identifier)
-
-                        else
-                            Internal.Parse.failure node err
-        )
 
 
 {-| Chains together parsers that depend on previous decoding results.

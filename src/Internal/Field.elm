@@ -6,7 +6,6 @@ module Internal.Field exposing
     , isGroup, isRepeatable, isAutocompleteable
     , errors, setErrors, clearErrors
     , inputIdString, inputStringToValue
-    , error
     , touchTree
     , updateValueWithString
     )
@@ -20,7 +19,6 @@ module Internal.Field exposing
 @docs isGroup, isRepeatable, isAutocompleteable
 @docs errors, setErrors, clearErrors
 @docs inputIdString, inputStringToValue
-@docs error
 @docs touchTree
 @docs updateValueWithString
 
@@ -56,7 +54,6 @@ type FieldType id err
     | Checkbox
     | Group
     | Repeatable (Field id err)
-    | Error (List err)
 
 
 type alias Attributes id err =
@@ -254,8 +251,6 @@ isBlank input =
             Internal.Value.isBlank value
 
 
-
-
 isAutocompleteable : Field id err -> Bool
 isAutocompleteable input =
     let
@@ -359,9 +354,6 @@ mapFieldType func errToErr inputType_ =
         Repeatable tree ->
             Repeatable (Tree.mapValues (map func errToErr) tree)
 
-        Error errorList ->
-            Error (List.map errToErr errorList)
-
         Text ->
             Text
 
@@ -464,9 +456,6 @@ inputTypeToString type_ =
         Group ->
             "group"
 
-        Error _ ->
-            "error"
-
 
 updateValueWithString : String -> Field id err -> Field id err
 updateValueWithString str field =
@@ -551,11 +540,3 @@ inputStringToValue input str =
 
         Repeatable _ ->
             Internal.Value.blank
-
-        Error _ ->
-            Internal.Value.blank
-
-
-error : List err -> Field id err
-error errorList =
-    Tree.leaf (init (Error errorList) [])
