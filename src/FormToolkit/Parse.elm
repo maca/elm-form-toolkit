@@ -45,6 +45,7 @@ import Internal.Field
 import Internal.Parse
 import Internal.Value
 import Json.Decode
+import RoseTree.Tree as Tree
 import Time
 
 
@@ -328,7 +329,7 @@ fail err =
     Parser
         (\node ->
             Internal.Parse.failure node
-                (Error.CustomError (Internal.Field.identifier node) err)
+                (Error.CustomError (Tree.value node |> .identifier) err)
         )
 
 
@@ -394,36 +395,44 @@ andUpdate func (Parser parser) =
 parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
 parseValue func =
     Parser
-        (\input ->
-            if Internal.Field.isGroup input then
-                Internal.Parse.failure input (Error.IsGroupNotInput (Internal.Field.identifier input))
+        (\node ->
+            let
+                ({ identifier, options, errors, isRequired } as attrs) =
+                    Tree.value node
+            in
+            if Internal.Field.isGroup node then
+                Internal.Parse.failure node (Error.IsGroupNotInput identifier)
 
             else
                 let
                     fieldValue =
-                        Internal.Value.toString (Internal.Field.value input)
+                        Internal.Value.toString attrs.value
                             |> Maybe.andThen
                                 (\key ->
-                                    Internal.Field.options input
+                                    options
                                         |> Dict.fromList
                                         |> Dict.get key
                                 )
-                            |> Maybe.withDefault (Internal.Field.value input)
+                            |> Maybe.withDefault attrs.value
+                            |> Value.Value
                 in
-                case func (Internal.Field.identifier input) (Value.Value fieldValue) of
-                    Ok a ->
-                        Internal.Parse.success input a
+                case ( func identifier fieldValue, errors ) of
+                    ( Ok a, [] ) ->
+                        Internal.Parse.success node a
 
-                    Err err ->
+                    ( Ok a, errs ) ->
+                        Internal.Parse.success node a
+
+                    ( Err err, errs ) ->
                         if
-                            Internal.Field.isRequired input
-                                && Internal.Field.isBlank input
+                            isRequired
+                                && Internal.Field.isBlank node
                         then
-                            Internal.Parse.failure input
-                                (Error.IsBlank (Internal.Field.identifier input))
+                            Internal.Parse.failure node
+                                (Error.IsBlank identifier)
 
                         else
-                            Internal.Parse.failure input err
+                            Internal.Parse.failure node err
         )
 
 

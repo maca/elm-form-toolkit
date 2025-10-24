@@ -196,11 +196,11 @@ toHtml { field, path, attributes } =
             wrapInput (textAreaToHtml attributes path field)
 
         ( False, Field.Integer ) ->
-            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
+            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Tree.value field).step ]
                 |> wrapInput
 
         ( False, Field.Float ) ->
-            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Field.step field) ]
+            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Tree.value field).step ]
                 |> wrapInput
 
         ( False, Field.Date ) ->
@@ -644,15 +644,15 @@ textInputHtmlAttributes attributes path input =
 
           else
             [ Attributes.autocomplete False ]
-        , [ Attributes.placeholder (Maybe.withDefault "" (Field.placeholder input))
+        , [ Attributes.placeholder (Maybe.withDefault "" node.placeholder)
           , Attributes.id (inputId input path)
-          , Attributes.required (Field.isRequired input)
+          , Attributes.required node.isRequired
           , Attributes.disabled node.disabled
           , Events.onFocus (attributes.onFocus path)
           , Events.onBlur (attributes.onBlur path)
           , nameAttribute input
-          , valueAttribute Attributes.min (Field.min input)
-          , valueAttribute Attributes.max (Field.max input)
+          , valueAttribute Attributes.min node.min
+          , valueAttribute Attributes.max node.max
           , ariaDescribedByAttribute input path
           , ariaInvalidAttribute input
           ]
@@ -848,14 +848,14 @@ userProvidedAttributes element =
 
 nameAttribute : Field id -> Html.Attribute msg
 nameAttribute input =
-    Field.name input
+    (Tree.value input).name
         |> Maybe.map Attributes.name
         |> Maybe.withDefault (Attributes.class "")
 
 
 ariaDescribedByAttribute : Field id -> List Int -> Html.Attribute msg
 ariaDescribedByAttribute input path =
-    Field.hint input
+    (Tree.value input).hint
         |> Maybe.map
             (\_ -> Attributes.attribute "aria-describedby" (hintId input path))
         |> Maybe.withDefault (Attributes.class "")
@@ -863,7 +863,7 @@ ariaDescribedByAttribute input path =
 
 ariaLabeledByAttribute : Field id -> List Int -> Html.Attribute msg
 ariaLabeledByAttribute input path =
-    Field.label input
+    (Tree.value input).label
         |> Maybe.map
             (\_ -> Attributes.attribute "aria-labelledby" (labelId input path))
         |> Maybe.withDefault (Attributes.class "")

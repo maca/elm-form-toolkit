@@ -3,12 +3,10 @@ module Internal.Field exposing
     , Msg(..), update
     , init, isBlank, map
     , updateAttributes
-    , identifier, inputType, max, min, step, name, value
-    , label, hint, placeholder, options
-    , isGroup, isRepeatable, isRequired, isAutocompleteable
+    , isGroup, isRepeatable, isAutocompleteable
     , errors, setErrors, clearErrors
     , inputIdString, inputStringToValue
-    , error, pattern
+    , error
     , touchTree
     , updateValueWithString
     )
@@ -19,12 +17,10 @@ module Internal.Field exposing
 @docs Msg, update
 @docs init, isBlank, map
 @docs updateAttributes
-@docs identifier, inputType, max, min, step, name, value
-@docs label, hint, placeholder, options
-@docs isGroup, isRepeatable, isRequired, isAutocompleteable
+@docs isGroup, isRepeatable, isAutocompleteable
 @docs errors, setErrors, clearErrors
 @docs inputIdString, inputStringToValue
-@docs error, pattern
+@docs error
 @docs touchTree
 @docs updateValueWithString
 
@@ -243,7 +239,11 @@ blur input =
 
 isBlank : Field id err -> Bool
 isBlank input =
-    case Tree.value input |> .inputType of
+    let
+        { inputType, value } =
+            Tree.value input
+    in
+    case inputType of
         Group ->
             False
 
@@ -251,79 +251,20 @@ isBlank input =
             False
 
         _ ->
-            Internal.Value.isBlank (value input)
+            Internal.Value.isBlank value
 
 
-identifier : Field id err -> Maybe id
-identifier input =
-    Tree.value input |> .identifier
-
-
-value : Field id err -> Value
-value input =
-    Tree.value input |> .value
-
-
-name : Field id err -> Maybe String
-name input =
-    Tree.value input |> .name
-
-
-placeholder : Field id err -> Maybe String
-placeholder input =
-    Tree.value input |> .placeholder
-
-
-label : Field id err -> Maybe String
-label input =
-    Tree.value input |> .label
-
-
-hint : Field id err -> Maybe String
-hint input =
-    Tree.value input |> .hint
-
-
-inputType : Field id err -> FieldType id err
-inputType input =
-    Tree.value input |> .inputType
-
-
-min : Field id err -> Value
-min input =
-    Tree.value input |> .min
-
-
-max : Field id err -> Value
-max input =
-    Tree.value input |> .max
-
-
-step : Field id err -> Value
-step input =
-    Tree.value input |> .step
-
-
-pattern : Field id err -> List Internal.Utils.MaskToken
-pattern input =
-    Tree.value input |> .pattern
-
-
-options : Field id err -> List ( String, Value )
-options input =
-    Tree.value input |> .options
-
-
-isRequired : Field id err -> Bool
-isRequired input =
-    Tree.value input |> .isRequired
 
 
 isAutocompleteable : Field id err -> Bool
 isAutocompleteable input =
-    case inputType input of
+    let
+        { inputType, options } =
+            Tree.value input
+    in
+    case inputType of
         Text ->
-            not (List.isEmpty (options input))
+            not (List.isEmpty options)
 
         StrictAutocomplete ->
             True
@@ -466,9 +407,13 @@ mapFieldType func errToErr inputType_ =
 
 inputIdString : Field id err -> String
 inputIdString input =
-    name input
+    let
+        { name, inputType } =
+            Tree.value input
+    in
+    name
         |> Maybe.withDefault
-            (inputType input |> inputTypeToString)
+            (inputTypeToString inputType)
 
 
 inputTypeToString : FieldType id err -> String

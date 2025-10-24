@@ -3,7 +3,7 @@ module Internal.Parse exposing
     , ParserResult, failure, success
     , field, list, json, maybe, formattedString, oneOf
     , map, map2, andThen, andUpdate
-    , parse, validate
+    , parse, validate, validateNode
     )
 
 {-|
@@ -12,7 +12,7 @@ module Internal.Parse exposing
 @docs ParserResult, failure, success
 @docs field, list, json, maybe, formattedString, oneOf
 @docs map, map2, andThen, andUpdate
-@docs parse, validate
+@docs parse, validate, validateNode
 
 -}
 
@@ -54,7 +54,7 @@ type alias Parser id a =
 field : id -> Parser id a -> Parser id a
 field id parser =
     \tree ->
-        case fieldHelp id (map2 (\_ a -> a) validateTree parser) tree of
+        case fieldHelp id (map2 (\_ a -> a) validateTreeParser parser) tree of
             ( Just (Success node a), path ) ->
                 Success (Tree.replaceAt path node tree) a
 
@@ -69,7 +69,7 @@ fieldHelp : id -> Parser id a -> Field id -> ( Maybe (ParserResult id a), List I
 fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
-            if Internal.Field.identifier tree == Just id then
+            if (Tree.value tree |> .identifier) == Just id then
                 ( Just (parser tree), path )
 
             else
@@ -150,10 +150,10 @@ oneOfHelp parsers input accErrors =
         [] ->
             case accErrors of
                 [] ->
-                    failure input (ParseError (Internal.Field.identifier input))
+                    failure input (ParseError (Tree.value input |> .identifier))
 
                 errors ->
-                    failure input (OneOf (Internal.Field.identifier input) (List.reverse errors))
+                    failure input (OneOf (Tree.value input |> .identifier) (List.reverse errors))
 
         parser :: rest ->
             case parser input of
@@ -167,7 +167,7 @@ oneOfHelp parsers input accErrors =
 json : Parser id Json.Decode.Value
 json =
     map2 (always identity)
-        validateTree
+        validateTreeParser
         (\input ->
             case jsonEncodeObject input of
                 Ok a ->
@@ -189,18 +189,21 @@ jsonEncodeHelp :
     -> Result (Error id) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp input acc =
     let
+        { name, inputType, identifier, value } =
+            Tree.value input
+
         accumulate jsonValue =
-            case Internal.Field.name input of
-                Just name ->
-                    Ok (( name, jsonValue ) :: acc)
+            case name of
+                Just n ->
+                    Ok (( n, jsonValue ) :: acc)
 
                 Nothing ->
                     Err
-                        (HasNoName (Internal.Field.identifier input))
+                        (HasNoName identifier)
     in
-    case Internal.Field.inputType input of
+    case inputType of
         Internal.Field.Group ->
-            case Internal.Field.name input of
+            case name of
                 Nothing ->
                     Tree.children input
                         |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
@@ -220,11 +223,11 @@ jsonEncodeHelp input acc =
                 |> Result.andThen accumulate
 
         _ ->
-            case Internal.Field.name input of
-                Just name ->
+            case name of
+                Just n ->
                     Ok
-                        (( name
-                         , Internal.Value.encode (Internal.Field.value input)
+                        (( n
+                         , Internal.Value.encode value
                          )
                             :: acc
                         )
@@ -303,17 +306,27 @@ map2 func a b =
 
 parse : Parser id a -> Field id -> ( Field id, Result (List (Error id)) a )
 parse parser input =
-    case map2 (\_ a -> a) validateNode parser input of
+    case parser input of
         Success input2 a ->
-            ( input2, Ok a )
+            case validateNodeParser input2 of
+                Success input3 _ ->
+                    ( input3, Ok a )
+
+                Failure input3 errors ->
+                    ( input3, Err errors )
 
         Failure input2 errors ->
-            ( input2, Err errors )
+            case validateNodeParser input2 of
+                Success input3 _ ->
+                    ( input3, Err errors )
+
+                Failure input3 errors2 ->
+                    ( input3, Err (errors2 ++ errors) )
 
 
 validate : Field id -> Field id
 validate input =
-    case validateTree input of
+    case validateTreeParser input of
         Success updatedField _ ->
             updatedField
 
@@ -321,20 +334,21 @@ validate input =
             updatedField
 
 
-validateTree : Parser id ()
-validateTree input =
+validateNode : Field id -> Field id
+validateNode input =
+    case validateNodeParser input of
+        Success updatedField _ ->
+            updatedField
+
+        Failure updatedField _ ->
+            updatedField
+
+
+validateTreeParser : Parser id ()
+validateTreeParser input =
     let
         updated =
-            Tree.map
-                (\node ->
-                    case validateNode node of
-                        Success updatedField _ ->
-                            updatedField
-
-                        Failure updatedField _ ->
-                            updatedField
-                )
-                input
+            validateVisible input
     in
     case Internal.Field.errors updated of
         [] ->
@@ -344,8 +358,35 @@ validateTree input =
             Failure updated errors
 
 
-validateNode : Parser id ()
-validateNode node =
+validateVisible : Field id -> Field id
+validateVisible tree =
+    let
+        { hidden } =
+            Tree.value tree
+
+        validatedNode =
+            if hidden then
+                Tree.value tree
+
+            else
+                case validateNodeParser tree of
+                    Success updatedField _ ->
+                        Tree.value updatedField
+
+                    Failure updatedField _ ->
+                        Tree.value updatedField
+    in
+    Tree.branch validatedNode
+        (if hidden then
+            Tree.children tree
+
+         else
+            Tree.children tree |> List.map validateVisible
+        )
+
+
+validateNodeParser : Parser id ()
+validateNodeParser node =
     let
         ( finalNode, allErrors ) =
             List.foldl
@@ -380,11 +421,15 @@ validations =
 
 checkRequired : Parser id ()
 checkRequired input =
+    let
+        { isRequired, identifier } =
+            Tree.value input
+    in
     if
-        Internal.Field.isRequired input
+        isRequired
             && Internal.Field.isBlank input
     then
-        failure input (IsBlank (Internal.Field.identifier input))
+        failure input (IsBlank identifier)
 
     else
         success input ()
@@ -393,46 +438,45 @@ checkRequired input =
 checkInRange : Parser id ()
 checkInRange tree =
     let
+        { value, min, max, identifier } =
+            Tree.value tree
+
         val =
-            Value.Value (Internal.Field.value tree)
+            Value.Value value
 
-        min =
-            Value.Value (Internal.Field.min tree)
+        minVal =
+            Value.Value min
 
-        max =
-            Value.Value (Internal.Field.max tree)
+        maxVal =
+            Value.Value max
     in
     case
-        ( Internal.Value.compare
-            (Internal.Field.value tree)
-            (Internal.Field.min tree)
-        , Internal.Value.compare
-            (Internal.Field.value tree)
-            (Internal.Field.max tree)
+        ( Internal.Value.compare value min
+        , Internal.Value.compare value max
         )
     of
         ( Just LT, Just _ ) ->
             failure tree
-                (ValueNotInRange (Internal.Field.identifier tree)
-                    { value = val, min = min, max = max }
+                (ValueNotInRange identifier
+                    { value = val, min = minVal, max = maxVal }
                 )
 
         ( Just _, Just GT ) ->
             failure tree
-                (ValueNotInRange (Internal.Field.identifier tree)
-                    { value = val, min = min, max = max }
+                (ValueNotInRange identifier
+                    { value = val, min = minVal, max = maxVal }
                 )
 
         ( Just LT, Nothing ) ->
             failure tree
-                (ValueTooSmall (Internal.Field.identifier tree)
-                    { value = val, min = min }
+                (ValueTooSmall identifier
+                    { value = val, min = minVal }
                 )
 
         ( Nothing, Just GT ) ->
             failure tree
-                (ValueTooLarge (Internal.Field.identifier tree)
-                    { value = val, max = max }
+                (ValueTooLarge identifier
+                    { value = val, max = maxVal }
                 )
 
         _ ->
@@ -441,19 +485,19 @@ checkInRange tree =
 
 checkOptionsProvided : Parser id ()
 checkOptionsProvided input =
-    case
-        ( Internal.Field.inputType input
-        , Internal.Field.options input
-        )
-    of
+    let
+        { inputType, options, identifier } =
+            Tree.value input
+    in
+    case ( inputType, options ) of
         ( Internal.Field.Select, [] ) ->
-            failure input (NoOptionsProvided (Internal.Field.identifier input))
+            failure input (NoOptionsProvided identifier)
 
         ( Internal.Field.Radio, [] ) ->
-            failure input (NoOptionsProvided (Internal.Field.identifier input))
+            failure input (NoOptionsProvided identifier)
 
         ( Internal.Field.StrictAutocomplete, [] ) ->
-            failure input (NoOptionsProvided (Internal.Field.identifier input))
+            failure input (NoOptionsProvided identifier)
 
         _ ->
             success input ()
@@ -461,16 +505,20 @@ checkOptionsProvided input =
 
 checkEmail : Parser id ()
 checkEmail input =
-    case Internal.Field.inputType input of
+    let
+        { inputType, value, identifier } =
+            Tree.value input
+    in
+    case inputType of
         Internal.Field.Email ->
-            Internal.Value.toString (Internal.Field.value input)
+            Internal.Value.toString value
                 |> Maybe.andThen
-                    (\value ->
-                        if isValidEmail value then
+                    (\val ->
+                        if isValidEmail val then
                             Nothing
 
                         else
-                            Just (EmailInvalid (Internal.Field.identifier input))
+                            Just (EmailInvalid identifier)
                     )
                 |> Maybe.map (failure input)
                 |> Maybe.withDefault (success input ())
@@ -494,7 +542,7 @@ isValidEmail email =
 
 checkPattern : Parser id ()
 checkPattern input =
-    case Internal.Field.pattern input of
+    case (Tree.value input).pattern of
         [] ->
             Success input ()
 
@@ -517,17 +565,18 @@ formattedString mask =
 formattedStringHelp : List Utils.MaskToken -> Parser id String
 formattedStringHelp mask =
     \input ->
-        case Internal.Value.toString (Internal.Field.value input) of
+        let
+            { value, identifier, isRequired, selectionStart } =
+                Tree.value input
+        in
+        case Internal.Value.toString value of
             Just rawInput ->
                 let
-                    fieldAttributes =
-                        Tree.value input
-
                     { formatted, cursorPosition, maskConsumed } =
                         Utils.formatMaskWithTokens
                             { mask = mask
                             , input = rawInput
-                            , cursorPosition = fieldAttributes.selectionStart
+                            , cursorPosition = selectionStart
                             }
 
                     updatedField =
@@ -545,11 +594,11 @@ formattedStringHelp mask =
                     success updatedField formatted
 
                 else
-                    failure updatedField (PatternError (Internal.Field.identifier input))
+                    failure updatedField (PatternError identifier)
 
             Nothing ->
-                if Internal.Field.isRequired input && Internal.Field.isBlank input then
-                    failure input (IsBlank (Internal.Field.identifier input))
+                if isRequired && Internal.Field.isBlank input then
+                    failure input (IsBlank identifier)
 
                 else
-                    failure input (ParseError (Internal.Field.identifier input))
+                    failure input (ParseError identifier)

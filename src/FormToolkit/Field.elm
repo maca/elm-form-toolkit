@@ -427,18 +427,21 @@ repeatable attributes (Field template) updates =
 
 
 init : FieldType id (Error id) -> List (Attribute id val) -> Field id
-init inputType attributes =
+init inputType_ attributes =
     let
         field =
-            Tree.leaf (Internal.Field.init inputType (unwrapAttrs attributes))
+            Tree.leaf (Internal.Field.init inputType_ (unwrapAttrs attributes))
+
+        attrs =
+            Tree.value field
 
         fieldWithMissingOptions =
             Internal.Field.setErrors
-                [ NoOptionsProvided (Internal.Field.identifier field)
+                [ NoOptionsProvided attrs.identifier
                 ]
                 field
     in
-    case ( Internal.Field.inputType field, Internal.Field.options field ) of
+    case ( attrs.inputType, attrs.options ) of
         ( Internal.Field.Select, [] ) ->
             Field fieldWithMissingOptions
 
@@ -916,20 +919,25 @@ repeatableMax integer =
 -}
 updateWithId : id -> Attribute id val -> Field id -> Field id
 updateWithId id (Attribute fn) (Field field) =
-    if Tree.any (\node -> Internal.Field.identifier node == Just id) field then
-        field
-            |> Tree.mapValues
-                (\attrs ->
-                    if attrs.identifier == Just id then
-                        fn attrs
+    field
+        |> Tree.foldWithPath
+            (\path node acc ->
+                case acc of
+                    Just _ ->
+                        acc
 
-                    else
-                        attrs
-                )
-            |> Field
+                    Nothing ->
+                        if (Tree.value node).identifier == Just id then
+                            Just path
 
-    else
-        Field field
+                        else
+                            Nothing
+            )
+            Nothing
+        |> Maybe.map (\path -> Tree.updateAt path (Tree.updateValue fn) field)
+        |> Maybe.map Internal.Parse.validate
+        |> Maybe.withDefault field
+        |> Field
 
 
 {-| Updates a field attribute.
@@ -974,7 +982,7 @@ updateAttributes : List (Attribute id val) -> Field id -> Field id
 updateAttributes attrList (Field field) =
     Field
         (Internal.Field.updateAttributes (unwrapAttrs attrList) field
-            |> Internal.Parse.validate
+            |> Internal.Parse.validateNode
         )
 
 
@@ -1201,7 +1209,7 @@ namesToPaths : Field id -> Dict String (List Int)
 namesToPaths (Field field) =
     Tree.foldWithPath
         (\path node ( keys, repeatableNamePath ) ->
-            case Internal.Field.name node of
+            case (Tree.value node).name of
                 Just n ->
                     let
                         namePath =
