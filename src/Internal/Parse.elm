@@ -98,17 +98,17 @@ maybe parser node =
         Success node Nothing
 
     else
-        mapHelp Just parser node
+        map Just parser node
 
 
 list : Parser id a -> Parser id (List a)
 list parser node =
-    if Tree.value node |> .hidden then
-        Success
-            (Tree.map (Tree.updateValue (\f -> { f | errors = [] }))
-                node
-            )
-            []
+    let
+        ({ hidden } as attrs) =
+            Tree.value node
+    in
+    if hidden then
+        Success (Tree.map (Tree.updateValue (\f -> { f | errors = [] })) node) []
 
     else
         let
@@ -116,7 +116,7 @@ list parser node =
                 listHelp parser node
 
             input2 =
-                Tree.branch (Tree.value node) children
+                Tree.branch attrs children
         in
         case result of
             Ok elements ->
@@ -157,11 +157,15 @@ oneOf parsers node =
 
 oneOfHelp : List (Parser id a) -> Field id -> Maybe (Error id) -> ParserResult id a
 oneOfHelp parsers input accError =
+    let
+        { identifier } =
+            Tree.value input
+    in
     case parsers of
         [] ->
             case accError of
                 Nothing ->
-                    failure input (ParseError (Tree.value input |> .identifier))
+                    failure input (ParseError identifier)
 
                 Just error ->
                     failure input error
@@ -179,7 +183,7 @@ oneOfHelp parsers input accError =
                                     newError
 
                                 Just err ->
-                                    combineErrors (Tree.value input |> .identifier) err newError
+                                    combineErrors identifier err newError
                     in
                     oneOfHelp rest input (Just combinedError)
 
@@ -287,12 +291,7 @@ andThen func parser node =
 
 
 map : (a -> b) -> Parser id a -> Parser id b
-map func parser =
-    mapHelp func parser
-
-
-mapHelp : (a -> b) -> Parser id a -> Field id -> ParserResult id b
-mapHelp func parser input =
+map func parser input =
     case parser input of
         Success input2 a ->
             Success input2 (func a)
@@ -303,10 +302,6 @@ mapHelp func parser input =
 
 map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
 map2 func a b node =
-    let
-        { identifier } =
-            Tree.value node
-    in
     case a node of
         Success tree2 res ->
             case b tree2 of
@@ -322,6 +317,10 @@ map2 func a b node =
                     Failure tree3 error
 
                 Failure tree3 error2 ->
+                    let
+                        { identifier } =
+                            Tree.value node
+                    in
                     Failure tree3
                         (combineErrors identifier error2 error)
 
@@ -369,7 +368,7 @@ validateTreeParser input =
         firstError :: restErrors ->
             Failure updated
                 (List.foldl
-                    (\err acc -> combineErrors (Tree.value input |> .identifier) acc err)
+                    (\err acc -> combineErrors (Tree.value input).identifier acc err)
                     firstError
                     restErrors
                 )
@@ -416,7 +415,11 @@ validateNodeParser node =
                                     Just validationError
 
                                 Just err ->
-                                    Just (combineErrors (Tree.value node |> .identifier) err validationError)
+                                    let
+                                        { identifier } =
+                                            Tree.value node
+                                    in
+                                    Just (combineErrors identifier err validationError)
                             )
 
                         Success updatedNode _ ->
@@ -586,10 +589,7 @@ formattedString mask =
 string : Parser id String
 string =
     parseValue
-        (\id val ->
-            Value.toString val
-                |> Result.fromMaybe (ParseError id)
-        )
+        (\id val -> Value.toString val |> Result.fromMaybe (ParseError id))
 
 
 maskedString : List Utils.MaskToken -> String -> Field id -> ParserResult id String
@@ -626,57 +626,55 @@ maskedString mask str node =
 {-| Parse input values using a custom parsing function.
 -}
 parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
-parseValue func =
-    \node ->
+parseValue func node =
+    let
+        ({ identifier, options, errors, isRequired } as attrs) =
+            Tree.value node
+    in
+    if Internal.Field.isGroup node then
+        failure node (IsGroupNotInput identifier)
+
+    else
         let
-            ({ identifier, options, errors, isRequired } as attrs) =
-                Tree.value node
-        in
-        if Internal.Field.isGroup node then
-            failure node (IsGroupNotInput identifier)
-
-        else
-            let
-                fieldValue =
-                    Internal.Value.toString attrs.value
-                        |> Maybe.andThen
-                            (\key ->
-                                options
-                                    |> Dict.fromList
-                                    |> Dict.get key
-                            )
-                        |> Maybe.withDefault attrs.value
-                        |> Value.Value
-            in
-            case
-                ( isRequired && Internal.Field.isBlank node
-                , func identifier fieldValue
-                , errors
-                )
-            of
-                ( True, _, _ ) ->
-                    failure node (IsBlank identifier)
-
-                ( _, Ok a, [] ) ->
-                    Success node a
-
-                ( _, Ok _, firstError :: restErrors ) ->
-                    Failure node
-                        (List.foldl
-                            (\err acc -> combineErrors identifier acc err)
-                            firstError
-                            restErrors
+            fieldValue =
+                Internal.Value.toString attrs.value
+                    |> Maybe.andThen
+                        (\key ->
+                            options
+                                |> Dict.fromList
+                                |> Dict.get key
                         )
+                    |> Maybe.withDefault attrs.value
+                    |> Value.Value
+        in
+        case
+            ( isRequired && Internal.Field.isBlank node
+            , func identifier fieldValue
+            , errors
+            )
+        of
+            ( True, _, _ ) ->
+                failure node (IsBlank identifier)
 
-                ( _, Err err, [] ) ->
-                    failure node err
+            ( _, Ok a, [] ) ->
+                Success node a
 
-                ( _, Err err, firstError :: restErrors ) ->
-                    let
-                        combinedError =
-                            List.foldl
-                                (\e acc -> combineErrors identifier acc e)
-                                firstError
-                                (restErrors ++ [ err ])
-                    in
-                    Failure (Internal.Field.setErrors [ combinedError ] node) combinedError
+            ( _, Ok _, firstError :: restErrors ) ->
+                Failure node
+                    (List.foldl (\err acc -> combineErrors identifier acc err)
+                        firstError
+                        restErrors
+                    )
+
+            ( _, Err err, [] ) ->
+                failure node err
+
+            ( _, Err err, firstError :: restErrors ) ->
+                let
+                    combinedError =
+                        List.foldl
+                            (\e acc -> combineErrors identifier acc e)
+                            firstError
+                            (restErrors ++ [ err ])
+                in
+                Failure (Internal.Field.setErrors [ combinedError ] node) combinedError

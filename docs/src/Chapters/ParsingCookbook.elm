@@ -77,8 +77,9 @@ parsingIntroMarkdown =
 `andUpdate` is similar to `andThen`, but it can update `Field` attributes too,
 toggling, for instance, its visibility.
 
-In this example, we use the value of the "Notify Participants" checkbox to make "Participant Emails"
-visible and parse the list if it is visible, or just succeed with an empty list.
+In this example, we use the value of the "Notify Participants" checkbox to
+make "Participant Emails" visible and parse the list if it is visible, or just
+succeed with an empty list.
 
 
 ```elm

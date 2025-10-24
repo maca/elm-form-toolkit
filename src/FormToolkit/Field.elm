@@ -917,23 +917,15 @@ repeatableMax integer =
 updateWithId : id -> Attribute id val -> Field id -> Field id
 updateWithId id (Attribute fn) (Field field) =
     field
-        |> Tree.foldWithPath
-            (\path node acc ->
-                case acc of
-                    Just _ ->
-                        acc
+        |> Tree.map
+            (\node ->
+                if (Tree.value node).identifier == Just id then
+                    Tree.updateValue fn node
 
-                    Nothing ->
-                        if (Tree.value node).identifier == Just id then
-                            Just path
-
-                        else
-                            Nothing
+                else
+                    node
             )
-            Nothing
-        |> Maybe.map (\path -> Tree.updateAt path (Tree.updateValue fn) field)
-        |> Maybe.map Internal.Parse.validate
-        |> Maybe.withDefault field
+        |> Internal.Parse.validate
         |> Field
 
 
