@@ -91,6 +91,10 @@ import RoseTree.Tree as Tree
 import String.Extra
 
 
+type alias Node id =
+    Internal.Field.Field id (Error id)
+
+
 {-| Represents a form field element, which can be an individual field or a group
 of fields.
 
@@ -106,17 +110,22 @@ a `String`.
 
 -}
 type Field id
-    = Field (Internal.Field.Field id (Error id))
+    = Field (Node id)
+
+
+type alias Path =
+    List Int
 
 
 {-| A message generated through interaction with an input.
 -}
 type Msg id
-    = InputChanged (List Int) Internal.Value.Value { selectionStart : Int, selectionEnd : Int }
-    | InputFocused (List Int)
-    | InputBlured (List Int)
-    | InputsAdded (List Int)
-    | InputsRemoved (List Int)
+    = InputChanged (Maybe id) Path Internal.Value.Value { selectionStart : Int, selectionEnd : Int }
+    | OnCheck (Maybe id) Path Bool
+    | InputFocused (Maybe id) Path
+    | InputBlured (Maybe id) Path
+    | InputsAdded (Maybe id) Path
+    | InputsRemoved (Maybe id) Path
 
 
 {-| Updates a form by passing a decoder to validate and produce a result,
@@ -126,7 +135,7 @@ update : Msg id -> Field id -> Field id
 update msg (Field field) =
     Field
         ((case msg of
-            InputChanged path val selection ->
+            InputChanged _ path val selection ->
                 updateAt path
                     (Tree.updateValue
                         (\attrs ->
@@ -140,13 +149,25 @@ update msg (Field field) =
                     )
                     field
 
-            InputFocused path ->
+            OnCheck _ path checked ->
+                updateAt path
+                    (Tree.updateValue
+                        (\attrs ->
+                            { attrs
+                                | value = Internal.Value.fromBool checked
+                                , errors = []
+                            }
+                        )
+                    )
+                    field
+
+            InputFocused _ path ->
                 updateAt path (Tree.updateValue focus) field
 
-            InputBlured path ->
+            InputBlured _ path ->
                 updateAt path (Tree.updateValue blur) field
 
-            InputsAdded path ->
+            InputsAdded _ path ->
                 case
                     Tree.getValueAt path field
                         |> Maybe.map .inputType
@@ -157,18 +178,14 @@ update msg (Field field) =
                     _ ->
                         field
 
-            InputsRemoved path ->
+            InputsRemoved _ path ->
                 Tree.removeAt path field
          )
             |> Internal.Field.validate
         )
 
 
-updateAt :
-    List Int
-    -> (Internal.Field.Field id (Error id) -> Internal.Field.Field id (Error id))
-    -> Internal.Field.Field id (Error id)
-    -> Internal.Field.Field id (Error id)
+updateAt : List Int -> (Node id -> Node id) -> Node id -> Node id
 updateAt path func input =
     case path of
         [] ->
@@ -227,11 +244,12 @@ toHtml : (Msg id -> msg) -> Field id -> Html msg
 toHtml onChange (Field field) =
     Internal.View.init
         { events =
-            { onChange = \path val cursorPos -> onChange (InputChanged path val cursorPos)
-            , onFocus = onChange << InputFocused
-            , onBlur = onChange << InputBlured
-            , onAdd = onChange << InputsAdded
-            , onRemove = onChange << InputsRemoved
+            { onChange = \id path val cursorPos -> onChange (InputChanged id path val cursorPos)
+            , onCheck = \id path checked -> onChange (OnCheck id path checked)
+            , onFocus = \id path -> onChange (InputFocused id path)
+            , onBlur = \id path -> onChange (InputBlured id path)
+            , onAdd = \id path -> onChange (InputsAdded id path)
+            , onRemove = \id path -> onChange (InputsRemoved id path)
             }
         , path = []
         , field = field
@@ -541,8 +559,8 @@ initAttributes inputType_ =
 
 updateAttributesInternal :
     List (Attributes id (Error id) -> Attributes id (Error id))
-    -> Internal.Field.Field id (Error id)
-    -> Internal.Field.Field id (Error id)
+    -> Node id
+    -> Node id
 updateAttributesInternal attrList =
     Tree.updateValue
         (\attrs ->
@@ -554,7 +572,7 @@ updateAttributesInternal attrList =
         )
 
 
-setErrorsInternal : List (Error id) -> Internal.Field.Field id (Error id) -> Internal.Field.Field id (Error id)
+setErrorsInternal : List (Error id) -> Node id -> Node id
 setErrorsInternal errorList =
     Tree.updateValue
         (\input ->
@@ -564,7 +582,7 @@ setErrorsInternal errorList =
         )
 
 
-isRepeatableInternal : Internal.Field.Field id (Error id) -> Bool
+isRepeatableInternal : Node id -> Bool
 isRepeatableInternal input =
     case Tree.value input |> .inputType of
         Internal.Field.Repeatable _ ->

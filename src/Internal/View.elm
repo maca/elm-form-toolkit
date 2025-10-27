@@ -35,11 +35,12 @@ type alias View id msg =
 
 
 type alias ViewAttributes id msg =
-    { onChange : List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
-    , onFocus : List Int -> msg
-    , onBlur : List Int -> msg
-    , onAdd : List Int -> msg
-    , onRemove : List Int -> msg
+    { onChange : Maybe id -> List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
+    , onCheck : Maybe id -> List Int -> Bool -> msg
+    , onFocus : Maybe id -> List Int -> msg
+    , onBlur : Maybe id -> List Int -> msg
+    , onAdd : Maybe id -> List Int -> msg
+    , onRemove : Maybe id -> List Int -> msg
     , errorToString : Error id -> String
     , fieldView : FieldView msg -> Html msg
     , checkboxFieldView : FieldView msg -> Html msg
@@ -92,11 +93,12 @@ type alias RepeatableFieldView msg =
 
 init :
     { events :
-        { onChange : List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
-        , onFocus : List Int -> msg
-        , onBlur : List Int -> msg
-        , onAdd : List Int -> msg
-        , onRemove : List Int -> msg
+        { onChange : Maybe id -> List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
+        , onCheck : Maybe id -> List Int -> Bool -> msg
+        , onFocus : Maybe id -> List Int -> msg
+        , onBlur : Maybe id -> List Int -> msg
+        , onAdd : Maybe id -> List Int -> msg
+        , onRemove : Maybe id -> List Int -> msg
         }
     , path : List Int
     , field : Field id
@@ -105,6 +107,7 @@ init :
 init { events, path, field } =
     { attributes =
         { onChange = events.onChange
+        , onCheck = events.onCheck
         , onFocus = events.onFocus
         , onBlur = events.onBlur
         , onAdd = events.onAdd
@@ -263,6 +266,9 @@ groupToHtml attributes path input =
 repeatableToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
 repeatableToHtml attributes path input =
     let
+        { identifier } =
+            Tree.value input
+
         unwrappedField =
             Tree.value input
 
@@ -278,7 +284,7 @@ repeatableToHtml attributes path input =
                     path ++ [ idx ]
 
                 removeFieldsButtonOnClick =
-                    attributes.onRemove childPath
+                    attributes.onRemove identifier childPath
 
                 removeFieldsButtonCopy =
                     unwrappedField.removeFieldsButtonCopy
@@ -333,7 +339,7 @@ repeatableToHtml attributes path input =
                         :: Attributes.disabled (not addFieldsButtonEnabled)
                         :: Events.preventDefaultOn "click"
                             (Json.Decode.succeed
-                                ( attributes.onAdd path
+                                ( attributes.onAdd identifier path
                                 , True
                                 )
                             )
@@ -342,7 +348,7 @@ repeatableToHtml attributes path input =
                     [ Html.text unwrappedField.addFieldsButtonCopy ]
         , addFieldsButtonOnClick =
             if addFieldsButtonEnabled then
-                Just (attributes.onAdd path)
+                Just (attributes.onAdd identifier path)
 
             else
                 Nothing
@@ -374,7 +380,7 @@ inputToHtml attributes inputType path input htmlAttrs element =
                            )
                         :: onInputWithSelection
                             (\inputStr ->
-                                attributes.onChange path
+                                attributes.onChange unwrappedField.identifier path
                                     (Field.inputStringToValue input inputStr)
                             )
                         :: textInputHtmlAttributes attributes path input
@@ -408,7 +414,7 @@ textAreaToHtml :
     -> (UserAttributes -> Html msg)
 textAreaToHtml attributes path input element =
     let
-        { value, autogrow } =
+        { value, autogrow, identifier } =
             Tree.value input
 
         valueStr =
@@ -438,7 +444,7 @@ textAreaToHtml attributes path input element =
             (List.concat
                 [ onInputWithSelection
                     (\inputStr ->
-                        attributes.onChange path
+                        attributes.onChange identifier path
                             (Field.inputStringToValue input inputStr)
                     )
                     :: Attributes.value valueStr
@@ -474,6 +480,9 @@ selectToHtml :
     -> (UserAttributes -> Html msg)
 selectToHtml { onChange, onFocus, onBlur } path input element =
     let
+        { identifier } =
+            Tree.value input
+
         unwappedField =
             Tree.value input
     in
@@ -483,11 +492,11 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
             :: Attributes.disabled unwappedField.disabled
             :: onInputWithSelection
                 (\inputStr ->
-                    onChange path
+                    onChange identifier path
                         (Field.inputStringToValue input inputStr)
                 )
-            :: Events.onFocus (onFocus path)
-            :: Events.onBlur (onBlur path)
+            :: Events.onFocus (onFocus identifier path)
+            :: Events.onBlur (onBlur identifier path)
             :: nameAttribute input
             :: ariaLabeledByAttribute input path
             :: ariaDescribedByAttribute input path
@@ -514,6 +523,9 @@ radioToHtml :
     -> (UserAttributes -> Html msg)
 radioToHtml { onChange, onFocus, onBlur } path input element =
     let
+        { identifier } =
+            Tree.value input
+
         unwrappedField =
             Tree.value input
     in
@@ -536,11 +548,11 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                             :: Attributes.type_ "radio"
                             :: onInputWithSelection
                                 (\inputStr ->
-                                    onChange path
+                                    onChange identifier path
                                         (Field.inputStringToValue input inputStr)
                                 )
-                            :: Events.onFocus (onFocus path)
-                            :: Events.onBlur (onBlur path)
+                            :: Events.onFocus (onFocus identifier path)
+                            :: Events.onBlur (onBlur identifier path)
                             :: nameAttribute input
                             :: ariaInvalidAttribute input
                             :: userProvidedAttributes element
@@ -564,6 +576,9 @@ checkboxToHtml :
     -> Html msg
 checkboxToHtml attributes path field =
     let
+        { identifier } =
+            Tree.value field
+
         unwrappedField =
             Tree.value field
 
@@ -577,12 +592,7 @@ checkboxToHtml attributes path field =
                                 |> Maybe.map Attributes.checked
                                 |> Maybe.withDefault (Attributes.class "")
                            )
-                        :: Events.onCheck
-                            (\checked ->
-                                attributes.onChange path
-                                    (Internal.Value.fromBool checked)
-                                    { selectionStart = 0, selectionEnd = 0 }
-                            )
+                        :: Events.onCheck (attributes.onCheck identifier path)
                         :: textInputHtmlAttributes attributes path field
                     , userProvidedAttributes element
                     ]
@@ -645,8 +655,8 @@ textInputHtmlAttributes attributes path input =
           , Attributes.id (inputId input path)
           , Attributes.required node.isRequired
           , Attributes.disabled node.disabled
-          , Events.onFocus (attributes.onFocus path)
-          , Events.onBlur (attributes.onBlur path)
+          , Events.onFocus (attributes.onFocus node.identifier path)
+          , Events.onBlur (attributes.onBlur node.identifier path)
           , nameAttribute input
           , valueAttribute Attributes.min node.min
           , valueAttribute Attributes.max node.max

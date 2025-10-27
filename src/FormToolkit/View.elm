@@ -59,15 +59,16 @@ type View id msg
 
 -}
 fromField : (Msg id -> msg) -> Field id -> View id msg
-fromField onChange (Field field) =
+fromField toMsg (Field field) =
     View
         (Internal.View.init
             { events =
-                { onChange = \path value cursorPos -> onChange (Field.InputChanged path value cursorPos)
-                , onFocus = onChange << Field.InputFocused
-                , onBlur = onChange << Field.InputBlured
-                , onAdd = onChange << Field.InputsAdded
-                , onRemove = onChange << Field.InputsRemoved
+                { onChange = \id path value cursorPos -> toMsg (Field.InputChanged id path value cursorPos)
+                , onCheck = \id path checked -> toMsg (Field.OnCheck id path checked)
+                , onFocus = \id path -> toMsg (Field.InputFocused id path)
+                , onBlur = \id path -> toMsg (Field.InputBlured id path)
+                , onAdd = \id path -> toMsg (Field.InputsAdded id path)
+                , onRemove = \id path -> toMsg (Field.InputsRemoved id path)
                 }
             , path = []
             , field = field
@@ -245,6 +246,7 @@ customizeFields :
      , fieldProperties : Field.Properties id
      , events :
         { inputOnChange : Value -> { selectionStart : Int, selectionEnd : Int } -> msg
+        , inputOnCheck : Bool -> msg
         , inputOnBlur : msg
         , inputOnFocus : msg
         }
@@ -278,9 +280,10 @@ customizeFields viewFunc (View ({ attributes, field } as view)) =
                         }
                     , events =
                         { inputOnChange =
-                            \(Value val) -> attributes.onChange params.path val
-                        , inputOnBlur = attributes.onBlur params.path
-                        , inputOnFocus = attributes.onFocus params.path
+                            \(Value val) cursorPos -> attributes.onChange unwrappedField.identifier params.path val cursorPos
+                        , inputOnCheck = \checked -> attributes.onCheck unwrappedField.identifier params.path checked
+                        , inputOnBlur = attributes.onBlur unwrappedField.identifier params.path
+                        , inputOnFocus = attributes.onFocus unwrappedField.identifier params.path
                         }
                     }
     in
