@@ -908,8 +908,8 @@ parseToTuple parser (Field input) =
 
 -}
 parseUpdate : Parser id a -> Msg id -> Field id -> ( Field id, Result (Error id) a )
-parseUpdate parser (Field.Msg msg) (Field input) =
-    Internal.Field.update msg input |> Field |> parseToTuple parser
+parseUpdate parser msg input =
+    Field.update msg input |> parseToTuple parser
 
 
 {-| Parses an input and updates the tree revealing errors.

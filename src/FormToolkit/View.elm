@@ -63,14 +63,11 @@ fromField onChange (Field field) =
     View
         (Internal.View.init
             { events =
-                { onChange =
-                    \path value cursorPos ->
-                        onChange
-                            (Msg (Internal.Field.InputChanged path value cursorPos))
-                , onFocus = onChange << Msg << Internal.Field.InputFocused
-                , onBlur = onChange << Msg << Internal.Field.InputBlured
-                , onAdd = onChange << Msg << Internal.Field.InputsAdded
-                , onRemove = onChange << Msg << Internal.Field.InputsRemoved
+                { onChange = \path value cursorPos -> onChange (Field.InputChanged path value cursorPos)
+                , onFocus = onChange << Field.InputFocused
+                , onBlur = onChange << Field.InputBlured
+                , onAdd = onChange << Field.InputsAdded
+                , onRemove = onChange << Field.InputsRemoved
                 }
             , path = []
             , field = field

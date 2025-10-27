@@ -79,13 +79,13 @@ import Internal.Field
         ( Attributes
         , Field
         , FieldType
-        , Msg(..)
         )
 import Internal.Utils
 import Internal.Value
 import Internal.View
 import Json.Decode as Decode
 import Json.Encode as Encode
+import List.Extra
 import RoseTree.Path as Path
 import RoseTree.Tree as Tree
 import String.Extra
@@ -112,18 +112,101 @@ type Field id
 {-| A message generated through interaction with an input.
 -}
 type Msg id
-    = Msg (Internal.Field.Msg id)
+    = InputChanged (List Int) Internal.Value.Value { selectionStart : Int, selectionEnd : Int }
+    | InputFocused (List Int)
+    | InputBlured (List Int)
+    | InputsAdded (List Int)
+    | InputsRemoved (List Int)
 
 
 {-| Updates a form by passing a decoder to validate and produce a result,
 and a [Msg](#Msg) to reflect user interactions.
 -}
 update : Msg id -> Field id -> Field id
-update (Msg msg) (Field field) =
+update msg (Field field) =
     Field
-        (Internal.Field.update msg field
+        ((case msg of
+            InputChanged path val selection ->
+                updateAt path
+                    (Tree.updateValue
+                        (\attrs ->
+                            { attrs
+                                | value = val
+                                , errors = []
+                                , selectionStart = selection.selectionStart
+                                , selectionEnd = selection.selectionEnd
+                            }
+                        )
+                    )
+                    field
+
+            InputFocused path ->
+                updateAt path (Tree.updateValue focus) field
+
+            InputBlured path ->
+                updateAt path (Tree.updateValue blur) field
+
+            InputsAdded path ->
+                case
+                    Tree.getValueAt path field
+                        |> Maybe.map .inputType
+                of
+                    Just (Internal.Field.Repeatable template) ->
+                        updateAt path (Tree.push template) field
+
+                    _ ->
+                        field
+
+            InputsRemoved path ->
+                Tree.removeAt path field
+         )
             |> Internal.Field.validate
         )
+
+
+updateAt :
+    List Int
+    -> (Internal.Field.Field id (Error id) -> Internal.Field.Field id (Error id))
+    -> Internal.Field.Field id (Error id)
+    -> Internal.Field.Field id (Error id)
+updateAt path func input =
+    case path of
+        [] ->
+            func input
+
+        _ ->
+            Tree.updateAt path func input
+
+
+focus : Attributes id (Error id) -> Attributes id (Error id)
+focus input =
+    { input
+        | status = Internal.Field.Focused
+        , value =
+            if Internal.Value.isInvalid input.value then
+                Internal.Value.Blank
+
+            else
+                input.value
+    }
+
+
+blur : Attributes id (Error id) -> Attributes id (Error id)
+blur input =
+    { input
+        | status = Internal.Field.Touched
+        , value =
+            case input.inputType of
+                Internal.Field.StrictAutocomplete ->
+                    if Internal.Value.isBlank input.value then
+                        Internal.Value.Invalid
+
+                    else
+                        input.value
+
+                _ ->
+                    input.value
+    }
 
 
 {-| Renders the form.
@@ -144,11 +227,11 @@ toHtml : (Msg id -> msg) -> Field id -> Html msg
 toHtml onChange (Field field) =
     Internal.View.init
         { events =
-            { onChange = \path val cursorPos -> onChange (Msg (InputChanged path val cursorPos))
-            , onFocus = onChange << Msg << InputFocused
-            , onBlur = onChange << Msg << InputBlured
-            , onAdd = onChange << Msg << InputsAdded
-            , onRemove = onChange << Msg << InputsRemoved
+            { onChange = \path val cursorPos -> onChange (InputChanged path val cursorPos)
+            , onFocus = onChange << InputFocused
+            , onBlur = onChange << InputBlured
+            , onAdd = onChange << InputsAdded
+            , onRemove = onChange << InputsRemoved
             }
         , path = []
         , field = field
@@ -356,7 +439,7 @@ group : List (Attribute id val) -> List (Field id) -> Field id
 group attributes =
     List.map (\(Field field) -> field)
         >> Tree.branch
-            (Internal.Field.init Internal.Field.Group
+            (initAttributes Internal.Field.Group
                 (unwrapAttrs attributes)
             )
         >> Field
@@ -405,7 +488,7 @@ repeatable :
 repeatable attributes (Field template) updates =
     let
         params =
-            Internal.Field.init (Internal.Field.Repeatable template)
+            initAttributes (Internal.Field.Repeatable template)
                 (unwrapAttrs attributes)
 
         children =
@@ -425,17 +508,162 @@ repeatable attributes (Field template) updates =
     Field (Tree.branch params children)
 
 
+initAttributes : FieldType id (Error id) -> List (Attributes id (Error id) -> Attributes id (Error id)) -> Attributes id (Error id)
+initAttributes inputType_ =
+    List.foldl (<|)
+        { inputType = inputType_
+        , name = Nothing
+        , label = Nothing
+        , hint = Nothing
+        , placeholder = Nothing
+        , value = Internal.Value.blank
+        , min = Internal.Value.blank
+        , max = Internal.Value.blank
+        , step = Internal.Value.blank
+        , autogrow = False
+        , isRequired = False
+        , options = []
+        , identifier = Nothing
+        , status = Internal.Field.Pristine
+        , repeatableMin = 1
+        , repeatableMax = Nothing
+        , addFieldsButtonCopy = "Add"
+        , removeFieldsButtonCopy = "Remove"
+        , errors = []
+        , classList = []
+        , selectionStart = 0
+        , selectionEnd = 0
+        , disabled = False
+        , hidden = False
+        , pattern = []
+        }
+
+
+updateAttributesInternal :
+    List (Attributes id (Error id) -> Attributes id (Error id))
+    -> Internal.Field.Field id (Error id)
+    -> Internal.Field.Field id (Error id)
+updateAttributesInternal attrList =
+    Tree.updateValue
+        (\attrs ->
+            let
+                updatedAttrs =
+                    List.foldl (<|) attrs attrList
+            in
+            { updatedAttrs | identifier = attrs.identifier }
+        )
+
+
+setErrorsInternal : List (Error id) -> Internal.Field.Field id (Error id) -> Internal.Field.Field id (Error id)
+setErrorsInternal errorList =
+    Tree.updateValue
+        (\input ->
+            { input
+                | errors = List.Extra.unique (errorList ++ input.errors)
+            }
+        )
+
+
+isRepeatableInternal : Internal.Field.Field id (Error id) -> Bool
+isRepeatableInternal input =
+    case Tree.value input |> .inputType of
+        Internal.Field.Repeatable _ ->
+            True
+
+        _ ->
+            False
+
+
+mapInternal : (a -> b) -> (err1 -> err2) -> Attributes a err1 -> Attributes b err2
+mapInternal func errToErr input =
+    { inputType = mapFieldType func errToErr input.inputType
+    , name = input.name
+    , value = input.value
+    , isRequired = input.isRequired
+    , label = input.label
+    , placeholder = input.placeholder
+    , hint = input.hint
+    , min = input.min
+    , max = input.max
+    , step = input.step
+    , autogrow = input.autogrow
+    , options = input.options
+    , identifier = Maybe.map func input.identifier
+    , status = input.status
+    , repeatableMin = input.repeatableMin
+    , repeatableMax = input.repeatableMax
+    , addFieldsButtonCopy = input.addFieldsButtonCopy
+    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
+    , errors = List.map errToErr input.errors
+    , classList = input.classList
+    , selectionStart = input.selectionStart
+    , selectionEnd = input.selectionEnd
+    , disabled = input.disabled
+    , hidden = input.hidden
+    , pattern = input.pattern
+    }
+
+
+mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
+mapFieldType func errToErr inputType_ =
+    case inputType_ of
+        Internal.Field.Repeatable tree ->
+            Internal.Field.Repeatable (Tree.mapValues (mapInternal func errToErr) tree)
+
+        Internal.Field.Text ->
+            Internal.Field.Text
+
+        Internal.Field.TextArea ->
+            Internal.Field.TextArea
+
+        Internal.Field.Email ->
+            Internal.Field.Email
+
+        Internal.Field.Password ->
+            Internal.Field.Password
+
+        Internal.Field.StrictAutocomplete ->
+            Internal.Field.StrictAutocomplete
+
+        Internal.Field.Integer ->
+            Internal.Field.Integer
+
+        Internal.Field.Float ->
+            Internal.Field.Float
+
+        Internal.Field.Month ->
+            Internal.Field.Month
+
+        Internal.Field.Date ->
+            Internal.Field.Date
+
+        Internal.Field.LocalDatetime ->
+            Internal.Field.LocalDatetime
+
+        Internal.Field.Select ->
+            Internal.Field.Select
+
+        Internal.Field.Radio ->
+            Internal.Field.Radio
+
+        Internal.Field.Checkbox ->
+            Internal.Field.Checkbox
+
+        Internal.Field.Group ->
+            Internal.Field.Group
+
+
 init : FieldType id (Error id) -> List (Attribute id val) -> Field id
 init inputType_ attributes =
     let
         field =
-            Tree.leaf (Internal.Field.init inputType_ (unwrapAttrs attributes))
+            Tree.leaf (initAttributes inputType_ (unwrapAttrs attributes))
 
         attrs =
             Tree.value field
 
         fieldWithMissingOptions =
-            Internal.Field.setErrors
+            setErrorsInternal
                 [ NoOptionsProvided attrs.identifier
                 ]
                 field
@@ -969,7 +1197,7 @@ updateAttribute attr =
 updateAttributes : List (Attribute id val) -> Field id -> Field id
 updateAttributes attrList (Field field) =
     Field
-        (Internal.Field.updateAttributes (unwrapAttrs attrList) field
+        (updateAttributesInternal (unwrapAttrs attrList) field
             |> Internal.Field.validateNode
         )
 
@@ -1126,7 +1354,7 @@ with identifiers of different types.
 -}
 map : (a -> b) -> Field a -> Field b
 map func (Field field) =
-    Field (Tree.mapValues (Internal.Field.map func (mapError func)) field)
+    Field (Tree.mapValues (mapInternal func (mapError func)) field)
 
 
 mapError : (a -> b) -> Error a -> Error b
@@ -1227,7 +1455,7 @@ namesToPaths (Field field) =
                                         |> List.concat
                     in
                     ( ( namePath, path ) :: keys
-                    , if Internal.Field.isRepeatable node then
+                    , if isRepeatableInternal node then
                         namePath
 
                       else
