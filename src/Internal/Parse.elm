@@ -1,19 +1,18 @@
 module Internal.Parse exposing
-    ( ParserResult, failure, success
-    , field, list, string, email, json, maybe, formattedString, oneOf
-    , map, map2, andThen, andUpdate
-    , parse, validate, validateNode
-    , parseValue
+    ( ParserResult(..), failure, success
+    , string, email, maskedString
+    , map, andThen, andUpdate
+    , validate, validateNode, validateNodeParser
+    , parseValue, validateTreeParser, combineErrors
     )
 
 {-|
 
-@docs Parser
 @docs ParserResult, failure, success
-@docs field, list, string, email, json, maybe, formattedString, oneOf
-@docs map, map2, andThen, andUpdate
-@docs parse, validate, validateNode
-@docs parseValue
+@docs string, email, maskedString
+@docs map, andThen, andUpdate
+@docs validate, validateNode, validateNodeParser
+@docs parseValue, validateTreeParser, combineErrors
 
 -}
 
@@ -23,8 +22,6 @@ import FormToolkit.Value as Value
 import Internal.Field
 import Internal.Utils as Utils
 import Internal.Value
-import Json.Decode
-import Json.Encode
 import List.Extra
 import Regex
 import RoseTree.Tree as Tree
@@ -59,211 +56,6 @@ combineErrors identifier err1 err2 =
             (List.concat [ Error.toList err1, Error.toList err2 ]
                 |> List.Extra.unique
             )
-
-
-field : id -> (Field id -> ParserResult id a) -> (Field id -> ParserResult id a)
-field id parser tree =
-    case fieldHelp id (map2 (\_ a -> a) validateTreeParser parser) tree of
-        ( Just (Success node a), path ) ->
-            Success (Tree.replaceAt path node tree) a
-
-        ( Just (Failure node errors), path ) ->
-            Failure (Tree.replaceAt path node tree) errors
-
-        ( Nothing, _ ) ->
-            failure tree (InputNotFound id)
-
-
-fieldHelp :
-    id
-    -> (Field id -> ParserResult id a)
-    -> Field id
-    -> ( Maybe (ParserResult id a), List Int )
-fieldHelp id parser =
-    Tree.foldWithPath
-        (\path tree acc ->
-            if (Tree.value tree |> .identifier) == Just id then
-                ( Just (parser tree), path )
-
-            else
-                acc
-        )
-        ( Nothing, [] )
-
-
-maybe : (Field id -> ParserResult id a) -> Field id -> ParserResult id (Maybe a)
-maybe parser node =
-    if Internal.Field.isBlank node then
-        Success node Nothing
-
-    else
-        map Just parser node
-
-
-list : (Field id -> ParserResult id a) -> Field id -> ParserResult id (List a)
-list parser node =
-    let
-        ({ hidden } as attrs) =
-            Tree.value node
-    in
-    if hidden then
-        Success (Tree.map (Tree.updateValue (\f -> { f | errors = [] })) node) []
-
-    else
-        let
-            ( children, result ) =
-                listHelp parser node
-
-            input2 =
-                Tree.branch attrs children
-        in
-        case result of
-            Ok elements ->
-                Success input2 elements
-
-            Err errors ->
-                Failure input2 errors
-
-
-listHelp :
-    (Field id -> ParserResult id a)
-    -> Field id
-    -> ( List (Field id), Result (Error id) (List a) )
-listHelp parser =
-    Tree.children
-        >> List.foldr
-            (\node ( nodes, result ) ->
-                case parser node of
-                    Success node2 a ->
-                        ( node2 :: nodes
-                        , Result.map2 (::) (Ok a) result
-                        )
-
-                    Failure node2 error2 ->
-                        ( node2 :: nodes
-                        , case result of
-                            Ok _ ->
-                                Err error2
-
-                            Err error ->
-                                Err (combineErrors (Tree.value node |> .identifier) error error2)
-                        )
-            )
-            ( [], Ok [] )
-
-
-oneOf : List (Field id -> ParserResult id a) -> (Field id -> ParserResult id a)
-oneOf parsers node =
-    oneOfHelp parsers node Nothing
-
-
-oneOfHelp :
-    List (Field id -> ParserResult id a)
-    -> Field id
-    -> Maybe (Error id)
-    -> ParserResult id a
-oneOfHelp parsers input accError =
-    let
-        { identifier } =
-            Tree.value input
-    in
-    case parsers of
-        [] ->
-            case accError of
-                Nothing ->
-                    failure input (ParseError identifier)
-
-                Just error ->
-                    failure input error
-
-        parser :: rest ->
-            case parser input of
-                Success input2 a ->
-                    Success input2 a
-
-                Failure _ newError ->
-                    let
-                        combinedError =
-                            case accError of
-                                Nothing ->
-                                    newError
-
-                                Just err ->
-                                    combineErrors identifier err newError
-                    in
-                    oneOfHelp rest input (Just combinedError)
-
-
-json : Field id -> ParserResult id Json.Decode.Value
-json =
-    map2 (always identity)
-        validateTreeParser
-        (\input ->
-            case jsonEncodeObject input of
-                Ok a ->
-                    Success input a
-
-                Err err ->
-                    failure input err
-        )
-
-
-jsonEncodeObject : Field id -> Result (Error id) Json.Encode.Value
-jsonEncodeObject input =
-    jsonEncodeHelp input [] |> Result.map Json.Encode.object
-
-
-jsonEncodeHelp :
-    Field id
-    -> List ( String, Json.Decode.Value )
-    -> Result (Error id) (List ( String, Json.Decode.Value ))
-jsonEncodeHelp input acc =
-    let
-        { name, inputType, identifier, value } =
-            Tree.value input
-
-        accumulate jsonValue =
-            case name of
-                Just n ->
-                    Ok (( n, jsonValue ) :: acc)
-
-                Nothing ->
-                    Err
-                        (HasNoName identifier)
-    in
-    case inputType of
-        Internal.Field.Group ->
-            case name of
-                Nothing ->
-                    Tree.children input
-                        |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
-                            (Ok acc)
-
-                _ ->
-                    Tree.children input
-                        |> List.foldr (\e -> Result.andThen (jsonEncodeHelp e))
-                            (Ok [])
-                        |> Result.map Json.Encode.object
-                        |> Result.andThen accumulate
-
-        Internal.Field.Repeatable _ ->
-            Tree.children input
-                |> List.foldr (\e -> Result.map2 (::) (jsonEncodeObject e)) (Ok [])
-                |> Result.map (Json.Encode.list identity)
-                |> Result.andThen accumulate
-
-        _ ->
-            case name of
-                Just n ->
-                    Ok
-                        (( n
-                         , Internal.Value.encode value
-                         )
-                            :: acc
-                        )
-
-                Nothing ->
-                    Ok acc
 
 
 andUpdate :
@@ -304,45 +96,6 @@ map func parser input =
 
         Failure input2 errors ->
             Failure input2 errors
-
-
-map2 :
-    (a -> b -> c)
-    -> (Field id -> ParserResult id a)
-    -> (Field id -> ParserResult id b)
-    -> (Field id -> ParserResult id c)
-map2 func a b node =
-    case a node of
-        Success tree2 res ->
-            case b tree2 of
-                Success tree3 res2 ->
-                    Success tree3 (func res res2)
-
-                Failure tree3 error ->
-                    Failure tree3 error
-
-        Failure tree2 error ->
-            case b tree2 of
-                Success tree3 _ ->
-                    Failure tree3 error
-
-                Failure tree3 error2 ->
-                    let
-                        { identifier } =
-                            Tree.value node
-                    in
-                    Failure tree3
-                        (combineErrors identifier error2 error)
-
-
-parse : (Field id -> ParserResult id a) -> Field id -> ( Field id, Result (Error id) a )
-parse parser input =
-    case map2 (\a _ -> a) parser validateNodeParser input of
-        Success input2 a ->
-            ( input2, Ok a )
-
-        Failure input2 error ->
-            ( input2, Err error )
 
 
 validate : Field id -> Field id
@@ -586,13 +339,6 @@ checkPattern node =
                 |> map (always ())
             )
                 node
-
-
-{-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
--}
-formattedString : String -> Field id -> ParserResult id String
-formattedString mask =
-    string |> andThen (maskedString (Utils.parseMask mask))
 
 
 {-| -}
