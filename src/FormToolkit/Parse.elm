@@ -40,8 +40,7 @@ know `Json.Decode` you know how to use this module ;)
 import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
-import Internal.Field
-import Internal.Parse exposing (ParserResult(..), combineErrors)
+import Internal.Field exposing (ParserResult(..), combineErrors)
 import Internal.Utils as Utils
 import Internal.Value
 import Json.Decode
@@ -90,7 +89,7 @@ field : id -> Parser id a -> Parser id a
 field id parser =
     Parser
         (\tree ->
-            case fieldHelp id (map2 (\_ a -> a) (Parser Internal.Parse.validateTreeParser) parser) tree of
+            case fieldHelp id (map2 (\_ a -> a) (Parser Internal.Field.validateTreeParser) parser) tree of
                 ( Just (Success node a), path ) ->
                     Success (Tree.replaceAt path node tree) a
 
@@ -98,7 +97,7 @@ field id parser =
                     Failure (Tree.replaceAt path node tree) errors
 
                 ( Nothing, _ ) ->
-                    Internal.Parse.failure tree (InputNotFound id)
+                    Internal.Field.parseFailure tree (InputNotFound id)
         )
 
 
@@ -131,7 +130,7 @@ fieldHelp id (Parser parser) =
 -}
 string : Parser id String
 string =
-    Parser Internal.Parse.string
+    Parser Internal.Field.parseString
 
 
 {-| Parses the input value as an `Int`.
@@ -225,7 +224,7 @@ maybe (Parser parser) =
                 Success node Nothing
 
             else
-                Internal.Parse.map Just parser node
+                Internal.Field.parseMap Just parser node
         )
 
 
@@ -332,10 +331,10 @@ oneOfHelp parsers input accError =
         [] ->
             case accError of
                 Nothing ->
-                    Internal.Parse.failure input (ParseError identifier)
+                    Internal.Field.parseFailure input (ParseError identifier)
 
                 Just error ->
-                    Internal.Parse.failure input error
+                    Internal.Field.parseFailure input error
 
         (Parser parser) :: rest ->
             case parser input of
@@ -373,12 +372,12 @@ value =
 {-| -}
 email : Parser id String
 email =
-    Parser Internal.Parse.email
+    Parser Internal.Field.parseEmail
 
 
 parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
 parseValue =
-    Parser << Internal.Parse.parseValue
+    Parser << Internal.Field.parseValue
 
 
 {-| Converts the entire input tree into a JSON
@@ -417,7 +416,7 @@ Useful if you just want to forward the form values to a backend.
 json : Parser id Json.Decode.Value
 json =
     map2 (always identity)
-        (Parser Internal.Parse.validateTreeParser)
+        (Parser Internal.Field.validateTreeParser)
         (Parser
             (\input ->
                 case jsonEncodeObject input of
@@ -425,7 +424,7 @@ json =
                         Success input a
 
                     Err err ->
-                        Internal.Parse.failure input err
+                        Internal.Field.parseFailure input err
             )
         )
 
@@ -518,7 +517,7 @@ decoding pipelines with [andMap](#andMap), or to chain parsers with
 -}
 succeed : a -> Parser id a
 succeed a =
-    Parser (\node -> Internal.Parse.success node a)
+    Parser (\node -> Internal.Field.parseSuccess node a)
 
 
 {-| A parser that always fails with a custom error.
@@ -527,7 +526,7 @@ fail : String -> Parser id a
 fail err =
     Parser
         (\node ->
-            Internal.Parse.failure node
+            Internal.Field.parseFailure node
                 (Error.CustomError (Tree.value node |> .identifier) err)
         )
 
@@ -586,7 +585,7 @@ andUpdate func (Parser parser) =
             in
             { field = modifiedField, parser = newParser }
     in
-    Parser (Internal.Parse.andUpdate updateFunc parser)
+    Parser (Internal.Field.parseAndUpdate updateFunc parser)
 
 
 {-| Chains together parsers that depend on previous decoding results.
@@ -616,7 +615,7 @@ andUpdate func (Parser parser) =
 andThen : (a -> Parser id b) -> Parser id a -> Parser id b
 andThen func (Parser parser) =
     Parser
-        (Internal.Parse.andThen
+        (Internal.Field.parseAndThen
             (\a ->
                 case func a of
                     Parser p ->
@@ -689,7 +688,7 @@ andMap a b =
 -}
 map : (a -> b) -> Parser id a -> Parser id b
 map func (Parser parser) =
-    Parser (Internal.Parse.map func parser)
+    Parser (Internal.Field.parseMap func parser)
 
 
 {-| Combines two parsers using a function.
@@ -885,7 +884,7 @@ parseToTuple : Parser id a -> Field id -> ( Field id, Result (Error id) a )
 parseToTuple parser (Field input) =
     let
         (Parser fn) =
-            map2 (\a _ -> a) parser (Parser Internal.Parse.validateNodeParser)
+            map2 (\a _ -> a) parser (Parser Internal.Field.validateNodeParser)
     in
     case fn input of
         Success input2 a ->
@@ -950,5 +949,5 @@ formattedString mask =
     string
         |> andThen
             (Parser
-                << Internal.Parse.maskedString (Utils.parseMask mask)
+                << Internal.Field.parseMaskedString (Utils.parseMask mask)
             )

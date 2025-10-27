@@ -81,7 +81,6 @@ import Internal.Field
         , FieldType
         , Msg(..)
         )
-import Internal.Parse
 import Internal.Utils
 import Internal.Value
 import Internal.View
@@ -123,7 +122,7 @@ update : Msg id -> Field id -> Field id
 update (Msg msg) (Field field) =
     Field
         (Internal.Field.update msg field
-            |> Internal.Parse.validate
+            |> Internal.Field.validate
         )
 
 
@@ -925,7 +924,7 @@ updateWithId id (Attribute fn) (Field field) =
                 else
                     node
             )
-        |> Internal.Parse.validate
+        |> Internal.Field.validate
         |> Field
 
 
@@ -971,7 +970,7 @@ updateAttributes : List (Attribute id val) -> Field id -> Field id
 updateAttributes attrList (Field field) =
     Field
         (Internal.Field.updateAttributes (unwrapAttrs attrList) field
-            |> Internal.Parse.validateNode
+            |> Internal.Field.validateNode
         )
 
 
@@ -1034,7 +1033,7 @@ updateValuesFromJson jsonValue (Field field) =
                 )
                 (Ok field)
             )
-        |> Result.map (Internal.Parse.validate >> Field)
+        |> Result.map (Internal.Field.validate >> Field)
 
 
 valueToPathLists : Encode.Value -> Result (Error id) (List ( String, String ))
