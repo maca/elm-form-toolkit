@@ -1,6 +1,5 @@
 module Internal.Parse exposing
-    ( Parser
-    , ParserResult, failure, success
+    ( ParserResult, failure, success
     , field, list, string, email, json, maybe, formattedString, oneOf
     , map, map2, andThen, andUpdate
     , parse, validate, validateNode
@@ -40,10 +39,6 @@ type ParserResult id a
     | Success (Field id) a
 
 
-type alias Parser id a =
-    Field id -> ParserResult id a
-
-
 failure : Field id -> Error id -> ParserResult id a
 failure input err =
     Failure (Internal.Field.setErrors [ err ] input) err
@@ -66,7 +61,7 @@ combineErrors identifier err1 err2 =
             )
 
 
-field : id -> Parser id a -> Parser id a
+field : id -> (Field id -> ParserResult id a) -> (Field id -> ParserResult id a)
 field id parser tree =
     case fieldHelp id (map2 (\_ a -> a) validateTreeParser parser) tree of
         ( Just (Success node a), path ) ->
@@ -79,7 +74,11 @@ field id parser tree =
             failure tree (InputNotFound id)
 
 
-fieldHelp : id -> Parser id a -> Field id -> ( Maybe (ParserResult id a), List Int )
+fieldHelp :
+    id
+    -> (Field id -> ParserResult id a)
+    -> Field id
+    -> ( Maybe (ParserResult id a), List Int )
 fieldHelp id parser =
     Tree.foldWithPath
         (\path tree acc ->
@@ -92,7 +91,7 @@ fieldHelp id parser =
         ( Nothing, [] )
 
 
-maybe : Parser id a -> Parser id (Maybe a)
+maybe : (Field id -> ParserResult id a) -> Field id -> ParserResult id (Maybe a)
 maybe parser node =
     if Internal.Field.isBlank node then
         Success node Nothing
@@ -101,7 +100,7 @@ maybe parser node =
         map Just parser node
 
 
-list : Parser id a -> Parser id (List a)
+list : (Field id -> ParserResult id a) -> Field id -> ParserResult id (List a)
 list parser node =
     let
         ({ hidden } as attrs) =
@@ -126,7 +125,10 @@ list parser node =
                 Failure input2 errors
 
 
-listHelp : Parser id a -> Field id -> ( List (Field id), Result (Error id) (List a) )
+listHelp :
+    (Field id -> ParserResult id a)
+    -> Field id
+    -> ( List (Field id), Result (Error id) (List a) )
 listHelp parser =
     Tree.children
         >> List.foldr
@@ -150,12 +152,16 @@ listHelp parser =
             ( [], Ok [] )
 
 
-oneOf : List (Parser id a) -> Parser id a
+oneOf : List (Field id -> ParserResult id a) -> (Field id -> ParserResult id a)
 oneOf parsers node =
     oneOfHelp parsers node Nothing
 
 
-oneOfHelp : List (Parser id a) -> Field id -> Maybe (Error id) -> ParserResult id a
+oneOfHelp :
+    List (Field id -> ParserResult id a)
+    -> Field id
+    -> Maybe (Error id)
+    -> ParserResult id a
 oneOfHelp parsers input accError =
     let
         { identifier } =
@@ -188,7 +194,7 @@ oneOfHelp parsers input accError =
                     oneOfHelp rest input (Just combinedError)
 
 
-json : Parser id Json.Decode.Value
+json : Field id -> ParserResult id Json.Decode.Value
 json =
     map2 (always identity)
         validateTreeParser
@@ -261,9 +267,9 @@ jsonEncodeHelp input acc =
 
 
 andUpdate :
-    (Field id -> a -> { field : Field id, parser : Parser id b })
-    -> Parser id a
-    -> Parser id b
+    (Field id -> a -> { field : Field id, parser : Field id -> ParserResult id b })
+    -> (Field id -> ParserResult id a)
+    -> (Field id -> ParserResult id b)
 andUpdate func parser node =
     case parser node of
         Success input2 a ->
@@ -280,7 +286,7 @@ andUpdate func parser node =
             Failure input2 errors
 
 
-andThen : (a -> Parser id b) -> Parser id a -> Parser id b
+andThen : (a -> (Field id -> ParserResult id b)) -> (Field id -> ParserResult id a) -> (Field id -> ParserResult id b)
 andThen func parser node =
     case parser node of
         Success input2 a ->
@@ -290,7 +296,7 @@ andThen func parser node =
             Failure input2 errors
 
 
-map : (a -> b) -> Parser id a -> Parser id b
+map : (a -> b) -> (Field id -> ParserResult id a) -> (Field id -> ParserResult id b)
 map func parser input =
     case parser input of
         Success input2 a ->
@@ -300,7 +306,11 @@ map func parser input =
             Failure input2 errors
 
 
-map2 : (a -> b -> c) -> Parser id a -> Parser id b -> Parser id c
+map2 :
+    (a -> b -> c)
+    -> (Field id -> ParserResult id a)
+    -> (Field id -> ParserResult id b)
+    -> (Field id -> ParserResult id c)
 map2 func a b node =
     case a node of
         Success tree2 res ->
@@ -325,7 +335,7 @@ map2 func a b node =
                         (combineErrors identifier error2 error)
 
 
-parse : Parser id a -> Field id -> ( Field id, Result (Error id) a )
+parse : (Field id -> ParserResult id a) -> Field id -> ( Field id, Result (Error id) a )
 parse parser input =
     case map2 (\a _ -> a) parser validateNodeParser input of
         Success input2 a ->
@@ -355,7 +365,7 @@ validateNode input =
             updatedField
 
 
-validateTreeParser : Parser id ()
+validateTreeParser : Field id -> ParserResult id ()
 validateTreeParser input =
     let
         updated =
@@ -401,7 +411,7 @@ validateVisible tree =
         )
 
 
-validateNodeParser : Parser id ()
+validateNodeParser : Field id -> ParserResult id ()
 validateNodeParser node =
     let
         ( finalNode, maybeError ) =
@@ -436,7 +446,7 @@ validateNodeParser node =
             Failure (Internal.Field.setErrors [ error ] finalNode) error
 
 
-validations : List (Parser id ())
+validations : List (Field id -> ParserResult id ())
 validations =
     [ checkRequired
     , checkInRange
@@ -446,7 +456,7 @@ validations =
     ]
 
 
-checkRequired : Parser id ()
+checkRequired : Field id -> ParserResult id ()
 checkRequired node =
     let
         { isRequired, identifier } =
@@ -459,7 +469,7 @@ checkRequired node =
         success node ()
 
 
-checkInRange : Parser id ()
+checkInRange : Field id -> ParserResult id ()
 checkInRange node =
     let
         { value, min, max, identifier } =
@@ -507,7 +517,7 @@ checkInRange node =
             success node ()
 
 
-checkOptionsProvided : Parser id ()
+checkOptionsProvided : Field id -> ParserResult id ()
 checkOptionsProvided node =
     let
         { inputType, options, identifier } =
@@ -527,7 +537,7 @@ checkOptionsProvided node =
             success node ()
 
 
-checkEmail : Parser id ()
+checkEmail : Field id -> ParserResult id ()
 checkEmail node =
     case (Tree.value node).inputType of
         Internal.Field.Email ->
@@ -537,7 +547,7 @@ checkEmail node =
             success node ()
 
 
-email : Parser id String
+email : Field id -> ParserResult id String
 email =
     string
         |> andThen
@@ -564,29 +574,29 @@ isValidEmail =
     Regex.contains regex
 
 
-checkPattern : Parser id ()
-checkPattern input =
-    case (Tree.value input).pattern of
+checkPattern : Field id -> ParserResult id ()
+checkPattern node =
+    case (Tree.value node).pattern of
         [] ->
-            Success input ()
+            Success node ()
 
         patternTokens ->
             (string
                 |> andThen (maskedString patternTokens)
                 |> map (always ())
             )
-                input
+                node
 
 
 {-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
 -}
-formattedString : String -> Parser id String
+formattedString : String -> Field id -> ParserResult id String
 formattedString mask =
     string |> andThen (maskedString (Utils.parseMask mask))
 
 
 {-| -}
-string : Parser id String
+string : Field id -> ParserResult id String
 string =
     parseValue
         (\id val -> Value.toString val |> Result.fromMaybe (ParseError id))
@@ -625,7 +635,7 @@ maskedString mask str node =
 
 {-| Parse input values using a custom parsing function.
 -}
-parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
+parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> (Field id -> ParserResult id a)
 parseValue func node =
     let
         ({ identifier, options, errors, isRequired } as attrs) =

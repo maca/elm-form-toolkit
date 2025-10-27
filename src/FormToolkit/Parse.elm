@@ -51,7 +51,10 @@ import Time
 error if the decoding fails.
 -}
 type Parser id a
-    = Parser (Internal.Parse.Parser id a)
+    = Parser
+        (Internal.Field.Field id (Error id)
+         -> Internal.Parse.ParserResult id a
+        )
 
 
 {-| Parse for a field with the given identifier using a provided parser.
