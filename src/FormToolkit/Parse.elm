@@ -40,7 +40,7 @@ know `Json.Decode` you know how to use this module ;)
 import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
-import Internal.Field exposing (ParserResult(..), combineErrors)
+import Internal.Field exposing (ParserResult(..), Status(..), combineErrors)
 import Internal.Utils as Utils
 import Internal.Value
 import Json.Decode
@@ -920,9 +920,7 @@ parseUpdate parser msg input =
 -}
 parseValidate : Parser id a -> Field id -> ( Field id, Result (Error id) a )
 parseValidate parser input =
-    parseToTuple parser input
-        |> Tuple.mapFirst (\(Field f) -> Internal.Field.touchTree f)
-        |> Tuple.mapFirst Field
+    parseToTuple parser input |> Tuple.mapFirst touchTree
 
 
 {-| Format a string parser with a mask pattern, updating the field's display value and cursor position.
@@ -943,3 +941,8 @@ formattedString mask =
             (Parser
                 << Internal.Field.parseMaskedString (Utils.parseMask mask)
             )
+
+
+touchTree : Field id -> Field id
+touchTree (Field node) =
+    Field (Tree.mapValues (\attrs -> { attrs | status = Touched }) node)

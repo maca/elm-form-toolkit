@@ -16,7 +16,7 @@ import FormToolkit.Error exposing (Error(..))
 import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
-import Internal.Field as Field exposing (Field, Status(..))
+import Internal.Field as Field exposing (Field, FieldType(..), Status(..))
 import Internal.Value
 import Json.Decode
 import Json.Encode
@@ -380,7 +380,8 @@ inputToHtml attributes inputType path input htmlAttrs element =
                            )
                         :: onInputWithSelection
                             (\inputStr ->
-                                attributes.onChange unwrappedField.identifier path
+                                attributes.onChange unwrappedField.identifier
+                                    path
                                     (Field.inputStringToValue input inputStr)
                             )
                         :: textInputHtmlAttributes attributes path input
@@ -389,7 +390,7 @@ inputToHtml attributes inputType path input htmlAttrs element =
                 )
                 []
     in
-    if Field.isAutocompleteable input then
+    if isAutocompleteable input then
         Html.div
             []
             [ inputHtml
@@ -444,7 +445,8 @@ textAreaToHtml attributes path input element =
             (List.concat
                 [ onInputWithSelection
                     (\inputStr ->
-                        attributes.onChange identifier path
+                        attributes.onChange identifier
+                            path
                             (Field.inputStringToValue input inputStr)
                     )
                     :: Attributes.value valueStr
@@ -492,7 +494,8 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
             :: Attributes.disabled unwappedField.disabled
             :: onInputWithSelection
                 (\inputStr ->
-                    onChange identifier path
+                    onChange identifier
+                        path
                         (Field.inputStringToValue input inputStr)
                 )
             :: Events.onFocus (onFocus identifier path)
@@ -548,7 +551,8 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                             :: Attributes.type_ "radio"
                             :: onInputWithSelection
                                 (\inputStr ->
-                                    onChange identifier path
+                                    onChange identifier
+                                        path
                                         (Field.inputStringToValue input inputStr)
                                 )
                             :: Events.onFocus (onFocus identifier path)
@@ -644,7 +648,7 @@ textInputHtmlAttributes attributes path input =
             Tree.value input
     in
     List.concat
-        [ if Field.isAutocompleteable input then
+        [ if isAutocompleteable input then
             [ Attributes.autocomplete True
             , Attributes.list (datalistId input path)
             ]
@@ -675,7 +679,7 @@ textInputHtmlAttributes attributes path input =
 
 inputId : Field id -> List Int -> String
 inputId input path =
-    String.join "-" (Field.inputIdString input :: List.map String.fromInt path)
+    String.join "-" (inputIdString input :: List.map String.fromInt path)
 
 
 labelId : Field id -> List Int -> String
@@ -913,3 +917,80 @@ onInputWithSelection tagger =
                 )
             )
         )
+
+
+inputIdString : Field id -> String
+inputIdString input =
+    let
+        { name, inputType } =
+            Tree.value input
+    in
+    name
+        |> Maybe.withDefault
+            (inputTypeToString inputType)
+
+
+inputTypeToString : FieldType id err -> String
+inputTypeToString type_ =
+    case type_ of
+        Text ->
+            "text"
+
+        StrictAutocomplete ->
+            "text"
+
+        TextArea ->
+            "textarea"
+
+        Email ->
+            "email"
+
+        Password ->
+            "password"
+
+        Integer ->
+            "integer"
+
+        Float ->
+            "float"
+
+        Month ->
+            "month"
+
+        Date ->
+            "date"
+
+        LocalDatetime ->
+            "datetime-local"
+
+        Select ->
+            "select"
+
+        Radio ->
+            "radio"
+
+        Checkbox ->
+            "checkbox"
+
+        Repeatable _ ->
+            "repeatable"
+
+        Group ->
+            "group"
+
+
+isAutocompleteable : Field id -> Bool
+isAutocompleteable input =
+    let
+        { inputType, options } =
+            Tree.value input
+    in
+    case inputType of
+        Text ->
+            not (List.isEmpty options)
+
+        StrictAutocomplete ->
+            True
+
+        _ ->
+            False

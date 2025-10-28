@@ -70,6 +70,7 @@ Read a Field properties
 
 -}
 
+import Array
 import Dict exposing (Dict)
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value exposing (Value)
@@ -182,6 +183,87 @@ update msg (Field field) =
          )
             |> Internal.Field.validate
         )
+
+
+updateValueWithString : String -> Node id -> Node id
+updateValueWithString str field =
+    Tree.updateValue
+        (\attrs -> { attrs | value = inputStringToValue field str })
+        field
+
+
+inputStringToValue : Node id -> String -> Internal.Value.Value
+inputStringToValue input str =
+    let
+        unwrappedField =
+            Tree.value input
+
+        getChoice () =
+            case String.toInt str of
+                Just idx ->
+                    Array.fromList unwrappedField.options
+                        |> Array.get idx
+                        |> Maybe.map Tuple.second
+                        |> Maybe.withDefault Internal.Value.blank
+
+                Nothing ->
+                    Internal.Value.blank
+    in
+    case unwrappedField.inputType of
+        Internal.Field.Text ->
+            Internal.Value.fromNonBlankString str
+
+        Internal.Field.TextArea ->
+            Internal.Value.fromNonEmptyString str
+
+        Internal.Field.Password ->
+            Internal.Value.fromNonBlankString str
+
+        Internal.Field.StrictAutocomplete ->
+            Dict.fromList unwrappedField.options
+                |> Dict.get str
+                |> Maybe.withDefault Internal.Value.blank
+
+        Internal.Field.Email ->
+            Internal.Value.fromNonBlankString str
+
+        Internal.Field.Integer ->
+            Internal.Value.intFromString str
+
+        Internal.Field.Float ->
+            Internal.Value.floatFromString str
+
+        Internal.Field.Month ->
+            Internal.Value.monthFromString str
+
+        Internal.Field.Date ->
+            Internal.Value.dateFromString str
+
+        Internal.Field.LocalDatetime ->
+            Internal.Value.timeFromString str
+
+        Internal.Field.Select ->
+            getChoice ()
+
+        Internal.Field.Radio ->
+            getChoice ()
+
+        Internal.Field.Checkbox ->
+            case str of
+                "true" ->
+                    Internal.Value.fromBool True
+
+                "false" ->
+                    Internal.Value.fromBool False
+
+                _ ->
+                    Internal.Value.blank
+
+        Internal.Field.Group ->
+            Internal.Value.blank
+
+        Internal.Field.Repeatable _ ->
+            Internal.Value.blank
 
 
 updateAt : List Int -> (Node id -> Node id) -> Node id -> Node id
@@ -1237,7 +1319,7 @@ updateValuesFromJson jsonValue (Field field) =
                                 Just path ->
                                     Ok
                                         (Tree.updateAt path
-                                            (Internal.Field.updateValueWithString val)
+                                            (updateValueWithString val)
                                             node
                                         )
 

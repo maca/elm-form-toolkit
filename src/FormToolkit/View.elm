@@ -31,10 +31,9 @@ module FormToolkit.View exposing
 -}
 
 import FormToolkit.Error exposing (Error)
-import FormToolkit.Field as Field exposing (Field(..), Msg(..))
+import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
-import Internal.Field
 import Internal.View
 import RoseTree.Tree as Tree
 

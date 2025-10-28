@@ -1,10 +1,7 @@
 module Internal.Field exposing
     ( Field, Attributes, FieldType(..), Status(..)
     , isBlank
-    , isAutocompleteable
-    , inputIdString, inputStringToValue
-    , touchTree
-    , updateValueWithString
+    , inputStringToValue
     , ParserResult(..), parseFailure, parseSuccess
     , parseString, parseEmail, parseMaskedString
     , parseMap, parseAndThen, parseAndUpdate
@@ -15,13 +12,8 @@ module Internal.Field exposing
 {-|
 
 @docs Field, Attributes, FieldType, Status
-@docs init, isBlank, map
-@docs updateAttributes
-@docs isRepeatable, isAutocompleteable
-@docs setErrors
-@docs inputIdString, inputStringToValue
-@docs touchTree
-@docs updateValueWithString
+@docs isBlank
+@docs inputStringToValue
 @docs ParserResult, parseFailure, parseSuccess
 @docs parseString, parseEmail, parseMaskedString
 @docs parseMap, parseAndThen, parseAndUpdate
@@ -98,57 +90,6 @@ type alias Field id err =
     Tree.Tree (Attributes id err)
 
 
-init : FieldType id err -> List (Attributes id err -> Attributes id err) -> Attributes id err
-init inputType_ =
-    List.foldl (<|)
-        { inputType = inputType_
-        , name = Nothing
-        , label = Nothing
-        , hint = Nothing
-        , placeholder = Nothing
-        , value = Internal.Value.blank
-        , min = Internal.Value.blank
-        , max = Internal.Value.blank
-        , step = Internal.Value.blank
-        , autogrow = False
-        , isRequired = False
-        , options = []
-        , identifier = Nothing
-        , status = Pristine
-        , repeatableMin = 1
-        , repeatableMax = Nothing
-        , addFieldsButtonCopy = "Add"
-        , removeFieldsButtonCopy = "Remove"
-        , errors = []
-        , classList = []
-        , selectionStart = 0
-        , selectionEnd = 0
-        , disabled = False
-        , hidden = False
-        , pattern = []
-        }
-
-
-updateAttributes :
-    List (Attributes id err -> Attributes id err)
-    -> Field id err
-    -> Field id err
-updateAttributes attrList =
-    Tree.updateValue
-        (\attrs ->
-            let
-                updatedAttrs =
-                    List.foldl (<|) attrs attrList
-            in
-            { updatedAttrs | identifier = attrs.identifier }
-        )
-
-
-touchTree : Field id err -> Field id err
-touchTree =
-    Tree.mapValues (\node -> { node | status = Touched })
-
-
 isBlank : Field id err -> Bool
 isBlank input =
     let
@@ -166,39 +107,12 @@ isBlank input =
             Internal.Value.isBlank value
 
 
-isAutocompleteable : Field id err -> Bool
-isAutocompleteable input =
-    let
-        { inputType, options } =
-            Tree.value input
-    in
-    case inputType of
-        Text ->
-            not (List.isEmpty options)
-
-        StrictAutocomplete ->
-            True
-
-        _ ->
-            False
-
-
 isGroup : Field id err -> Bool
 isGroup input =
     case Tree.value input |> .inputType of
         Group ->
             True
 
-        Repeatable _ ->
-            True
-
-        _ ->
-            False
-
-
-isRepeatable : Field id err -> Bool
-isRepeatable input =
-    case Tree.value input |> .inputType of
         Repeatable _ ->
             True
 
@@ -225,156 +139,6 @@ setErrors errorList =
 clearErrors : Field id err -> Field id err
 clearErrors =
     Tree.updateValue (\input -> { input | errors = [] })
-
-
-map : (a -> b) -> (err1 -> err2) -> Attributes a err1 -> Attributes b err2
-map func errToErr input =
-    { inputType = mapFieldType func errToErr input.inputType
-    , name = input.name
-    , value = input.value
-    , isRequired = input.isRequired
-    , label = input.label
-    , placeholder = input.placeholder
-    , hint = input.hint
-    , min = input.min
-    , max = input.max
-    , step = input.step
-    , autogrow = input.autogrow
-    , options = input.options
-    , identifier = Maybe.map func input.identifier
-    , status = input.status
-    , repeatableMin = input.repeatableMin
-    , repeatableMax = input.repeatableMax
-    , addFieldsButtonCopy = input.addFieldsButtonCopy
-    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
-    , errors = List.map errToErr input.errors
-    , classList = input.classList
-    , selectionStart = input.selectionStart
-    , selectionEnd = input.selectionEnd
-    , disabled = input.disabled
-    , hidden = input.hidden
-    , pattern = input.pattern
-    }
-
-
-mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
-mapFieldType func errToErr inputType_ =
-    case inputType_ of
-        Repeatable tree ->
-            Repeatable (Tree.mapValues (map func errToErr) tree)
-
-        Text ->
-            Text
-
-        TextArea ->
-            TextArea
-
-        Email ->
-            Email
-
-        Password ->
-            Password
-
-        StrictAutocomplete ->
-            StrictAutocomplete
-
-        Integer ->
-            Integer
-
-        Float ->
-            Float
-
-        Month ->
-            Month
-
-        Date ->
-            Date
-
-        LocalDatetime ->
-            LocalDatetime
-
-        Select ->
-            Select
-
-        Radio ->
-            Radio
-
-        Checkbox ->
-            Checkbox
-
-        Group ->
-            Group
-
-
-inputIdString : Field id err -> String
-inputIdString input =
-    let
-        { name, inputType } =
-            Tree.value input
-    in
-    name
-        |> Maybe.withDefault
-            (inputTypeToString inputType)
-
-
-inputTypeToString : FieldType id err -> String
-inputTypeToString type_ =
-    case type_ of
-        Text ->
-            "text"
-
-        StrictAutocomplete ->
-            "text"
-
-        TextArea ->
-            "textarea"
-
-        Email ->
-            "email"
-
-        Password ->
-            "password"
-
-        Integer ->
-            "integer"
-
-        Float ->
-            "float"
-
-        Month ->
-            "month"
-
-        Date ->
-            "date"
-
-        LocalDatetime ->
-            "datetime-local"
-
-        Select ->
-            "select"
-
-        Radio ->
-            "radio"
-
-        Checkbox ->
-            "checkbox"
-
-        Repeatable _ ->
-            "repeatable"
-
-        Group ->
-            "group"
-
-
-updateValueWithString : String -> Field id err -> Field id err
-updateValueWithString str field =
-    Tree.updateValue
-        (\attrs -> { attrs | value = inputStringToValue field str })
-        field
-
-
-
--- Debug.todo "crash"
 
 
 inputStringToValue : Field id err -> String -> Value
