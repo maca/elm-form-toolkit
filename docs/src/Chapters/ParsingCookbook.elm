@@ -143,23 +143,26 @@ eventFields =
 
 eventParser : Parse.Parser EventFields { name : String, date : String, participants : List String }
 eventParser =
-    Parse.succeed
-        (\name date notify participants ->
+    Parse.map3
+        (\participants name date ->
             { name = name
             , date = date
             , participants = participants
             }
         )
-        |> Parse.andMap (Parse.field EventName Parse.string)
-        |> Parse.andMap (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
-        |> Parse.andMap
-            (Parse.field NotifyParticipants Parse.bool
-                |> Parse.andUpdate
-                    (\field notify ->
-                        { field =
-                            Field.updateWithId Participants (Field.hidden (not notify)) field
-                        , parser = Parse.succeed notify
-                        }
-                    )
-            )
-        |> Parse.andMap (Parse.field Participants (Parse.list Parse.string))
+        (Parse.field NotifyParticipants Parse.bool
+            |> Parse.andUpdate
+                (\field notify ->
+                    { field =
+                        Field.updateWithId Participants (Field.hidden (not notify)) field
+                    , parser =
+                        if notify then
+                            Parse.field Participants (Parse.list Parse.string)
+
+                        else
+                            Parse.succeed []
+                    }
+                )
+        )
+        (Parse.field EventName Parse.string)
+        (Parse.field EventDate Parse.posix |> Parse.map Iso8601.fromTime)
