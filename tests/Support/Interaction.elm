@@ -1,6 +1,7 @@
 module Support.Interaction exposing
     ( Interaction
     , blur
+    , check
     , clickButton
     , fillInput
     , fillInputWithIndex
@@ -44,6 +45,11 @@ blur inputName =
 fillInput : String -> String -> Interaction id a -> Interaction id a
 fillInput inputName inputText =
     interact (findInput inputName) (Event.input inputText)
+
+
+check : String -> Bool -> Interaction id a -> Interaction id a
+check inputName checked =
+    interact (findInput inputName) (Event.check checked)
 
 
 findInput : String -> Query.Single msg -> Query.Single msg

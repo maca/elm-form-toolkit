@@ -27,8 +27,7 @@ type Msg
 
 init : Model
 init =
-    { eventFields = eventFields
-    }
+    { eventFields = eventFields }
 
 
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )

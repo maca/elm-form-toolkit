@@ -18,6 +18,7 @@ suite =
         [ dateFieldTests
         , datetimeFieldTests
         , validationFocusBlurTests
+        , conditionalRepeatableFieldTests
         ]
 
 
@@ -201,5 +202,107 @@ validationFocusBlurTests =
                             >> Field.toHtml (always never)
                             >> Query.fromHtml
                             >> Query.hasNot [ class "errors" ]
+                        ]
+        ]
+
+
+conditionalRepeatableFieldTests : Test
+conditionalRepeatableFieldTests =
+    let
+        eventField =
+            Field.group []
+                [ Field.text
+                    [ Field.label "Event Name"
+                    , Field.identifier "event-name"
+                    , Field.name "event-name"
+                    , Field.required True
+                    ]
+                , Field.checkbox
+                    [ Field.label "Notify Participants"
+                    , Field.identifier "notify-participants"
+                    , Field.name "notify-participants"
+                    , Field.value (Value.bool True)
+                    ]
+                , Field.repeatable
+                    [ Field.label "Participants"
+                    , Field.repeatableMin 1
+                    , Field.identifier "participants"
+                    ]
+                    (Field.text
+                        [ Field.required True
+                        , Field.identifier "participant-name"
+                        , Field.name "participant-name"
+                        ]
+                    )
+                    []
+                ]
+
+        eventParser =
+            Parse.map2
+                (\participants name ->
+                    { name = name
+                    , participants = participants
+                    }
+                )
+                (Parse.field "notify-participants" Parse.bool
+                    |> Parse.andUpdate
+                        (\field notify ->
+                            { field =
+                                Field.updateWithId "participants" (Field.hidden (not notify)) field
+                            , parser =
+                                if notify then
+                                    Parse.field "participants" (Parse.list Parse.string)
+
+                                else
+                                    Parse.succeed []
+                            }
+                        )
+                )
+                (Parse.field "event-name" Parse.string)
+    in
+    describe "conditional repeatable field with checkbox" <|
+        [ test "when checkbox is checked, repeatable fields are shown and produce errors when empty" <|
+            \_ ->
+                let
+                    interaction =
+                        Interaction.init eventParser eventField
+                            |> fillInput "event-name" "Team Meeting"
+                            |> clickButton "Add Participants"
+                            |> check "notify-participants" True
+                            |> blur "participant-name"
+                in
+                interaction
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Should be provided" ] ]
+                        , .result
+                            >> Expect.err
+                        ]
+        , test "when checkbox is unchecked, repeatable fields are hidden and no errors are produced" <|
+            \_ ->
+                let
+                    interaction =
+                        Interaction.init eventParser eventField
+                            |> fillInput "event-name" "Team Meeting"
+                            |> clickButton "Add Participants"
+                            |> check "notify-participants" False
+                            |> blur "participant-name"
+                in
+                interaction
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.hasNot [ class "errors" ]
+                        , .result
+                            >> Expect.equal
+                                (Ok
+                                    { name = "Team Meeting"
+                                    , participants = []
+                                    }
+                                )
                         ]
         ]

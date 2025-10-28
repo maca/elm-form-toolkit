@@ -133,7 +133,7 @@ validateNode node =
                 fn
     in
     List.foldl (<|)
-        node
+        (clearErrors node)
         [ checkRequired
         , ifNotRequired checkInRange
         , ifNotRequired checkOptionsProvided
@@ -144,14 +144,33 @@ validateNode node =
 
 validateTree : Field id (Error id) -> Field id (Error id)
 validateTree =
-    Tree.map
-        (\node ->
-            if (Tree.value node).hidden then
-                node
+    Tree.map clearErrors >> validateTreeHelp
 
-            else
-                validateNode node
+
+validateTreeHelp : Field id (Error id) -> Field id (Error id)
+validateTreeHelp tree =
+    let
+        attrs =
+            Tree.value (clearErrors tree)
+    in
+    Tree.branch
+        (if attrs.hidden then
+            attrs
+
+         else
+            Tree.value (validateNode tree)
         )
+        (if attrs.hidden then
+            Tree.children tree
+
+         else
+            Tree.children tree |> List.map validateTree
+        )
+
+
+clearErrors : Field id (Error id) -> Field id (Error id)
+clearErrors =
+    Tree.updateValue (\attrs -> { attrs | errors = [] })
 
 
 checkRequired : Field id (Error id) -> Field id (Error id)

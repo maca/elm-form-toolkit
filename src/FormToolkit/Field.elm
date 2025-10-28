@@ -77,12 +77,7 @@ import Dict exposing (Dict)
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value exposing (Value)
 import Html exposing (Html)
-import Internal.Field
-    exposing
-        ( Field
-        , FieldType
-        , validateNode
-        )
+import Internal.Field exposing (Field, FieldType)
 import Internal.Utils
 import Internal.Value
 import Internal.View
@@ -1261,7 +1256,7 @@ updateValuesFromJson jsonValue (Field field) =
                 )
                 (Ok field)
             )
-        |> Result.map (validateNode >> Field)
+        |> Result.map (Internal.Field.validateNode >> Field)
 
 
 valueToPathLists : Encode.Value -> Result (Error id) (List ( String, String ))

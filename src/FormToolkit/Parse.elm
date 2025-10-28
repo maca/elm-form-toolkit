@@ -235,7 +235,7 @@ maybe : Parser id a -> Parser id (Maybe a)
 maybe (Parser parser) =
     Parser
         (\node ->
-            if Internal.Field.isBlank node then
+            if isBlank node then
                 Success node Nothing
 
             else
