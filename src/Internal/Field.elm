@@ -1,7 +1,7 @@
 module Internal.Field exposing
     ( Field, Attributes, FieldType(..), Status(..)
-    , Path(..)
-    , isBlank, isAutocompleteable
+    , isBlank
+    , isAutocompleteable
     , inputIdString, inputStringToValue
     , touchTree
     , updateValueWithString
@@ -15,7 +15,6 @@ module Internal.Field exposing
 {-|
 
 @docs Field, Attributes, FieldType, Status
-@docs Path
 @docs init, isBlank, map
 @docs updateAttributes
 @docs isRepeatable, isAutocompleteable
@@ -46,12 +45,6 @@ type Status
     = Pristine
     | Focused
     | Touched
-
-
-{-| A path to a field in the form tree.
--}
-type Path
-    = Path (List Int)
 
 
 type FieldType id err

@@ -274,26 +274,18 @@ list (Parser parser) =
     Parser
         (\node ->
             let
-                ({ hidden } as attrs) =
-                    Tree.value node
+                ( children, result ) =
+                    listHelp node
+
+                input2 =
+                    Tree.branch (Tree.value node) children
             in
-            if hidden then
-                Success (Tree.map (Tree.updateValue (\f -> { f | errors = [] })) node) []
+            case result of
+                Ok elements ->
+                    Success input2 elements
 
-            else
-                let
-                    ( children, result ) =
-                        listHelp node
-
-                    input2 =
-                        Tree.branch attrs children
-                in
-                case result of
-                    Ok elements ->
-                        Success input2 elements
-
-                    Err errors ->
-                        Failure input2 errors
+                Err errors ->
+                    Failure input2 errors
         )
 
 

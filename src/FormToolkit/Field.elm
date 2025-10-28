@@ -85,7 +85,6 @@ import Internal.Value
 import Internal.View
 import Json.Decode as Decode
 import Json.Encode as Encode
-import List.Extra
 import RoseTree.Path as Path
 import RoseTree.Tree as Tree
 import String.Extra
@@ -458,7 +457,7 @@ group attributes =
     List.map (\(Field field) -> field)
         >> Tree.branch
             (initAttributes Internal.Field.Group
-                (unwrapAttrs attributes)
+                attributes
             )
         >> Field
 
@@ -506,8 +505,7 @@ repeatable :
 repeatable attributes (Field template) updates =
     let
         params =
-            initAttributes (Internal.Field.Repeatable template)
-                (unwrapAttrs attributes)
+            initAttributes (Internal.Field.Repeatable template) attributes
 
         children =
             List.concat
@@ -526,9 +524,9 @@ repeatable attributes (Field template) updates =
     Field (Tree.branch params children)
 
 
-initAttributes : FieldType id (Error id) -> List (Attributes id (Error id) -> Attributes id (Error id)) -> Attributes id (Error id)
+initAttributes : FieldType id (Error id) -> List (Attribute id val) -> Attributes id (Error id)
 initAttributes inputType_ =
-    List.foldl (<|)
+    List.foldl ((<|) << (\(Attribute f) -> f))
         { inputType = inputType_
         , name = Nothing
         , label = Nothing
@@ -555,41 +553,6 @@ initAttributes inputType_ =
         , hidden = False
         , pattern = []
         }
-
-
-updateAttributesInternal :
-    List (Attributes id (Error id) -> Attributes id (Error id))
-    -> Node id
-    -> Node id
-updateAttributesInternal attrList =
-    Tree.updateValue
-        (\attrs ->
-            let
-                updatedAttrs =
-                    List.foldl (<|) attrs attrList
-            in
-            { updatedAttrs | identifier = attrs.identifier }
-        )
-
-
-setErrorsInternal : List (Error id) -> Node id -> Node id
-setErrorsInternal errorList =
-    Tree.updateValue
-        (\input ->
-            { input
-                | errors = List.Extra.unique (errorList ++ input.errors)
-            }
-        )
-
-
-isRepeatableInternal : Node id -> Bool
-isRepeatableInternal input =
-    case Tree.value input |> .inputType of
-        Internal.Field.Repeatable _ ->
-            True
-
-        _ ->
-            False
 
 
 mapInternal : (a -> b) -> (err1 -> err2) -> Attributes a err1 -> Attributes b err2
@@ -675,15 +638,19 @@ init : FieldType id (Error id) -> List (Attribute id val) -> Field id
 init inputType_ attributes =
     let
         field =
-            Tree.leaf (initAttributes inputType_ (unwrapAttrs attributes))
+            Tree.leaf (initAttributes inputType_ attributes)
 
         attrs =
             Tree.value field
 
         fieldWithMissingOptions =
-            setErrorsInternal
-                [ NoOptionsProvided attrs.identifier
-                ]
+            Tree.updateValue
+                (\input ->
+                    { input
+                        | errors =
+                            NoOptionsProvided attrs.identifier :: input.errors
+                    }
+                )
                 field
     in
     case ( attrs.inputType, attrs.options ) of
@@ -698,13 +665,6 @@ init inputType_ attributes =
 
         _ ->
             Field field
-
-
-unwrapAttrs :
-    List (Attribute id val)
-    -> List (Attributes id (Error id) -> Attributes id (Error id))
-unwrapAttrs =
-    List.map (\(Attribute f) -> f)
 
 
 {-| Represents an attribute that can be applied to a field.
@@ -1215,7 +1175,18 @@ updateAttribute attr =
 updateAttributes : List (Attribute id val) -> Field id -> Field id
 updateAttributes attrList (Field field) =
     Field
-        (updateAttributesInternal (unwrapAttrs attrList) field
+        (field
+            |> Tree.updateValue
+                (\attrs ->
+                    let
+                        updatedAttrs =
+                            attrList
+                                |> List.foldl
+                                    ((<|) << (\(Attribute f) -> f))
+                                    attrs
+                    in
+                    { updatedAttrs | identifier = attrs.identifier }
+                )
             |> Internal.Field.validateNode
         )
 
@@ -1473,11 +1444,12 @@ namesToPaths (Field field) =
                                         |> List.concat
                     in
                     ( ( namePath, path ) :: keys
-                    , if isRepeatableInternal node then
-                        namePath
+                    , case (Tree.value node).inputType of
+                        Internal.Field.Repeatable _ ->
+                            namePath
 
-                      else
-                        repeatableNamePath
+                        _ ->
+                            repeatableNamePath
                     )
 
                 Nothing ->
