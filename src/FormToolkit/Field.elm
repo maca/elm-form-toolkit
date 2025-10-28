@@ -11,6 +11,7 @@ module FormToolkit.Field exposing
     , options, stringOptions, min, max, step, autogrow
     , class, classList
     , disabled, hidden, noattr, pattern
+    , Attributes
     , copies, repeatableMin, repeatableMax
     , updateAttribute, updateAttributes, updateWithId
     , updateValuesFromJson
@@ -44,6 +45,7 @@ their attributes, update, and render them.
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
 @docs disabled, hidden, noattr, pattern
+@docs Attributes
 
 
 # Groups
@@ -77,8 +79,7 @@ import FormToolkit.Value as Value exposing (Value)
 import Html exposing (Html)
 import Internal.Field
     exposing
-        ( Attributes
-        , Field
+        ( Field
         , FieldType
         , validateNode
         )
@@ -277,7 +278,7 @@ updateAt path func input =
             Tree.updateAt path func input
 
 
-focus : Attributes id (FieldType id (Error id)) (Error id) -> Attributes id (FieldType id (Error id)) (Error id)
+focus : Attributes id -> Attributes id
 focus input =
     { input
         | status = Internal.Field.Focused
@@ -290,7 +291,7 @@ focus input =
     }
 
 
-blur : Attributes id (FieldType id (Error id)) (Error id) -> Attributes id (FieldType id (Error id)) (Error id)
+blur : Attributes id -> Attributes id
 blur input =
     { input
         | status = Internal.Field.Touched
@@ -607,7 +608,7 @@ repeatable attributes (Field template) updates =
     Field (Tree.branch params children)
 
 
-initAttributes : FieldType id (Error id) -> List (Attribute id val) -> Attributes id (FieldType id (Error id)) (Error id)
+initAttributes : FieldType id (Error id) -> List (Attribute id val) -> Attributes id
 initAttributes inputType_ =
     List.foldl ((<|) << (\(Attribute f) -> f))
         { inputType = inputType_
@@ -636,85 +637,6 @@ initAttributes inputType_ =
         , hidden = False
         , pattern = []
         }
-
-
-mapInternal : (a -> b) -> (err1 -> err2) -> Attributes a (FieldType a err1) err1 -> Attributes b (FieldType b err2) err2
-mapInternal func errToErr input =
-    { inputType = mapFieldType func errToErr input.inputType
-    , name = input.name
-    , value = input.value
-    , isRequired = input.isRequired
-    , label = input.label
-    , placeholder = input.placeholder
-    , hint = input.hint
-    , min = input.min
-    , max = input.max
-    , step = input.step
-    , autogrow = input.autogrow
-    , options = input.options
-    , identifier = Maybe.map func input.identifier
-    , status = input.status
-    , repeatableMin = input.repeatableMin
-    , repeatableMax = input.repeatableMax
-    , addFieldsButtonCopy = input.addFieldsButtonCopy
-    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
-    , errors = List.map errToErr input.errors
-    , classList = input.classList
-    , selectionStart = input.selectionStart
-    , selectionEnd = input.selectionEnd
-    , disabled = input.disabled
-    , hidden = input.hidden
-    , pattern = input.pattern
-    }
-
-
-mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
-mapFieldType func errToErr inputType_ =
-    case inputType_ of
-        Internal.Field.Repeatable tree ->
-            Internal.Field.Repeatable (Tree.mapValues (mapInternal func errToErr) tree)
-
-        Internal.Field.Text ->
-            Internal.Field.Text
-
-        Internal.Field.TextArea ->
-            Internal.Field.TextArea
-
-        Internal.Field.Email ->
-            Internal.Field.Email
-
-        Internal.Field.Password ->
-            Internal.Field.Password
-
-        Internal.Field.StrictAutocomplete ->
-            Internal.Field.StrictAutocomplete
-
-        Internal.Field.Integer ->
-            Internal.Field.Integer
-
-        Internal.Field.Float ->
-            Internal.Field.Float
-
-        Internal.Field.Month ->
-            Internal.Field.Month
-
-        Internal.Field.Date ->
-            Internal.Field.Date
-
-        Internal.Field.LocalDatetime ->
-            Internal.Field.LocalDatetime
-
-        Internal.Field.Select ->
-            Internal.Field.Select
-
-        Internal.Field.Radio ->
-            Internal.Field.Radio
-
-        Internal.Field.Checkbox ->
-            Internal.Field.Checkbox
-
-        Internal.Field.Group ->
-            Internal.Field.Group
 
 
 init : FieldType id (Error id) -> List (Attribute id val) -> Field id
@@ -750,10 +672,16 @@ init inputType_ attributes =
             Field field
 
 
+{-| Record of field attributes.
+-}
+type alias Attributes id =
+    Internal.Field.Attributes id (FieldType id (Error id)) (Error id)
+
+
 {-| Represents an attribute that can be applied to a field.
 -}
 type Attribute id val
-    = Attribute (Attributes id (FieldType id (Error id)) (Error id) -> Attributes id (FieldType id (Error id)) (Error id))
+    = Attribute (Attributes id -> Attributes id)
 
 
 {-| Sets the name of a field.
@@ -1426,7 +1354,7 @@ with identifiers of different types.
 -}
 map : (a -> b) -> Field a -> Field b
 map func (Field field) =
-    Field (Tree.mapValues (mapInternal func (mapError func)) field)
+    Field (Tree.mapValues (Internal.Field.mapAttributes func (mapError func)) field)
 
 
 mapError : (a -> b) -> Error a -> Error b
