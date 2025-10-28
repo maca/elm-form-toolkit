@@ -4,7 +4,7 @@ import ElmBook
 import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import Html
-import Support.GettingStartedDemo as Demo
+import Support.ShipmentForm as Demo
 import Task
 
 
@@ -75,12 +75,15 @@ any shape, and flexible rendering.
 ## Features:
 
 - Declarative and **opinionated** form field building with an Elm-Html-like API
-- Built-in validation with custom validation support  
+- Built-in validation with custom validation support
 - Parse form data to custom types using a Json.Decode-like interface
 - Flexible rendering with customization options
 - Support for complex forms with repeatable fields
 
-Let's build a simple form step by step to see how form-toolkit works!
+Let's build a shipment form step by step to see how form-toolkit works!
+
+
+<component with-label="Demo"/>
 
 
 ## Step 1: Declaring a Form
@@ -89,64 +92,154 @@ A `Field` represents all of the user inputs for a form and their corresponding
 labels, hints and validation errors. It can be a single input field, a group of
 Fields or a group of repeatable Fields.
 
-Let's declare a simple form with two fields: first name and last name.
+Let's declare a shipment form with recipient information and shipping address.
 
 
 ```elm
 -- Define field identifiers,
 -- we will use this to refer to particular fields when parsing
-type UserFormFields
-    = FirstName
-    | LastName
+type ShipmentFields
+    = AddressNameGroup
+    | AddressFirstName
+    | AddressLastName
+    | AddressStreet
+    | AddressNumber
+    | AddressExtra
+    | LocalityGroup
+    | PostalCode
+    | AddressState
+    | AddressCountry
 
 -- Declare the form
-userFields : Field UserFormFields
-userFields =
-    Field.group []
-        [ Field.text
-            [ Field.label "First Name"
-            , Field.required True
-            , Field.identifier FirstName
+shipmentFieldsDefinition : Field ShipmentFields
+shipmentFieldsDefinition =
+    Field.group
+        []
+        [ Field.group
+            [ Field.label "Recipient"
+            , Field.name "recipient"
+            , Field.identifier AddressNameGroup
+            , Field.class "inline-fields"
             ]
-        , Field.text
-            [ Field.label "Last Name"
-            , Field.required True
-            , Field.identifier LastName
+            [ Field.text
+                [ Field.label "First Name"
+                , Field.identifier AddressFirstName
+                , Field.name "first-name"
+                , Field.required True
+                ]
+            , Field.text
+                [ Field.label "Last Name"
+                , Field.identifier AddressLastName
+                , Field.name "last-name"
+                , Field.required True
+                ]
+            ]
+        , Field.group
+            [ Field.name "address"
+            , Field.label "Address"
+            ]
+            [ Field.group
+                [ Field.class "inline-fields" ]
+                [ Field.text
+                    [ Field.label "Street Name"
+                    , Field.class "column column-75"
+                    , Field.required True
+                    , Field.identifier AddressStreet
+                    , Field.name "street-name"
+                    ]
+                , Field.text
+                    [ Field.label "Street Number"
+                    , Field.identifier AddressNumber
+                    , Field.required True
+                    , Field.name "address-number"
+                    ]
+                ]
+            , Field.text
+                [ Field.label "Address 2"
+                , Field.identifier AddressExtra
+                , Field.name "address-2"
+                ]
+            , Field.group
+                [ Field.identifier LocalityGroup
+                , Field.class "locality"
+                , Field.class "inline-fields"
+                ]
+                [ Field.text
+                    [ Field.label "Postal code"
+                    , Field.required True
+                    , Field.identifier PostalCode
+                    , Field.name "postal-code"
+                    ]
+                , Field.text
+                    [ Field.label "State"
+                    , Field.required True
+                    , Field.identifier AddressState
+                    , Field.name "state"
+                    ]
+                , Field.select
+                    [ Field.label "Country"
+                    , Field.required True
+                    , Field.identifier AddressCountry
+                    , Field.name "country"
+                    , Field.options
+                        (Countries.all
+                            |> List.map
+                                (\\country ->
+                                    ( country.name ++ " " ++ country.flag
+                                    , Value.string country.code
+                                    )
+                                )
+                        )
+                    ]
+                ]
             ]
         ]
 ```
 
 Each field has:
 - **label**: Display text for the field
-- **required**: Validate the presence of input value.
+- **required**: Validate the presence of input value
 - **identifier**: Used for parsing (connects to your custom type)
+- **name**: HTML name attribute for the input
+- **class**: CSS classes for styling
+- **options**: Available choices for select fields
 
 
 ## Step 2: Setting up the Model
 
 
 The API was modeled after the Html API with a list of attributes and a list
-of children nodes, but once a Field is built it should be keept in the model
+of children nodes, but once a Field is built it should be kept in the model
 because it keeps track of the Fields state, and validation errors.
 
 
 ```elm
 type alias Model =
-    { userFields : Field UserFormFields
+    { shipmentFields : Field ShipmentFields
     , submitted : Bool
-    , user : Maybe User
+    , result : Maybe (Result (Error ShipmentFields) Shipment)
     }
 
-type alias User =
+type alias Shipment =
+    { shipping : Address
+    }
+
+type alias Address =
     { firstName : String
     , lastName : String
+    , address : String
+    , addressNumber : Int
+    , addressExtra : Maybe String
+    , postalCode : String
+    , state : String
+    , country : Countries.Country
     }
 
 init : Model
 init =
-    { userFields = userFields
+    { shipmentFields = shipmentFieldsDefinition
     , submitted = False
-    , user = Nothing
+    , result = Nothing
     }
 ```
 
@@ -159,37 +252,75 @@ Define your Msg type and update function:
 
 ```elm
 type Msg
-    = FormChanged (Field.Msg UserFormFields)
+    = FormChanged (Field.Msg ShipmentFields)
     | FormSubmitted
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        FormChanged fieldMsg ->
+        FormChanged inputMsg ->
             let
-                ( userFields, result ) =
-                    Parse.parseUpdate userParser fieldMsg model.userFields
+                ( shipmentFields, result ) =
+                    Parse.parseUpdate shipmentParser inputMsg model.shipmentFields
             in
             { model
-                | userFields = userFields
-                , user = Result.toMaybe result
+                | shipmentFields = shipmentFields
+                , result = Just result
             }
 
         FormSubmitted ->
-            { model | submitted = True }
+            case Parse.parseValidate Parse.json model.shipmentFields of
+                ( updatedField, Ok jsonValue ) ->
+                    { model
+                        | shipmentFields = updatedField
+                        , submitted = True
+                        , result = Nothing
+                    }
 
--- Parser to convert form data to User type
-userParser : Parse.Parser UserFormFields User
-userParser =
-    Parse.map2 User
-        (Parse.field FirstName Parse.string)
-        (Parse.field LastName Parse.string)
+                ( updatedField, Err _ ) ->
+                    { model | shipmentFields = updatedField }
+
+-- Parser to convert form data to Shipment type
+shipmentParser : Parse.Parser ShipmentFields Shipment
+shipmentParser =
+    Parse.map Shipment
+        shipmentAddressParser
+
+shipmentAddressParser : Parse.Parser ShipmentFields Address
+shipmentAddressParser =
+    Parse.succeed Address
+        |> Parse.andMap (Parse.field AddressFirstName Parse.string)
+        |> Parse.andMap (Parse.field AddressLastName Parse.string)
+        |> Parse.andMap (Parse.field AddressStreet Parse.string)
+        |> Parse.andMap (Parse.field AddressNumber Parse.int)
+        |> Parse.andMap (Parse.field AddressExtra (Parse.maybe Parse.string))
+        |> Parse.andMap (Parse.field PostalCode Parse.string)
+        |> Parse.andMap (Parse.field AddressState Parse.string)
+        |> Parse.andMap shipmentCountryParser
+
+shipmentCountryParser : Parse.Parser ShipmentFields Countries.Country
+shipmentCountryParser =
+    Parse.field AddressCountry
+        (Parse.string
+            |> Parse.andThen
+                (\\countryStr ->
+                    case Countries.fromCode countryStr of
+                        Just country ->
+                            Parse.succeed country
+
+                        Nothing ->
+                            Parse.fail "Invalid country"
+                )
+        )
 ```
 
 **Key points:**
 - `Parse.parseUpdate` handles both updating the form state AND parsing the current form data
-- Field identifiers `FirstName` and `LastName` are used to reference fields while parsing,
-similar as using `field` when using `Json.Decode`
+- Field identifiers are used to reference specific fields while parsing, similar to using `field` in `Json.Decode`
+- `Parse.andMap` allows building parsers in a pipeline style for records with many fields
+- `Parse.andThen` enables custom validation logic (like validating the country code)
+- `Parse.maybe` creates optional fields that parse to `Maybe` values
+- `Parse.int` parses string input to integers with validation
 
 
 
@@ -205,9 +336,9 @@ view : Model -> Html Msg
 view model =
     Html.form
         [ onSubmit FormSubmitted ]
-        [ Field.toHtml FormChanged model.userFields
-        , Html.button 
-            [ onClick FormSubmitted ] 
+        [ Field.toHtml FormChanged model.shipmentFields
+        , Html.button
+            [ onClick FormSubmitted ]
             [ Html.text "Submit" ]
         ]
 ```
@@ -218,109 +349,18 @@ view model =
 - **Input elements** with appropriate types
 - **Validation errors** when fields are invalid
 - **Required** class for mandatory fields
-    
-    
+- **Nested field groups** with proper semantic structure
+
+
 ## Complete Example
 
-Here's the complete working example that you can copy and use:
+You can find the complete working example of this shipment form here:
+[ShipmentForm.elm](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/ShipmentForm.elm)
 
-```elm
-import Browser
-import FormToolkit.Field as Field exposing (Field)
-import FormToolkit.Parse as Parse
-import Html exposing (Html)
-import Html.Events exposing (onClick, onSubmit)
-
-
-main =
-    Browser.sandbox
-        { init = init
-        , update = update
-        , view = view
-        }
-
-
-type alias Model =
-    { userFields : Field UserFormFields
-    , submitted : Bool
-    , user : Maybe User
-    }
-
-
-type UserFormFields
-    = FirstName
-    | LastName
-
-
-type Msg
-    = FormChanged (Field.Msg UserFormFields)
-    | FormSubmitted
-
-
-type alias User =
-    { firstName : String, lastName : String }
-
-
-init : Model
-init =
-    { userFields = userFields
-    , submitted = False
-    , user = Nothing
-    }
-
-
-update : Msg -> Model -> Model
-update msg model =
-    case msg of
-        FormChanged fieldMsg ->
-            let
-                ( userFields, result ) =
-                    Parse.parseUpdate userParser fieldMsg model.userFields
-            in
-            { model
-                | userFields = userFields
-                , user = Result.toMaybe result
-            }
-
-        FormSubmitted ->
-            { model | submitted = True }
-
-
-view : Model -> Html Msg
-view model =
-    Html.form
-        [ onSubmit FormSubmitted ]
-        [ Field.toHtml FormChanged model.userFields
-        , Html.button
-            [ onClick FormSubmitted ]
-            [ Html.text "Submit" ]
-        ]
-
-
-userFields : Field UserFormFields
-userFields =
-    Field.group []
-        [ Field.text
-            [ Field.label "First Name"
-            , Field.required True
-            , Field.identifier FirstName
-            , Field.name "first-name"
-            ]
-        , Field.text
-            [ Field.label "Last Name"
-            , Field.required True
-            , Field.identifier LastName
-            , Field.name "last-name"
-            ]
-        ]
-
-
-userParser : Parse.Parser UserFormFields User
-userParser =
-    Parse.map2 User
-        (Parse.field FirstName Parse.string)
-        (Parse.field LastName Parse.string)
-```
-
-<component with-label="Demo"/>
+This example demonstrates:
+- Complex nested field groups
+- Different field types (text, select, number)
+- Optional fields with `Maybe` types
+- Custom parsing with validation
+- Form submission with error handling
 """

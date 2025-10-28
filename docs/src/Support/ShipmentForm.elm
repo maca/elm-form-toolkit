@@ -27,7 +27,7 @@ main =
 type alias Model =
     { shipmentFields : Field ShipmentFields
     , submitted : Bool
-    , result : Result (Error ShipmentFields) Shipment
+    , result : Maybe (Result (Error ShipmentFields) Shipment)
     }
 
 
@@ -74,7 +74,7 @@ init : Model
 init =
     { shipmentFields = shipmentFieldsDefinition
     , submitted = False
-    , result = Err (Error.CustomError Nothing "Waiting for input")
+    , result = Nothing
     }
 
 
@@ -90,13 +90,22 @@ update msg model =
                 ( shipmentFields, result ) =
                     Parse.parseUpdate shipmentParser inputMsg model.shipmentFields
             in
-            { shipmentFields = shipmentFields
-            , result = result
-            , submitted = False
+            { model
+                | shipmentFields = shipmentFields
+                , result = Just result
             }
 
         FormSubmitted ->
-            { model | submitted = True }
+            case Parse.parseValidate Parse.json model.shipmentFields of
+                ( updatedField, Ok jsonValue ) ->
+                    { model
+                        | shipmentFields = updatedField
+                        , submitted = True
+                        , result = Nothing
+                    }
+
+                ( updatedField, Err _ ) ->
+                    { model | shipmentFields = updatedField }
 
 
 
@@ -251,7 +260,7 @@ view model =
             ]
         , if model.submitted then
             case model.result of
-                Ok shipment ->
+                Just (Ok shipment) ->
                     success
                         [ Html.div
                             []
@@ -263,7 +272,7 @@ view model =
                             ]
                         ]
 
-                Err error ->
+                Just (Err error) ->
                     failure
                         [ Html.text "There are some errors:"
                         , Html.ul []
@@ -274,6 +283,9 @@ view model =
                                     )
                             )
                         ]
+
+                Nothing ->
+                    Html.text ""
 
           else
             Html.text ""

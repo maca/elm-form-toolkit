@@ -1,7 +1,7 @@
 module Chapters.ParsingCookbook exposing (Model, Msg, chapter, init)
 
 import ElmBook
-import ElmBook.Actions as Actions exposing (updateStateWithCmdWith)
+import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
@@ -9,13 +9,8 @@ import FormToolkit.Value as Value
 import Html
 import Html.Attributes as Attr
 import Iso8601
+import Support.ShipmentForm as ShipmentForm
 import Task
-
-
-type alias Model =
-    { eventFields : Field EventFields
-    , zalgoTextField : Field Never
-    }
 
 
 type alias Book book =
@@ -23,58 +18,110 @@ type alias Book book =
 
 
 type Msg
-    = EventFieldsChanged (Field.Msg EventFields)
+    = PersonFormChanged (Field.Msg PersonFields)
+    | ShipmentFormChanged ShipmentForm.Msg
+    | EventFieldsChanged (Field.Msg EventFields)
     | ZalgoTextFieldChanged (Field.Msg Never)
+
+
+type alias Model =
+    { personForm : Field PersonFields
+    , shipmentForm : ShipmentForm.Model
+    , eventFields : Field EventFields
+    , zalgoTextField : Field Never
+    }
+
+
+type PersonFields
+    = FirstName
+    | LastName
+
+
+type EventFields
+    = EventName
+    | EventDate
+    | NotifyParticipants
+    | Participants
+    | ParticipantEmail
 
 
 init : Model
 init =
-    { eventFields = eventFields
+    { personForm = personForm
+    , shipmentForm = ShipmentForm.init
+    , eventFields = eventFields
     , zalgoTextField = zalgoTextField
     }
 
 
 update : Msg -> Book book -> ( Book book, Cmd (ElmBook.Msg (Book book)) )
 update msg book =
-    case msg of
-        EventFieldsChanged innerMsg ->
-            let
-                model =
-                    book.parsingCookbook
+    let
+        model =
+            book.parsingCookbook
 
-                ( updatedField, result ) =
-                    Parse.parseUpdate eventParser innerMsg book.parsingCookbook.eventFields
-            in
-            ( { book | parsingCookbook = { model | eventFields = updatedField } }
-            , Task.perform (Actions.logActionWithString "Result")
-                (Task.succeed (Debug.toString result))
-            )
+        ( newModel, cmd ) =
+            case msg of
+                PersonFormChanged fieldMsg ->
+                    let
+                        ( updatedField, result ) =
+                            Parse.parseUpdate personParser fieldMsg model.personForm
+                    in
+                    ( { model | personForm = updatedField }
+                    , Task.perform (Actions.logActionWithString "Result")
+                        (Task.succeed (Debug.toString result))
+                    )
 
-        ZalgoTextFieldChanged innerMsg ->
-            let
-                model =
-                    book.parsingCookbook
+                ShipmentFormChanged innerMsg ->
+                    let
+                        updatedShipmentForm =
+                            ShipmentForm.update innerMsg model.shipmentForm
+                    in
+                    ( { model | shipmentForm = updatedShipmentForm }
+                    , Task.perform (Actions.logActionWithString "Demo")
+                        (Task.succeed "Press Submit to see results")
+                    )
 
-                ( updatedField, result ) =
-                    Parse.parseUpdate zalgoTextParser innerMsg book.parsingCookbook.zalgoTextField
-            in
-            ( { book | parsingCookbook = { model | zalgoTextField = updatedField } }
-            , Task.perform (Actions.logActionWithString "Result")
-                (Task.succeed (Debug.toString result))
-            )
+                EventFieldsChanged innerMsg ->
+                    let
+                        ( updatedField, result ) =
+                            Parse.parseUpdate eventParser innerMsg model.eventFields
+                    in
+                    ( { model | eventFields = updatedField }
+                    , Task.perform (Actions.logActionWithString "Result")
+                        (Task.succeed (Debug.toString result))
+                    )
+
+                ZalgoTextFieldChanged innerMsg ->
+                    let
+                        ( updatedField, result ) =
+                            Parse.parseUpdate zalgoTextParser innerMsg model.zalgoTextField
+                    in
+                    ( { model | zalgoTextField = updatedField }
+                    , Task.perform (Actions.logActionWithString "Result")
+                        (Task.succeed (Debug.toString result))
+                    )
+    in
+    ( { book | parsingCookbook = newModel }, cmd )
 
 
-chapter : Chapter { x | parsingCookbook : Model }
+chapter : Chapter (Book book)
 chapter =
     Chapter.chapter "Parsing Cookbook"
         |> Chapter.withStatefulComponentList
-            [ ( "Zalgo Text"
+            [ ( "Person Form (Custom Type ID)"
               , \book ->
                     Html.div [ Attr.class "milligram" ]
-                        [ book.parsingCookbook.zalgoTextField
-                            |> Field.toHtml ZalgoTextFieldChanged
+                        [ book.parsingCookbook.personForm
+                            |> Field.toHtml PersonFormChanged
                         ]
-                        |> Html.map (updateStateWithCmdWith update)
+                        |> Html.map (Actions.updateStateWithCmdWith update)
+              )
+            , ( "Shipment Form (andMap Pipeline)"
+              , \book ->
+                    book.parsingCookbook.shipmentForm
+                        |> ShipmentForm.view
+                        |> Html.map (ShipmentFormChanged >> Actions.updateStateWithCmdWith update)
               )
             , ( "Event Fields (Conditional)"
               , \book ->
@@ -82,49 +129,158 @@ chapter =
                         [ book.parsingCookbook.eventFields
                             |> Field.toHtml EventFieldsChanged
                         ]
-                        |> Html.map (updateStateWithCmdWith update)
+                        |> Html.map (Actions.updateStateWithCmdWith update)
+              )
+            , ( "Zalgo Text"
+              , \book ->
+                    Html.div [ Attr.class "milligram" ]
+                        [ book.parsingCookbook.zalgoTextField
+                            |> Field.toHtml ZalgoTextFieldChanged
+                        ]
+                        |> Html.map (Actions.updateStateWithCmdWith update)
               )
             ]
-        |> Chapter.render parsingIntroMarkdown
+        |> Chapter.render markdownContent
 
 
-parsingIntroMarkdown : String
-parsingIntroMarkdown =
+markdownContent : String
+markdownContent =
     """
 
-## Updating field attributes while parsing
+The parsing mechanism is meant to emulate `Json.Decode` closely, except for the
+use of identifiers instead of json keys to reference fields.
 
+The primitive parsers are `Parse.string`, `Parse.int`,
+`Parse.float`, `Parse.bool`, `Parse.posix` for time, `Parse.list`, and `Parse.json`.
+Use these in combination with `Parse.field` to apply to a field with a
+corresponding identifier if it exists. If the field can have a blank value or be
+not present use `Parse.maybe`.
+`Parse.stringWithFormat` will format, validate and parse a text input with a
+provided pattern.
 
-### Using `andUpdate` to transform input values
+The output of a parser can be transformed using `map`, and they can be combined
+using `map2`, `map3`, and other map functions to create records or tuples. For
+more complex scenarios, `andMap` can be used to apply parsers in sequence using
+the applicative pattern, or `andThen` can be used to chain parsers where the second
+depends on the first's result.
 
+## Custom Type Identifiers
 
-`andUpdate` is similar to `andThen`, but it can update `Field` attributes while parsing.
+Identifiers are used to traverse fields, similar to using Json.Decode.field, they can
+be anything, even a string, but the better approach is to use custom types as
+identifiers.
 
-In this example, we use `andUpdate` to transform the input text into Zalgo text as the user types,
-updating both the displayed value and the parsed result. The `toZalgoText` function adds diacritical
-marks only to characters that don't already have them, and converts them to uppercase.
+Custom type identifiers mitigate the risk of typos by ensuring type constraints.
+The compiler will catch any non-existing field references at compile time, making
+the code more robust and preventing runtime errors.
 
-<component with-label="Zalgo Text"/>
 
 ```elm
+type PersonFields
+    = FirstName
+    | LastName
 
-zalgoTextParser : Parse.Parser Never String
-zalgoTextParser =
-    Parse.string
-        |> Parse.andUpdate
-            (\\field str ->
-                ( Field.updateAttribute (Field.stringValue (toZalgoText str)) field
-                , Parse.succeed str
-                )
-            )
 
+personForm : Field PersonFields
+personForm =
+    Field.group
+        [ Field.label "Person Information"
+        , Field.class "inline-fields"
+        ]
+        [ Field.text
+            [ Field.label "First Name"
+            , Field.required True
+            , Field.identifier FirstName
+            ]
+        , Field.text
+            [ Field.label "Last Name"
+            , Field.required True
+            , Field.identifier LastName
+            ]
+        ]
+
+
+personParser : Parse.Parser PersonFields { firstName : String, lastName : String }
+personParser =
+    Parse.map2
+        (\\first last ->
+            { firstName = first
+            , lastName = last
+            }
+        )
+        (Parse.field FirstName Parse.string)
+        (Parse.field LastName Parse.string)
 ```
+
+<component with-label="Person Form (Custom Type ID)"/>
+
+
+## Parser Pipeline with `andMap`
+
+For complex forms with multiple fields, use the applicative pattern with `andMap` to build parsing pipelines.
+
+<component with-label="Shipment Form (andMap Pipeline)"/>
+
+```elm
+import Countries
+
+type alias Address =
+    { firstName : String
+    , lastName : String
+    , address : String
+    , addressNumber : Int
+    , addressExtra : Maybe String
+    , postalCode : String
+    , state : String
+    , country : Countries.Country
+    }
+
+shipmentAddressParser : Parse.Parser ShipmentFields Address
+shipmentAddressParser =
+    Parse.succeed Address
+        |> Parse.andMap (Parse.field AddressFirstName Parse.string)
+        |> Parse.andMap (Parse.field AddressLastName Parse.string)
+        |> Parse.andMap (Parse.field AddressStreet Parse.string)
+        |> Parse.andMap (Parse.field AddressNumber Parse.int)
+        |> Parse.andMap (Parse.field AddressExtra (Parse.maybe Parse.string))
+        |> Parse.andMap (Parse.field PostalCode Parse.string)
+        |> Parse.andMap (Parse.field AddressState Parse.string)
+        |> Parse.andMap shipmentCountryParser
+```
+
+The `andMap` pattern works by applying each field parser to the constructor function. Each successful parse applies one argument to the constructor, building up the final record. If any field fails to parse, the entire parser fails with error information about the specific field.
+
+For fields that require custom validation, use `andThen` to chain validation logic:
+
+```elm
+shipmentCountryParser : Parse.Parser ShipmentFields Countries.Country
+shipmentCountryParser =
+    Parse.field AddressCountry
+        (Parse.string
+            |> Parse.andThen
+                (\\countryStr ->
+                    case Countries.fromCode countryStr of
+                        Just country ->
+                            Parse.succeed country
+
+                        Nothing ->
+                            Parse.fail "Invalid country"
+                )
+        )
+```
+
+A full example of a sandbox application for this form can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/ShipmentForm.elm).
+
+
+## Updating field attributes while parsing
 
 
 ### Conditional parsing using `andUpdate`
 
 
-`andUpdate` can also toggle field visibility based on parsed values.
+`andUpdate` is similar to `andThen`, but it can update `Field` attributes while parsing.
+
+`andUpdate` can toggle field visibility based on parsed values.
 
 In this example, we use the value of the "Notify Participants" checkbox both to
 make "Participant Emails" visible, and to parse the list if it is visible or
@@ -165,15 +321,61 @@ eventParser =
 
 ```
 
+
+### Using `andUpdate` to transform input values
+
+
+In this example, we use `andUpdate` to transform the input text into Zalgo text as the user types,
+updating both the displayed value and the parsed result. The `toZalgoText` function adds diacritical
+marks only to characters that don't already have them, and converts them to uppercase.
+
+<component with-label="Zalgo Text"/>
+
+```elm
+
+zalgoTextParser : Parse.Parser Never String
+zalgoTextParser =
+    Parse.string
+        |> Parse.andUpdate
+            (\\field str ->
+                let
+                    zalgoStr =
+                        toZalgoText str
+                in
+                ( Field.updateAttribute (Field.stringValue zalgoStr) field
+                , Parse.succeed zalgoStr
+                )
+            )
+
+```
+
 """
 
 
-type EventFields
-    = EventName
-    | EventDate
-    | NotifyParticipants
-    | Participants
-    | ParticipantEmail
+personForm : Field PersonFields
+personForm =
+    Field.group
+        [ Field.label "Person Information"
+        , Field.class "inline-fields"
+        ]
+        [ Field.text
+            [ Field.label "First Name"
+            , Field.required True
+            , Field.identifier FirstName
+            ]
+        , Field.text
+            [ Field.label "Last Name"
+            , Field.required True
+            , Field.identifier LastName
+            ]
+        ]
+
+
+personParser : Parse.Parser PersonFields { firstName : String, lastName : String }
+personParser =
+    Parse.map2 (\first last -> { firstName = first, lastName = last })
+        (Parse.field FirstName Parse.string)
+        (Parse.field LastName Parse.string)
 
 
 eventFields : Field EventFields
