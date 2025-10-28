@@ -247,15 +247,13 @@ conditionalRepeatableFieldTests =
                 (Parse.field "notify-participants" Parse.bool
                     |> Parse.andUpdate
                         (\field notify ->
-                            { field =
-                                Field.updateWithId "participants" (Field.hidden (not notify)) field
-                            , parser =
-                                if notify then
-                                    Parse.field "participants" (Parse.list Parse.string)
+                            ( Field.updateWithId "participants" (Field.hidden (not notify)) field
+                            , if notify then
+                                Parse.field "participants" (Parse.list Parse.string)
 
-                                else
-                                    Parse.succeed []
-                            }
+                              else
+                                Parse.succeed []
+                            )
                         )
                 )
                 (Parse.field "event-name" Parse.string)

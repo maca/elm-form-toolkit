@@ -399,10 +399,6 @@ email =
         )
 
 
-
--- Parser Internal.Field.parseEmail
-
-
 parseValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
 parseValue func =
     Parser
@@ -632,9 +628,9 @@ formatting the input value, and for mapping the result of parsing the field.
             (string
                 |> andUpdate
                     (\field str ->
-                        { field = Field.updateStringValue (removeVowels str) field
-                        , parser = succeed (removeVowels str)
-                        }
+                        ( Field.updateStringValue (removeVowels str) field
+                        , succeed (removeVowels str)
+                        )
                     )
             )
         --> Ok "th qck fx jmps vr th lzy dg"
@@ -644,10 +640,7 @@ formatting the input value, and for mapping the result of parsing the field.
 andUpdate :
     (Field id
      -> a
-     ->
-        { field : Field id
-        , parser : Parser id b
-        }
+     -> ( Field id, Parser id b )
     )
     -> Parser id a
     -> Parser id b
@@ -657,20 +650,10 @@ andUpdate func (Parser parser) =
             case parser node of
                 Success input2 a ->
                     let
-                        result =
-                            let
-                                fcall =
-                                    func (Field input2) a
-
-                                (Field modifiedField) =
-                                    fcall.field
-
-                                (Parser newParser) =
-                                    fcall.parser
-                            in
-                            { field = modifiedField, parser = newParser }
+                        ( Field modifiedField, Parser newParser ) =
+                            func (Field input2) a
                     in
-                    result.parser result.field
+                    newParser modifiedField
 
                 Failure input2 errorVal ->
                     Failure input2 errorVal

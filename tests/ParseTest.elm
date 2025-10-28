@@ -332,9 +332,9 @@ suite =
                                     (Parse.string
                                         |> Parse.andUpdate
                                             (\field str ->
-                                                { field = Field.updateAttribute (Field.stringValue (removeVowels str)) field
-                                                , parser = Parse.succeed (removeVowels str)
-                                                }
+                                                ( Field.updateAttribute (Field.stringValue (removeVowels str)) field
+                                                , Parse.succeed (removeVowels str)
+                                                )
                                             )
                                     )
                                 |> Interaction.fillInput "string-field" original
