@@ -125,13 +125,6 @@ stringFieldTests =
                                     ]
                                 ]
                         ]
-
-        -- , test "custom validation" <|
-        --     \_ ->
-        --         Debug.todo ""
-        -- , test "formatting text" <|
-        --     \_ ->
-        --         Debug.todo ""
         ]
 
 

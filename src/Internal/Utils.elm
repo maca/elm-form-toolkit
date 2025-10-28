@@ -1,14 +1,16 @@
 module Internal.Utils exposing
-    ( MaskToken
-    , parseMask, formatMaskWithTokens
+    ( MaskToken, parseMask, formatMaskWithTokens
+    , isValidEmail
     )
 
 {-| Utility functions for form formatting and text manipulation.
 
-@docs MaskToken
-@docs parseMask, formatMaskWithTokens
+@docs MaskToken, parseMask, formatMaskWithTokens
+@docs isValidEmail
 
 -}
+
+import Regex
 
 
 formatMaskWithTokens :
@@ -130,3 +132,16 @@ matchingToken char token =
 
         Literal lit ->
             char == lit
+
+
+isValidEmail : String -> Bool
+isValidEmail =
+    let
+        -- Standard HTML5 email validation pattern used by browsers
+        pattern =
+            "^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$"
+
+        regex =
+            Maybe.withDefault Regex.never (Regex.fromString pattern)
+    in
+    Regex.contains regex

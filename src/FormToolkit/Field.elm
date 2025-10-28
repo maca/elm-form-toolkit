@@ -80,6 +80,7 @@ import Internal.Field
         ( Attributes
         , Field
         , FieldType
+        , validateNode
         )
 import Internal.Utils
 import Internal.Value
@@ -181,7 +182,7 @@ update msg (Field field) =
             InputsRemoved _ path ->
                 Tree.removeAt path field
          )
-            |> Internal.Field.validate
+            |> Internal.Field.validateNode
         )
 
 
@@ -276,7 +277,7 @@ updateAt path func input =
             Tree.updateAt path func input
 
 
-focus : Attributes id (Error id) -> Attributes id (Error id)
+focus : Attributes id (FieldType id (Error id)) (Error id) -> Attributes id (FieldType id (Error id)) (Error id)
 focus input =
     { input
         | status = Internal.Field.Focused
@@ -289,7 +290,7 @@ focus input =
     }
 
 
-blur : Attributes id (Error id) -> Attributes id (Error id)
+blur : Attributes id (FieldType id (Error id)) (Error id) -> Attributes id (FieldType id (Error id)) (Error id)
 blur input =
     { input
         | status = Internal.Field.Touched
@@ -606,7 +607,7 @@ repeatable attributes (Field template) updates =
     Field (Tree.branch params children)
 
 
-initAttributes : FieldType id (Error id) -> List (Attribute id val) -> Attributes id (Error id)
+initAttributes : FieldType id (Error id) -> List (Attribute id val) -> Attributes id (FieldType id (Error id)) (Error id)
 initAttributes inputType_ =
     List.foldl ((<|) << (\(Attribute f) -> f))
         { inputType = inputType_
@@ -637,7 +638,7 @@ initAttributes inputType_ =
         }
 
 
-mapInternal : (a -> b) -> (err1 -> err2) -> Attributes a err1 -> Attributes b err2
+mapInternal : (a -> b) -> (err1 -> err2) -> Attributes a (FieldType a err1) err1 -> Attributes b (FieldType b err2) err2
 mapInternal func errToErr input =
     { inputType = mapFieldType func errToErr input.inputType
     , name = input.name
@@ -752,7 +753,7 @@ init inputType_ attributes =
 {-| Represents an attribute that can be applied to a field.
 -}
 type Attribute id val
-    = Attribute (Attributes id (Error id) -> Attributes id (Error id))
+    = Attribute (Attributes id (FieldType id (Error id)) (Error id) -> Attributes id (FieldType id (Error id)) (Error id))
 
 
 {-| Sets the name of a field.
@@ -1212,7 +1213,7 @@ updateWithId id (Attribute fn) (Field field) =
                 else
                     node
             )
-        |> Internal.Field.validate
+        |> Internal.Field.validateNode
         |> Field
 
 
@@ -1332,7 +1333,7 @@ updateValuesFromJson jsonValue (Field field) =
                 )
                 (Ok field)
             )
-        |> Result.map (Internal.Field.validate >> Field)
+        |> Result.map (validateNode >> Field)
 
 
 valueToPathLists : Encode.Value -> Result (Error id) (List ( String, String ))
