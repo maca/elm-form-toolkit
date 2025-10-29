@@ -597,7 +597,7 @@ repeatable attributes (Field template) updates =
     Field (Tree.branch params children)
 
 
-initAttributes : FieldType id (Error id) -> List (Attribute id val) -> Attributes id
+initAttributes : FieldType id (List (Error id)) -> List (Attribute id val) -> Attributes id
 initAttributes inputType_ =
     List.foldl ((<|) << (\(Attribute f) -> f))
         { inputType = inputType_
@@ -628,7 +628,7 @@ initAttributes inputType_ =
         }
 
 
-init : FieldType id (Error id) -> List (Attribute id val) -> Field id
+init : FieldType id (List (Error id)) -> List (Attribute id val) -> Field id
 init inputType_ attributes =
     let
         field =
@@ -670,7 +670,7 @@ type Attribute id val
 {-| Record of field attributes.
 -}
 type alias Attributes id =
-    Internal.Field.Attributes id (FieldType id (Error id)) (Error id)
+    Internal.Field.Attributes id (FieldType id (List (Error id))) (List (Error id))
 
 
 {-| Sets the name of a field.
@@ -1229,7 +1229,7 @@ with identifiers of different types.
 -}
 map : (a -> b) -> Field a -> Field b
 map func (Field field) =
-    Field (Tree.mapValues (mapAttributes func (mapError func)) field)
+    Field (Tree.mapValues (mapAttributes func (List.map (mapError func))) field)
 
 
 mapError : (a -> b) -> Error a -> Error b
@@ -1397,7 +1397,11 @@ mapFieldType func errToErr inputType_ =
             Group
 
 
-mapAttributes : (a -> b) -> (err1 -> err2) -> Internal.Field.Attributes a (FieldType a err1) err1 -> Internal.Field.Attributes b (FieldType b err2) err2
+mapAttributes :
+    (a -> b)
+    -> (err1 -> err2)
+    -> Internal.Field.Attributes a (FieldType a err1) err1
+    -> Internal.Field.Attributes b (FieldType b err2) err2
 mapAttributes func errToErr input =
     { inputType = mapFieldType func errToErr input.inputType
     , name = input.name
@@ -1417,7 +1421,7 @@ mapAttributes func errToErr input =
     , repeatableMax = input.repeatableMax
     , addFieldsButtonCopy = input.addFieldsButtonCopy
     , removeFieldsButtonCopy = input.removeFieldsButtonCopy
-    , errors = List.map errToErr input.errors
+    , errors = errToErr input.errors
     , classList = input.classList
     , selectionStart = input.selectionStart
     , selectionEnd = input.selectionEnd

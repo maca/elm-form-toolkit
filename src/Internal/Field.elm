@@ -54,7 +54,7 @@ type alias Attributes id fieldType err =
     , repeatableMax : Maybe Int
     , addFieldsButtonCopy : String
     , removeFieldsButtonCopy : String
-    , errors : List err
+    , errors : err
     , classList : List String
     , selectionStart : Int
     , selectionEnd : Int

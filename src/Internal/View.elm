@@ -28,7 +28,7 @@ type alias Node id =
 
 
 type alias Attributes id =
-    Field.Attributes id (FieldType id (Error id)) (Error id)
+    Field.Attributes id (FieldType id (List (Error id))) (List (Error id))
 
 
 type alias View id msg =
@@ -78,7 +78,7 @@ type alias RepeatableFieldsGroupView id msg =
     , errors : List String
     , path : List Int
     , class : String
-    , attributes : Field.Attributes id (FieldType id (Error id)) (Error id)
+    , attributes : Attributes id
     }
 
 
@@ -89,7 +89,7 @@ type alias RepeatableFieldView id msg =
     , removeFieldsButtonCopy : String
     , removeFieldsButtonOnClick : Maybe msg
     , class : String
-    , attributes : Field.Attributes id (FieldType id (Error id)) (Error id)
+    , attributes : Attributes id
     }
 
 
