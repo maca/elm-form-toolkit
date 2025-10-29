@@ -1,12 +1,10 @@
 module Internal.View exposing
     ( View, init, partial, toHtml
-    , UserAttributes, defaultAttributes
     )
 
 {-|
 
 @docs View, init, partial, toHtml
-@docs UserAttributes, defaultAttributes
 
 -}
 
@@ -50,9 +48,9 @@ type alias View id msg =
 
 
 type alias FieldView id msg =
-    { labelHtml : UserAttributes -> Html msg
-    , inputHtml : UserAttributes -> Html msg
-    , hintHtml : UserAttributes -> Html msg
+    { labelHtml : List (Html.Attribute msg) -> Html msg
+    , inputHtml : List (Html.Attribute msg) -> Html msg
+    , hintHtml : List (Html.Attribute msg) -> Html msg
     , errors : List String
     , path : List Int
     , class : String
@@ -72,7 +70,7 @@ type alias GroupView id msg =
 type alias RepeatableFieldsGroupView id msg =
     { legendText : Maybe String
     , fields : List (Html msg)
-    , addFieldsButton : UserAttributes -> Html msg
+    , addFieldsButton : List (Html.Attribute msg) -> Html msg
     , addFieldsButtonOnClick : Maybe msg
     , errors : List String
     , path : List Int
@@ -83,7 +81,7 @@ type alias RepeatableFieldsGroupView id msg =
 
 type alias RepeatableFieldView id msg =
     { field : Html msg
-    , removeFieldsButton : UserAttributes -> Html msg
+    , removeFieldsButton : List (Html.Attribute msg) -> Html msg
     , index : Int
     , removeFieldsButtonCopy : String
     , removeFieldsButtonOnClick : Maybe msg
@@ -221,7 +219,7 @@ toHtml view =
         attrs =
             Tree.value view.root
 
-        wrapInput : (UserAttributes -> Html msg) -> Html msg
+        wrapInput : (List (Html.Attribute msg) -> Html msg) -> Html msg
         wrapInput inputHtml =
             view.fieldView
                 { labelHtml = labelToHtml attrs.label view.path view.root
@@ -234,7 +232,7 @@ toHtml view =
                                 Html.div
                                     (Attributes.class "hint"
                                         :: Attributes.id (hintId view.root view.path)
-                                        :: userProvidedAttributes attrList
+                                        :: attrList
                                     )
                                     [ Html.text hintText ]
 
@@ -297,7 +295,7 @@ toHtml view =
             checkboxToHtml view
 
 
-labelToHtml : Maybe String -> List Int -> Node id -> (UserAttributes -> Html msg)
+labelToHtml : Maybe String -> List Int -> Node id -> (List (Html.Attribute msg) -> Html msg)
 labelToHtml label path input element =
     case label of
         Just str ->
@@ -305,10 +303,10 @@ labelToHtml label path input element =
                 (Attributes.for (inputId input path)
                     :: Attributes.id (labelId input path)
                     :: (if (Tree.value input).inputType == Checkbox then
-                            Attributes.class "label-inline" :: userProvidedAttributes element
+                            Attributes.class "label-inline" :: element
 
                         else
-                            userProvidedAttributes element
+                            element
                        )
                 )
                 [ Html.text str ]
@@ -407,7 +405,7 @@ repeatableToHtml view =
                                         , True
                                         )
                                     )
-                                :: userProvidedAttributes attrList
+                                :: attrList
                             )
                             [ Html.text removeFieldsButtonCopy
                             ]
@@ -446,7 +444,7 @@ repeatableToHtml view =
                                 , True
                                 )
                             )
-                        :: userProvidedAttributes attrList
+                        :: attrList
                     )
                     [ Html.text attrs.addFieldsButtonCopy ]
         , addFieldsButtonOnClick =
@@ -465,7 +463,7 @@ inputToHtml :
     View id msg
     -> String
     -> List (Html.Attribute msg)
-    -> (UserAttributes -> Html msg)
+    -> (List (Html.Attribute msg) -> Html msg)
 inputToHtml view inputType htmlAttrs element =
     let
         unwrappedField =
@@ -487,7 +485,7 @@ inputToHtml view inputType htmlAttrs element =
                                     (inputStringToValue view.root inputStr)
                             )
                         :: textInputHtmlAttributes view
-                    , userProvidedAttributes element
+                    , element
                     ]
                 )
                 []
@@ -510,7 +508,7 @@ inputToHtml view inputType htmlAttrs element =
         inputHtml
 
 
-textAreaToHtml : View id msg -> (UserAttributes -> Html msg)
+textAreaToHtml : View id msg -> (List (Html.Attribute msg) -> Html msg)
 textAreaToHtml view element =
     let
         { value, autogrow, identifier } =
@@ -549,7 +547,7 @@ textAreaToHtml view element =
                     )
                     :: Attributes.value valueStr
                     :: textInputHtmlAttributes view
-                , userProvidedAttributes element
+                , element
                 , autogrowAttrs
                 ]
             )
@@ -560,7 +558,7 @@ textAreaToHtml view element =
                             [ Attributes.attribute "aria-hidden" "true"
                                 :: Attributes.style "white-space" "pre-wrap"
                                 :: Attributes.style "visibility" "hidden"
-                                :: userProvidedAttributes element
+                                :: element
                             , autogrowAttrs
                             ]
                         )
@@ -573,7 +571,7 @@ textAreaToHtml view element =
         )
 
 
-selectToHtml : View id msg -> (UserAttributes -> Html msg)
+selectToHtml : View id msg -> (List (Html.Attribute msg) -> Html msg)
 selectToHtml view element =
     let
         { identifier } =
@@ -598,7 +596,7 @@ selectToHtml view element =
             :: ariaLabeledByAttribute view.root view.path
             :: ariaDescribedByAttribute view.root view.path
             :: ariaInvalidAttribute view.root
-            :: userProvidedAttributes element
+            :: element
         )
         (Html.option [] []
             :: List.indexedMap
@@ -613,7 +611,7 @@ selectToHtml view element =
         )
 
 
-radioToHtml : View id msg -> (UserAttributes -> Html msg)
+radioToHtml : View id msg -> (List (Html.Attribute msg) -> Html msg)
 radioToHtml view element =
     let
         { identifier } =
@@ -649,7 +647,7 @@ radioToHtml view element =
                             :: Events.onBlur (view.onBlur identifier view.path)
                             :: nameAttribute view.root
                             :: ariaInvalidAttribute view.root
-                            :: userProvidedAttributes element
+                            :: element
                         )
                         []
                     , Html.label
@@ -669,7 +667,7 @@ checkboxToHtml view =
         ({ identifier } as attrs) =
             Tree.value view.root
 
-        inputHtml : UserAttributes -> Html msg
+        inputHtml : List (Html.Attribute msg) -> Html msg
         inputHtml element =
             Html.input
                 (List.concat
@@ -681,7 +679,7 @@ checkboxToHtml view =
                            )
                         :: Events.onCheck (view.onCheck identifier view.path)
                         :: textInputHtmlAttributes view
-                    , userProvidedAttributes element
+                    , element
                     ]
                 )
                 []
@@ -697,7 +695,7 @@ checkboxToHtml view =
                         Html.div
                             (Attributes.class "hint"
                                 :: Attributes.id (hintId view.root view.path)
-                                :: userProvidedAttributes attrList
+                                :: attrList
                             )
                             [ Html.text hintText ]
 
@@ -848,7 +846,7 @@ repeatableFieldsGroupView { legendText, addFieldsButton, fields, errors, class }
             Nothing ->
                 Html.text ""
         , Html.div [] fields
-        , addFieldsButton defaultAttributes
+        , addFieldsButton []
         , viewErrors errors
         ]
 
@@ -860,7 +858,7 @@ repeatableFieldView { field, removeFieldsButton, class } =
         , Attributes.class class
         ]
         [ field
-        , removeFieldsButton defaultAttributes
+        , removeFieldsButton []
         ]
 
 
@@ -874,13 +872,13 @@ fieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } =
             ]
         , Attributes.class class
         ]
-        [ labelHtml defaultAttributes
+        [ labelHtml []
         , Html.div
             [ Attributes.class "input-wrapper" ]
-            [ inputHtml defaultAttributes ]
+            [ inputHtml [] ]
         , case errors of
             [] ->
-                hintHtml defaultAttributes
+                hintHtml []
 
             _ ->
                 viewErrors errors
@@ -899,12 +897,12 @@ checkboxFieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } 
         ]
         [ Html.div
             [ Attributes.class "input-wrapper" ]
-            [ inputHtml defaultAttributes
-            , labelHtml defaultAttributes
+            [ inputHtml []
+            , labelHtml []
             ]
         , case errors of
             [] ->
-                hintHtml defaultAttributes
+                hintHtml []
 
             _ ->
                 viewErrors errors
@@ -919,25 +917,6 @@ viewErrors errors =
 
         [] ->
             Html.text ""
-
-
-type alias UserAttributes =
-    { classList : List ( String, Bool )
-    , styles : List ( String, String )
-    }
-
-
-defaultAttributes : UserAttributes
-defaultAttributes =
-    { classList = []
-    , styles = []
-    }
-
-
-userProvidedAttributes : UserAttributes -> List (Html.Attribute msg)
-userProvidedAttributes element =
-    Attributes.classList element.classList
-        :: List.map (\( k, v ) -> Attributes.style k v) element.styles
 
 
 nameAttribute : Node id -> Html.Attribute msg

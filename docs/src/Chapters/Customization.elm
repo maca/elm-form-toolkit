@@ -62,11 +62,114 @@ markdownContent : String
 markdownContent =
     """
 
-<component with-label="Demo"/>
+Each field is rendered with a few classes that can be used to apply styles, also
+`Field.class` and `Field.classList` can be used to add classes to field wrappers
+and groups.
 
+
+
+
+```elm
+Field.text
+    [ Field.label "Text Field"
+    , Field.placeholder "Enter any text"
+    , Field.hint "This field accepts any text input"
+    , Field.required True
+    ]
+```
+
+Will produce this markup:
 
 ```
-````
+<div class="field required text-field">
+  <label for="text" id="text-label">Text Field</label>
+  <div class="input-wrapper">
+    <input type="text"
+           autocomplete="off"
+           placeholder="Enter any text"
+           id="text"
+           required=""
+           class=""
+           aria-describedby="text-hint">
+  </div>
+  <div class="hint" id="text-hint">This field accepts any text input</div>
+</div>
+```
 
+
+## View Customizations and Custom HTML Elements.
+
+`FormToolkit.View` provides functions for customizing the rendered HTML. The
+default field rendering can be replaced with `customizeFields` for complete
+control over the HTML structure. Error messages can be overridden with
+`customizeErrors`, field groups with `customizeGroups`, repeatable containers
+with `customizeRepeatableFields`, and individual repeating instances with
+`customizeRepeatingFieldTemplates`.
+
+This demo uses custom HTML elements for a map-based address selector with
+Nominatim and Leaflet, and a tag selector using Choices.js.
+
+<component with-label="Demo"/>
+
+The `customizeFields` function receives pre-rendered elements `labelHtml`,
+`hintHtml` and event handlers `inputOnChange` for each field. Return `Just` with
+custom HTML to override the default rendering, or `Nothing` to use the default.
+
+```elm
+field
+    |> View.fromField FormChanged
+    |> View.customizeFields
+        (\\{ attributes, labelHtml, hintHtml, inputOnChange } ->
+            case attributes.identifier of
+                Just AddressMap ->
+                    Just
+                        (Html.div
+                            [ Attr.class "field" ]
+                            [ labelHtml []
+                            , Html.node "nominatim-reverse-geocoding"
+                                [ Events.on "address-selected"
+                                    (Decode.at [ "detail" ] Decode.value
+                                        |> Decode.map
+                                            (\\jsonValue ->
+                                                inputOnChange
+                                                    (Value.json jsonValue)
+                                                    { selectionStart = 0, selectionEnd = 0 }
+                                            )
+                                    )
+                                ]
+                                []
+                            , hintHtml []
+                            ]
+                        )
+
+                Just TagsSelector ->
+                    Just
+                        (Html.div
+                            [ Attr.class "field" ]
+                            [ labelHtml []
+                            , Html.node "choices-multi-select"
+                                [ Attr.attribute "placeholder" "Select tags..."
+                                , Events.on "choicesChange"
+                                    (Decode.at [ "detail", "value" ] (Decode.list Decode.string)
+                                        |> Decode.map
+                                            (\\selectedValues ->
+                                                inputOnChange
+                                                    (Value.string (String.join "," selectedValues))
+                                                    { selectionStart = 0, selectionEnd = 0 }
+                                            )
+                                    )
+                                ]
+                                []
+                            , hintHtml []
+                            ]
+                        )
+
+                _ ->
+                    Nothing
+        )
+    |> View.toHtml
+```
+
+A full example can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/CustomElementsDemo.elm).
 
 """

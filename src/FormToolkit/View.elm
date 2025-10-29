@@ -1,7 +1,6 @@
 module FormToolkit.View exposing
     ( View, fromField, toHtml
     , partial
-    , Attribute, class, classList, style
     , customizeErrors, customizeFields
     , customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
     )
@@ -17,14 +16,6 @@ module FormToolkit.View exposing
 
 # View customizations
 
-
-## Attributes
-
-@docs Attribute, class, classList, style
-
-
-## Markup customization
-
 @docs customizeErrors, customizeFields
 @docs customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
 
@@ -33,7 +24,7 @@ module FormToolkit.View exposing
 import FormToolkit.Error exposing (Error)
 import FormToolkit.Field as Field exposing (Attributes, Field(..), Msg)
 import FormToolkit.Value exposing (Value(..))
-import Html exposing (Html)
+import Html exposing (Attribute, Html)
 import Internal.View
 
 
@@ -187,6 +178,9 @@ The function receives a configuration record with pre-rendered HTML elements
 and field attributes, and should return `Just (Html msg)` for custom rendering
 or `Nothing` to use the default rendering.
 
+The `labelHtml`, `fieldHtml`, and `hintHtml` functions take a list of `Html.Attribute msg`
+to allow customization of the rendered elements.
+
 Use `config.attributes` to access field properties like `identifier` for
 pattern matching on specific fields.
 
@@ -207,7 +201,7 @@ The example below shows custom rendering for a specific field identifier:
                             Just
                                 (Html.div
                                     [ Attributes.class "field" ]
-                                    [ labelHtml [ class "custom-label" ]
+                                    [ labelHtml [ Attributes.class "custom-label" ]
                                     , Html.div
                                         [ Attributes.class "input-wrapper" ]
                                         [ fieldHtml []
@@ -247,9 +241,9 @@ customizeFields viewFunc (View view) =
             \params ->
                 case
                     viewFunc
-                        { labelHtml = toAttrs >> params.labelHtml
-                        , fieldHtml = toAttrs >> params.inputHtml
-                        , hintHtml = toAttrs >> params.hintHtml
+                        { labelHtml = params.labelHtml
+                        , fieldHtml = params.inputHtml
+                        , hintHtml = params.hintHtml
                         , errors = params.errors
                         , class = String.join " " params.attributes.classList
                         , attributes = params.attributes
@@ -316,6 +310,9 @@ customizeGroups viewFunc (View view) =
 {-| Customize the positioning, and appearance of each of the inputs of a repeatable
 group of inputs and the and the button to add new inputs.
 
+The `addFieldsButton` function takes a list of `Html.Attribute msg` to allow
+customization of the button element.
+
 To customize the template used to add a new input see
 [customizeRepeatingFieldTemplates](#customizeRepeatingFieldTemplates).
 
@@ -367,7 +364,7 @@ customizeRepeatableFields viewFunc (View view) =
                     viewFunc
                         { legendText = params.legendText
                         , fields = params.fields
-                        , addFieldsButton = params.addFieldsButton << toAttrs
+                        , addFieldsButton = params.addFieldsButton
                         , errors = params.errors
                         , class = String.join " " params.attributes.classList
                         , identifier = params.attributes.identifier
@@ -379,6 +376,9 @@ customizeRepeatableFields viewFunc (View view) =
 
 {-| Customize the rendering of each of the elements of a repeatable group of
 inputs.
+
+The `removeFieldsButton` function takes a list of `Html.Attribute msg` to allow
+customization of the button element.
 
 To customize the group of inputs see
 [customizeRepeatableFields](#customizeRepeatableFields).
@@ -395,15 +395,15 @@ To customize the group of inputs see
             []
             |> View.fromField (always ())
             |> customizeRepeatingFieldTemplates
-                (\{ field, removeFieldsButton } ->
+                (\{ fieldHtml, removeFieldsButton } ->
                     Html.div
                         [ Attributes.class "group-repeat" ]
-                        [ field, removeFieldsButton [] ]
+                        [ fieldHtml, removeFieldsButton [] ]
                 )
 
 -}
 customizeRepeatingFieldTemplates :
-    ({ field : Html msg
+    ({ fieldHtml : Html msg
      , removeFieldsButton : List (Attribute msg) -> Html msg
      , identifier : Maybe id
      , index : Int
@@ -420,43 +420,11 @@ customizeRepeatingFieldTemplates viewFunc (View view) =
             | repeatableFieldView =
                 \params ->
                     viewFunc
-                        { field = params.field
-                        , removeFieldsButton = params.removeFieldsButton << toAttrs
+                        { fieldHtml = params.field
+                        , removeFieldsButton = params.removeFieldsButton
                         , identifier = params.attributes.identifier
                         , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
                         , index = params.index
                         , removeFieldsButtonCopy = params.removeFieldsButtonCopy
                         }
         }
-
-
-{-| Represents an attribute that can be applied to an element.
--}
-type Attribute msg
-    = Attribute (Internal.View.UserAttributes -> Internal.View.UserAttributes)
-
-
-toAttrs : List (Attribute msg) -> Internal.View.UserAttributes
-toAttrs =
-    List.foldl (\(Attribute f) -> f) Internal.View.defaultAttributes
-
-
-{-| Apply a CSS class
--}
-class : String -> Attribute msg
-class classStr =
-    classList [ ( classStr, True ) ]
-
-
-{-| Apply a conditional list of CSS classes
--}
-classList : List ( String, Bool ) -> Attribute msg
-classList classTuple =
-    Attribute (\attrs -> { attrs | classList = classTuple ++ attrs.classList })
-
-
-{-| Apply a style
--}
-style : String -> String -> Attribute msg
-style key val =
-    Attribute (\attrs -> { attrs | styles = ( key, val ) :: attrs.styles })
