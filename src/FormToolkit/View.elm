@@ -176,13 +176,7 @@ field, or for fields of a certain type.
                 )
 
 -}
-customizeErrors :
-    (Attributes id
-     -> Error id
-     -> String
-    )
-    -> View id msg
-    -> View id msg
+customizeErrors : (Attributes id -> Error id -> String) -> View id msg -> View id msg
 customizeErrors viewFunc (View view) =
     View { view | errorToString = \attrs error -> viewFunc attrs error }
 
@@ -206,26 +200,19 @@ The example below shows custom rendering for a specific field identifier:
             ]
             |> View.fromField (always ())
             |> customizeFields
-                (\{ attributes, isRequired, labelHtml, fieldHtml, hintHtml, errors } ->
+                (\{ attributes, labelHtml, fieldHtml, hintHtml, errors } ->
                     case attributes.identifier of
                         Just MyField ->
                             -- Custom rendering for MyField
                             Just
                                 (Html.div
-                                    [ Attributes.class "field"
-                                    , Attributes.classList [ ( "required", isRequired ) ]
-                                    ]
+                                    [ Attributes.class "field" ]
                                     [ labelHtml [ class "custom-label" ]
                                     , Html.div
                                         [ Attributes.class "input-wrapper" ]
                                         [ fieldHtml []
+                                        , hintHtml []
                                         ]
-                                    , case errors of
-                                        err :: _ ->
-                                            Html.p [ Attributes.class "errors" ] [ Html.text err ]
-
-                                        [] ->
-                                            hintHtml []
                                     ]
                                 )
 

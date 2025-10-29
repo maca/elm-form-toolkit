@@ -100,24 +100,35 @@ field : id -> Parser id a -> Parser id a
 field id parser =
     Parser
         (\tree ->
-            case fieldHelp id (map2 (\_ a -> a) treeValidationParser parser) tree of
-                ( Just (Success node a), path ) ->
-                    Success (Tree.replaceAt path node tree) a
+            let
+                attrs =
+                    Tree.value tree
 
-                ( Just (Failure node errList), path ) ->
-                    Failure (Tree.replaceAt path node tree) errList
+                (Parser p) =
+                    map2 (\_ a -> a) treeValidationParser parser
+            in
+            if attrs.identifier == Just id then
+                p tree
 
-                ( Nothing, _ ) ->
-                    failure tree (InputNotFound id)
+            else
+                case fieldHelp id (Parser p) tree of
+                    ( Just (Success node a), path ) ->
+                        Success (Tree.replaceAt path node tree) a
+
+                    ( Just (Failure node errList), path ) ->
+                        Failure (Tree.replaceAt path node tree) errList
+
+                    ( Nothing, _ ) ->
+                        failure tree (InputNotFound id)
         )
 
 
 fieldHelp : id -> Parser id a -> Node id -> ( Maybe (ParserResult id a), List Int )
 fieldHelp id (Parser parser) =
     Tree.foldWithPath
-        (\path tree acc ->
-            if (Tree.value tree |> .identifier) == Just id then
-                ( Just (parser tree), path )
+        (\path node acc ->
+            if (Tree.value node |> .identifier) == Just id then
+                ( Just (parser node), path )
 
             else
                 acc

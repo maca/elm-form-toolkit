@@ -103,3 +103,70 @@ class NominatimReverseGeocoding extends HTMLElement {
 
 // Register the custom element
 customElements.define('nominatim-reverse-geocoding', NominatimReverseGeocoding);
+
+
+// Custom Web Component for Choices.js Multi-Select
+class ChoicesMultiSelect extends HTMLElement {
+  constructor() {
+    super();
+    this.choices = null;
+  }
+
+  connectedCallback() {
+    // Create select element
+    const select = document.createElement('select');
+    select.setAttribute('multiple', '');
+
+    // Add some default options
+    const options = [
+      { value: 'javascript', label: 'JavaScript' },
+      { value: 'python', label: 'Python' },
+      { value: 'elm', label: 'Elm' },
+      { value: 'rust', label: 'Rust' },
+      { value: 'go', label: 'Go' },
+      { value: 'typescript', label: 'TypeScript' },
+      { value: 'haskell', label: 'Haskell' },
+      { value: 'clojure', label: 'Clojure' }
+    ];
+
+    options.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      select.appendChild(option);
+    });
+
+    this.appendChild(select);
+
+    // Initialize Choices.js
+    this.choices = new Choices(select, {
+      removeItemButton: this.getAttribute('remove-button') === 'true',
+      placeholder: true,
+      placeholderValue: this.getAttribute('placeholder') || 'Select options',
+      searchEnabled: true,
+      searchPlaceholderValue: 'Search...'
+    });
+
+    // Listen for changes
+    select.addEventListener('change', (e) => {
+      const selectedValues = Array.from(select.selectedOptions).map(opt => opt.value);
+
+      this.dispatchEvent(new CustomEvent('choicesChange', {
+        detail: {
+          value: selectedValues
+        },
+        bubbles: true,
+        composed: true
+      }));
+    });
+  }
+
+  disconnectedCallback() {
+    if (this.choices) {
+      this.choices.destroy();
+    }
+  }
+}
+
+// Register the custom element
+customElements.define('choices-multi-select', ChoicesMultiSelect);
