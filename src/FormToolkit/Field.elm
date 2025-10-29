@@ -69,7 +69,7 @@ import Dict exposing (Dict)
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
-import Internal.Field exposing (Field, FieldType)
+import Internal.Field exposing (Field, FieldType(..), setError)
 import Internal.Utils
 import Internal.Value
 import Internal.View
@@ -1225,7 +1225,7 @@ with identifiers of different types.
 -}
 map : (a -> b) -> Field a -> Field b
 map func (Field field) =
-    Field (Tree.mapValues (Internal.Field.mapAttributes func (mapError func)) field)
+    Field (Tree.mapValues (mapAttributes func (mapError func)) field)
 
 
 mapError : (a -> b) -> Error a -> Error b
@@ -1342,3 +1342,104 @@ namesToPaths (Field field) =
         |> Tuple.first
         |> List.map (Tuple.mapFirst (String.join "."))
         |> Dict.fromList
+
+
+mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
+mapFieldType func errToErr inputType_ =
+    case inputType_ of
+        Repeatable tree ->
+            Repeatable (Tree.mapValues (mapAttributes func errToErr) tree)
+
+        Text ->
+            Text
+
+        TextArea ->
+            TextArea
+
+        Email ->
+            Email
+
+        Password ->
+            Password
+
+        StrictAutocomplete ->
+            StrictAutocomplete
+
+        Integer ->
+            Integer
+
+        Float ->
+            Float
+
+        Month ->
+            Month
+
+        Date ->
+            Date
+
+        LocalDatetime ->
+            LocalDatetime
+
+        Select ->
+            Select
+
+        Radio ->
+            Radio
+
+        Checkbox ->
+            Checkbox
+
+        Group ->
+            Group
+
+
+mapAttributes : (a -> b) -> (err1 -> err2) -> Internal.Field.Attributes a (FieldType a err1) err1 -> Internal.Field.Attributes b (FieldType b err2) err2
+mapAttributes func errToErr input =
+    { inputType = mapFieldType func errToErr input.inputType
+    , name = input.name
+    , value = input.value
+    , isRequired = input.isRequired
+    , label = input.label
+    , placeholder = input.placeholder
+    , hint = input.hint
+    , min = input.min
+    , max = input.max
+    , step = input.step
+    , autogrow = input.autogrow
+    , options = input.options
+    , identifier = Maybe.map func input.identifier
+    , status = input.status
+    , repeatableMin = input.repeatableMin
+    , repeatableMax = input.repeatableMax
+    , addFieldsButtonCopy = input.addFieldsButtonCopy
+    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
+    , errors = List.map errToErr input.errors
+    , classList = input.classList
+    , selectionStart = input.selectionStart
+    , selectionEnd = input.selectionEnd
+    , disabled = input.disabled
+    , hidden = input.hidden
+    , pattern = input.pattern
+    }
+
+
+
+-- type FieldType id err
+--     = Text
+--     | TextArea
+--     | Email
+--     | Password
+--     | StrictAutocomplete
+--     | Integer
+--     | Float
+--     | Month
+--     | Date
+--     | LocalDatetime
+--     | Select
+--     | Radio
+--     | Checkbox
+--     | Group
+--     | Repeatable (Internal.Field.Field id err)
+--
+--
+--
