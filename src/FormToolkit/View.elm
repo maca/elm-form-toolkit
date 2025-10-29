@@ -186,18 +186,15 @@ customizeErrors :
     )
     -> View id msg
     -> View id msg
-customizeErrors viewFunc (View ({ attributes } as view)) =
+customizeErrors viewFunc (View view) =
     View
         { view
-            | attributes =
-                { attributes
-                    | errorToString =
-                        \attrs error ->
-                            viewFunc
-                                { attributes = attrs
-                                , error = error
-                                }
-                }
+            | errorToString =
+                \attrs error ->
+                    viewFunc
+                        { attributes = attrs
+                        , error = error
+                        }
         }
 
 
@@ -268,10 +265,10 @@ customizeFields :
     )
     -> View id msg
     -> View id msg
-customizeFields viewFunc (View ({ attributes } as view)) =
+customizeFields viewFunc (View view) =
     let
         defaultViewFunction =
-            attributes.fieldView
+            view.fieldView
 
         fieldView =
             \params ->
@@ -286,10 +283,10 @@ customizeFields viewFunc (View ({ attributes } as view)) =
                         , attributes = params.attributes
                         , events =
                             { inputOnChange =
-                                \(Value val) cursorPos -> attributes.onChange params.attributes.identifier params.path val cursorPos
-                            , inputOnCheck = \checked -> attributes.onCheck params.attributes.identifier params.path checked
-                            , inputOnBlur = attributes.onBlur params.attributes.identifier params.path
-                            , inputOnFocus = attributes.onFocus params.attributes.identifier params.path
+                                \(Value val) cursorPos -> view.onChange params.attributes.identifier params.path val cursorPos
+                            , inputOnCheck = \checked -> view.onCheck params.attributes.identifier params.path checked
+                            , inputOnBlur = view.onBlur params.attributes.identifier params.path
+                            , inputOnFocus = view.onFocus params.attributes.identifier params.path
                             }
                         }
                 of
@@ -301,11 +298,8 @@ customizeFields viewFunc (View ({ attributes } as view)) =
     in
     View
         { view
-            | attributes =
-                { attributes
-                    | fieldView = fieldView
-                    , checkboxFieldView = fieldView
-                }
+            | fieldView = fieldView
+            , checkboxFieldView = fieldView
         }
 
 
@@ -345,8 +339,8 @@ customizeGroups :
     )
     -> View id msg
     -> View id msg
-customizeGroups viewFunc (View ({ attributes } as view)) =
-    View { view | attributes = { attributes | groupView = viewFunc } }
+customizeGroups viewFunc (View view) =
+    View { view | groupView = viewFunc }
 
 
 {-| Customize the positioning, and appearance of each of the inputs of a repeatable
@@ -397,26 +391,23 @@ customizeRepeatableFields :
     )
     -> View id msg
     -> View id msg
-customizeRepeatableFields viewFunc (View ({ attributes } as view)) =
+customizeRepeatableFields viewFunc (View view) =
     View
         { view
-            | attributes =
-                { attributes
-                    | repeatableFieldsGroupView =
-                        \params ->
-                            viewFunc
-                                { legendText = params.legendText
-                                , fields = params.fields
-                                , addFieldsButton = params.addFieldsButton << toAttrs
-                                , errors = params.errors
-                                , class = String.join " " params.attributes.classList
-                                , params =
-                                    { identifier = params.attributes.identifier
-                                    , addFieldsButtonOnClick = params.addFieldsButtonOnClick
-                                    , addFieldsButtonCopy = params.attributes.addFieldsButtonCopy
-                                    }
-                                }
-                }
+            | repeatableFieldsGroupView =
+                \params ->
+                    viewFunc
+                        { legendText = params.legendText
+                        , fields = params.fields
+                        , addFieldsButton = params.addFieldsButton << toAttrs
+                        , errors = params.errors
+                        , class = String.join " " params.attributes.classList
+                        , params =
+                            { identifier = params.attributes.identifier
+                            , addFieldsButtonOnClick = params.addFieldsButtonOnClick
+                            , addFieldsButtonCopy = params.attributes.addFieldsButtonCopy
+                            }
+                        }
         }
 
 
@@ -459,24 +450,21 @@ customizeRepeatingFieldTemplates :
     )
     -> View id msg
     -> View id msg
-customizeRepeatingFieldTemplates viewFunc (View ({ attributes } as view)) =
+customizeRepeatingFieldTemplates viewFunc (View view) =
     View
         { view
-            | attributes =
-                { attributes
-                    | repeatableFieldView =
-                        \params ->
-                            viewFunc
-                                { field = params.field
-                                , removeFieldsButton = params.removeFieldsButton << toAttrs
-                                , params =
-                                    { identifier = params.attributes.identifier
-                                    , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
-                                    , index = params.index
-                                    , removeFieldsButtonCopy = params.removeFieldsButtonCopy
-                                    }
-                                }
-                }
+            | repeatableFieldView =
+                \params ->
+                    viewFunc
+                        { field = params.field
+                        , removeFieldsButton = params.removeFieldsButton << toAttrs
+                        , params =
+                            { identifier = params.attributes.identifier
+                            , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
+                            , index = params.index
+                            , removeFieldsButtonCopy = params.removeFieldsButtonCopy
+                            }
+                        }
         }
 
 

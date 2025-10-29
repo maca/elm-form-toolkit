@@ -27,18 +27,11 @@ type alias Node id =
     Tree.Tree (Attributes id)
 
 
-type alias View id msg =
-    { attributes : ViewAttributes id msg
-    , path : List Int
-    , root : Node id
-    }
-
-
 type alias Attributes id =
     Field.Attributes id (FieldType id (Error id)) (Error id)
 
 
-type alias ViewAttributes id msg =
+type alias View id msg =
     { onChange : Maybe id -> List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
     , onCheck : Maybe id -> List Int -> Bool -> msg
     , onFocus : Maybe id -> List Int -> msg
@@ -51,6 +44,8 @@ type alias ViewAttributes id msg =
     , groupView : GroupView id msg -> Html msg
     , repeatableFieldsGroupView : RepeatableFieldsGroupView id msg -> Html msg
     , repeatableFieldView : RepeatableFieldView id msg -> Html msg
+    , path : List Int
+    , root : Node id
     }
 
 
@@ -112,29 +107,44 @@ init :
     }
     -> View id msg
 init { events, path, field } =
-    { attributes =
-        { onChange = events.onChange
-        , onCheck = events.onCheck
-        , onFocus = events.onFocus
-        , onBlur = events.onBlur
-        , onAdd = events.onAdd
-        , onRemove = events.onRemove
-        , errorToString = \_ -> FormToolkit.Error.toEnglish
-        , fieldView = fieldView
-        , checkboxFieldView = checkboxFieldView
-        , groupView = groupView
-        , repeatableFieldsGroupView = repeatableFieldsGroupView
-        , repeatableFieldView = repeatableFieldView
-        }
+    { onChange = events.onChange
+    , onCheck = events.onCheck
+    , onFocus = events.onFocus
+    , onBlur = events.onBlur
+    , onAdd = events.onAdd
+    , onRemove = events.onRemove
+    , errorToString = \_ -> FormToolkit.Error.toEnglish
+    , fieldView = fieldView
+    , checkboxFieldView = checkboxFieldView
+    , groupView = groupView
+    , repeatableFieldsGroupView = repeatableFieldsGroupView
+    , repeatableFieldView = repeatableFieldView
     , path = path
     , root = field
     }
 
 
 partial : id -> View id msg -> Maybe (View id msg)
-partial id { root, attributes } =
-    findNode id root
-        |> Maybe.map (\( found, path ) -> View attributes path found)
+partial id view =
+    findNode id view.root
+        |> Maybe.map
+            (\( found, path ) ->
+                { onChange = view.onChange
+                , onCheck = view.onCheck
+                , onFocus = view.onFocus
+                , onBlur = view.onBlur
+                , onAdd = view.onAdd
+                , onRemove = view.onRemove
+                , errorToString = view.errorToString
+                , fieldView = view.fieldView
+                , checkboxFieldView = view.checkboxFieldView
+                , groupView = view.groupView
+                , repeatableFieldsGroupView = view.repeatableFieldsGroupView
+                , repeatableFieldView = view.repeatableFieldView
+                , path = path
+                , root = found
+                }
+            )
 
 
 findNode : id -> Node id -> Maybe ( Node id, List Int )
@@ -225,32 +235,32 @@ inputStringToValue input str =
 
 
 toHtml : View id msg -> Html msg
-toHtml { root, path, attributes } =
+toHtml view =
     let
         attrs =
-            Tree.value root
+            Tree.value view.root
 
         wrapInput : (UserAttributes -> Html msg) -> Html msg
         wrapInput inputHtml =
-            attributes.fieldView
+            view.fieldView
                 { isRequired = attrs.isRequired
-                , labelHtml = labelToHtml attrs.label path root
+                , labelHtml = labelToHtml attrs.label view.path view.root
                 , inputHtml = inputHtml
-                , errors = visibleErrors root |> List.map (attributes.errorToString attrs)
+                , errors = visibleErrors view.root |> List.map (view.errorToString attrs)
                 , hintHtml =
                     \attrList ->
                         case attrs.hint of
                             Just hintText ->
                                 Html.div
                                     (Attributes.class "hint"
-                                        :: Attributes.id (hintId root path)
+                                        :: Attributes.id (hintId view.root view.path)
                                         :: userProvidedAttributes attrList
                                     )
                                     [ Html.text hintText ]
 
                             Nothing ->
                                 Html.text ""
-                , path = path
+                , path = view.path
                 , class = String.join " " attrs.classList
                 , attributes = attrs
                 }
@@ -260,51 +270,51 @@ toHtml { root, path, attributes } =
             Html.text ""
 
         ( False, Field.Group ) ->
-            groupToHtml attributes path root
+            groupToHtml view
 
         ( False, Field.Repeatable _ ) ->
-            repeatableToHtml attributes path root
+            repeatableToHtml view
 
         ( False, Field.Text ) ->
-            wrapInput (inputToHtml attributes "text" path root [])
+            wrapInput (inputToHtml view "text" [])
 
         ( False, Field.StrictAutocomplete ) ->
-            wrapInput (inputToHtml attributes "text" path root [])
+            wrapInput (inputToHtml view "text" [])
 
         ( False, Field.Email ) ->
-            wrapInput (inputToHtml attributes "email" path root [])
+            wrapInput (inputToHtml view "email" [])
 
         ( False, Field.Password ) ->
-            wrapInput (inputToHtml attributes "password" path root [])
+            wrapInput (inputToHtml view "password" [])
 
         ( False, Field.TextArea ) ->
-            wrapInput (textAreaToHtml attributes path root)
+            wrapInput (textAreaToHtml view)
 
         ( False, Field.Integer ) ->
-            inputToHtml attributes "number" path root [ valueAttribute Attributes.step (Tree.value root).step ]
+            inputToHtml view "number" [ valueAttribute Attributes.step (Tree.value view.root).step ]
                 |> wrapInput
 
         ( False, Field.Float ) ->
-            inputToHtml attributes "number" path root [ valueAttribute Attributes.step (Tree.value root).step ]
+            inputToHtml view "number" [ valueAttribute Attributes.step (Tree.value view.root).step ]
                 |> wrapInput
 
         ( False, Field.Date ) ->
-            wrapInput (inputToHtml attributes "date" path root [])
+            wrapInput (inputToHtml view "date" [])
 
         ( False, Field.Month ) ->
-            wrapInput (inputToHtml attributes "month" path root [])
+            wrapInput (inputToHtml view "month" [])
 
         ( False, Field.LocalDatetime ) ->
-            wrapInput (inputToHtml attributes "datetime-local" path root [])
+            wrapInput (inputToHtml view "datetime-local" [])
 
         ( False, Field.Select ) ->
-            wrapInput (selectToHtml attributes path root)
+            wrapInput (selectToHtml view)
 
         ( False, Field.Radio ) ->
-            wrapInput (radioToHtml attributes path root)
+            wrapInput (radioToHtml view)
 
         ( False, Field.Checkbox ) ->
-            checkboxToHtml attributes path root
+            checkboxToHtml view
 
 
 labelToHtml : Maybe String -> List Int -> Node id -> (UserAttributes -> Html msg)
@@ -327,32 +337,49 @@ labelToHtml label path input element =
             Html.text ""
 
 
-groupToHtml : ViewAttributes id msg -> List Int -> Node id -> Html msg
-groupToHtml attributes path input =
+groupToHtml : View id msg -> Html msg
+groupToHtml view =
     let
         ({ identifier, label, classList } as attrs) =
-            Tree.value input
+            Tree.value view.root
     in
-    attributes.groupView
+    view.groupView
         { legendText = label
         , fields =
-            Tree.children input
+            Tree.children view.root
                 |> List.indexedMap
-                    (\idx -> View attributes (path ++ [ idx ]) >> toHtml)
+                    (\idx child ->
+                        toHtml
+                            { onChange = view.onChange
+                            , onCheck = view.onCheck
+                            , onFocus = view.onFocus
+                            , onBlur = view.onBlur
+                            , onAdd = view.onAdd
+                            , onRemove = view.onRemove
+                            , errorToString = view.errorToString
+                            , fieldView = view.fieldView
+                            , checkboxFieldView = view.checkboxFieldView
+                            , groupView = view.groupView
+                            , repeatableFieldsGroupView = view.repeatableFieldsGroupView
+                            , repeatableFieldView = view.repeatableFieldView
+                            , path = view.path ++ [ idx ]
+                            , root = child
+                            }
+                    )
         , identifier = identifier
-        , errors = visibleErrors input |> List.map (attributes.errorToString attrs)
+        , errors = visibleErrors view.root |> List.map (view.errorToString attrs)
         , class = String.join " " classList
         }
 
 
-repeatableToHtml : ViewAttributes id msg -> List Int -> Node id -> Html msg
-repeatableToHtml attributes path input =
+repeatableToHtml : View id msg -> Html msg
+repeatableToHtml view =
     let
         ({ identifier } as attrs) =
-            Tree.value input
+            Tree.value view.root
 
         children =
-            Tree.children input
+            Tree.children view.root
 
         childrenCount =
             List.length children
@@ -360,10 +387,10 @@ repeatableToHtml attributes path input =
         inputsView idx child =
             let
                 childPath =
-                    path ++ [ idx ]
+                    view.path ++ [ idx ]
 
                 removeFieldsButtonOnClick =
-                    attributes.onRemove identifier childPath
+                    view.onRemove identifier childPath
 
                 removeFieldsButtonCopy =
                     attrs.removeFieldsButtonCopy
@@ -371,8 +398,24 @@ repeatableToHtml attributes path input =
                 removeFieldButtonEnabled =
                     childrenCount > attrs.repeatableMin
             in
-            attributes.repeatableFieldView
-                { field = toHtml (View attributes childPath child)
+            view.repeatableFieldView
+                { field =
+                    toHtml
+                        { onChange = view.onChange
+                        , onCheck = view.onCheck
+                        , onFocus = view.onFocus
+                        , onBlur = view.onBlur
+                        , onAdd = view.onAdd
+                        , onRemove = view.onRemove
+                        , errorToString = view.errorToString
+                        , fieldView = view.fieldView
+                        , checkboxFieldView = view.checkboxFieldView
+                        , groupView = view.groupView
+                        , repeatableFieldsGroupView = view.repeatableFieldsGroupView
+                        , repeatableFieldView = view.repeatableFieldView
+                        , path = childPath
+                        , root = child
+                        }
                 , removeFieldsButton =
                     \attrList ->
                         Html.button
@@ -396,7 +439,7 @@ repeatableToHtml attributes path input =
 
                     else
                         Nothing
-                , class = inputId input childPath ++ "-repeat"
+                , class = inputId view.root childPath ++ "-repeat"
                 , attributes = attrs
                 }
 
@@ -408,7 +451,7 @@ repeatableToHtml attributes path input =
                 Nothing ->
                     True
     in
-    repeatableFieldsGroupView
+    view.repeatableFieldsGroupView
         { legendText = attrs.label
         , fields = List.indexedMap inputsView children
         , class = String.join " " attrs.classList
@@ -419,7 +462,7 @@ repeatableToHtml attributes path input =
                         :: Attributes.disabled (not addFieldsButtonEnabled)
                         :: Events.preventDefaultOn "click"
                             (Json.Decode.succeed
-                                ( attributes.onAdd identifier path
+                                ( view.onAdd identifier view.path
                                 , True
                                 )
                             )
@@ -428,27 +471,25 @@ repeatableToHtml attributes path input =
                     [ Html.text attrs.addFieldsButtonCopy ]
         , addFieldsButtonOnClick =
             if addFieldsButtonEnabled then
-                Just (attributes.onAdd identifier path)
+                Just (view.onAdd identifier view.path)
 
             else
                 Nothing
-        , errors = visibleErrors input |> List.map (attributes.errorToString attrs)
-        , path = path
+        , errors = visibleErrors view.root |> List.map (view.errorToString attrs)
+        , path = view.path
         , attributes = attrs
         }
 
 
 inputToHtml :
-    ViewAttributes id msg
+    View id msg
     -> String
-    -> List Int
-    -> Node id
     -> List (Html.Attribute msg)
     -> (UserAttributes -> Html msg)
-inputToHtml attributes inputType path input htmlAttrs element =
+inputToHtml view inputType htmlAttrs element =
     let
         unwrappedField =
-            Tree.value input
+            Tree.value view.root
 
         inputHtml =
             Html.input
@@ -461,22 +502,22 @@ inputToHtml attributes inputType path input htmlAttrs element =
                            )
                         :: onInputWithSelection
                             (\inputStr ->
-                                attributes.onChange unwrappedField.identifier
-                                    path
-                                    (inputStringToValue input inputStr)
+                                view.onChange unwrappedField.identifier
+                                    view.path
+                                    (inputStringToValue view.root inputStr)
                             )
-                        :: textInputHtmlAttributes attributes path input
+                        :: textInputHtmlAttributes view
                     , userProvidedAttributes element
                     ]
                 )
                 []
     in
-    if isAutocompleteable input then
+    if isAutocompleteable view.root then
         Html.div
             []
             [ inputHtml
             , Html.datalist
-                [ Attributes.id (datalistId input path)
+                [ Attributes.id (datalistId view.root view.path)
                 , Attributes.attribute "role" "listbox"
                 ]
                 (List.map
@@ -489,15 +530,11 @@ inputToHtml attributes inputType path input htmlAttrs element =
         inputHtml
 
 
-textAreaToHtml :
-    ViewAttributes id msg
-    -> List Int
-    -> Node id
-    -> (UserAttributes -> Html msg)
-textAreaToHtml attributes path input element =
+textAreaToHtml : View id msg -> (UserAttributes -> Html msg)
+textAreaToHtml view element =
     let
         { value, autogrow, identifier } =
-            Tree.value input
+            Tree.value view.root
 
         valueStr =
             value
@@ -526,12 +563,12 @@ textAreaToHtml attributes path input element =
             (List.concat
                 [ onInputWithSelection
                     (\inputStr ->
-                        attributes.onChange identifier
-                            path
-                            (inputStringToValue input inputStr)
+                        view.onChange identifier
+                            view.path
+                            (inputStringToValue view.root inputStr)
                     )
                     :: Attributes.value valueStr
-                    :: textInputHtmlAttributes attributes path input
+                    :: textInputHtmlAttributes view
                 , userProvidedAttributes element
                 , autogrowAttrs
                 ]
@@ -556,35 +593,31 @@ textAreaToHtml attributes path input element =
         )
 
 
-selectToHtml :
-    ViewAttributes id msg
-    -> List Int
-    -> Node id
-    -> (UserAttributes -> Html msg)
-selectToHtml { onChange, onFocus, onBlur } path input element =
+selectToHtml : View id msg -> (UserAttributes -> Html msg)
+selectToHtml view element =
     let
         { identifier } =
-            Tree.value input
+            Tree.value view.root
 
         unwappedField =
-            Tree.value input
+            Tree.value view.root
     in
     Html.select
-        (Attributes.id (inputId input path)
+        (Attributes.id (inputId view.root view.path)
             :: Attributes.required unwappedField.isRequired
             :: Attributes.disabled unwappedField.disabled
             :: onInputWithSelection
                 (\inputStr ->
-                    onChange identifier
-                        path
-                        (inputStringToValue input inputStr)
+                    view.onChange identifier
+                        view.path
+                        (inputStringToValue view.root inputStr)
                 )
-            :: Events.onFocus (onFocus identifier path)
-            :: Events.onBlur (onBlur identifier path)
-            :: nameAttribute input
-            :: ariaLabeledByAttribute input path
-            :: ariaDescribedByAttribute input path
-            :: ariaInvalidAttribute input
+            :: Events.onFocus (view.onFocus identifier view.path)
+            :: Events.onBlur (view.onBlur identifier view.path)
+            :: nameAttribute view.root
+            :: ariaLabeledByAttribute view.root view.path
+            :: ariaDescribedByAttribute view.root view.path
+            :: ariaInvalidAttribute view.root
             :: userProvidedAttributes element
         )
         (Html.option [] []
@@ -600,31 +633,27 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
         )
 
 
-radioToHtml :
-    ViewAttributes id msg
-    -> List Int
-    -> Node id
-    -> (UserAttributes -> Html msg)
-radioToHtml { onChange, onFocus, onBlur } path input element =
+radioToHtml : View id msg -> (UserAttributes -> Html msg)
+radioToHtml view element =
     let
         { identifier } =
-            Tree.value input
+            Tree.value view.root
 
         unwrappedField =
-            Tree.value input
+            Tree.value view.root
     in
     Html.div
         [ Attributes.class "radios"
         , Attributes.attribute "role" "radiogroup"
-        , ariaLabeledByAttribute input path
-        , ariaDescribedByAttribute input path
+        , ariaLabeledByAttribute view.root view.path
+        , ariaDescribedByAttribute view.root view.path
         ]
         (List.indexedMap
             (\index ( optionText, optionValue ) ->
                 Html.div
                     []
                     [ Html.input
-                        (Attributes.id (radioOptionId input (path ++ [ index ]))
+                        (Attributes.id (radioOptionId view.root (view.path ++ [ index ]))
                             :: Attributes.checked (optionValue == unwrappedField.value)
                             :: Attributes.required unwrappedField.isRequired
                             :: Attributes.disabled unwrappedField.disabled
@@ -632,19 +661,19 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
                             :: Attributes.type_ "radio"
                             :: onInputWithSelection
                                 (\inputStr ->
-                                    onChange identifier
-                                        path
-                                        (inputStringToValue input inputStr)
+                                    view.onChange identifier
+                                        view.path
+                                        (inputStringToValue view.root inputStr)
                                 )
-                            :: Events.onFocus (onFocus identifier path)
-                            :: Events.onBlur (onBlur identifier path)
-                            :: nameAttribute input
-                            :: ariaInvalidAttribute input
+                            :: Events.onFocus (view.onFocus identifier view.path)
+                            :: Events.onBlur (view.onBlur identifier view.path)
+                            :: nameAttribute view.root
+                            :: ariaInvalidAttribute view.root
                             :: userProvidedAttributes element
                         )
                         []
                     , Html.label
-                        [ Attributes.for (radioOptionId input (path ++ [ index ]))
+                        [ Attributes.for (radioOptionId view.root (view.path ++ [ index ]))
                         , Attributes.class "label-inline"
                         ]
                         [ Html.text optionText ]
@@ -654,15 +683,11 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
         )
 
 
-checkboxToHtml :
-    ViewAttributes id msg
-    -> List Int
-    -> Node id
-    -> Html msg
-checkboxToHtml attributes path field =
+checkboxToHtml : View id msg -> Html msg
+checkboxToHtml view =
     let
         ({ identifier } as attrs) =
-            Tree.value field
+            Tree.value view.root
 
         inputHtml : UserAttributes -> Html msg
         inputHtml element =
@@ -674,32 +699,32 @@ checkboxToHtml attributes path field =
                                 |> Maybe.map Attributes.checked
                                 |> Maybe.withDefault (Attributes.class "")
                            )
-                        :: Events.onCheck (attributes.onCheck identifier path)
-                        :: textInputHtmlAttributes attributes path field
+                        :: Events.onCheck (view.onCheck identifier view.path)
+                        :: textInputHtmlAttributes view
                     , userProvidedAttributes element
                     ]
                 )
                 []
     in
-    attributes.checkboxFieldView
+    view.checkboxFieldView
         { isRequired = attrs.isRequired
-        , labelHtml = labelToHtml attrs.label path field
+        , labelHtml = labelToHtml attrs.label view.path view.root
         , inputHtml = inputHtml
-        , errors = visibleErrors field |> List.map (attributes.errorToString attrs)
+        , errors = visibleErrors view.root |> List.map (view.errorToString attrs)
         , hintHtml =
             \attrList ->
                 case attrs.hint of
                     Just hintText ->
                         Html.div
                             (Attributes.class "hint"
-                                :: Attributes.id (hintId field path)
+                                :: Attributes.id (hintId view.root view.path)
                                 :: userProvidedAttributes attrList
                             )
                             [ Html.text hintText ]
 
                     Nothing ->
                         Html.text ""
-        , path = path
+        , path = view.path
         , class = String.join " " attrs.classList
         , attributes = attrs
         }
@@ -720,31 +745,31 @@ valueAttribute f inputValue =
                 |> Maybe.withDefault (Attributes.class "")
 
 
-textInputHtmlAttributes : ViewAttributes id msg -> List Int -> Node id -> List (Html.Attribute msg)
-textInputHtmlAttributes attributes path input =
+textInputHtmlAttributes : View id msg -> List (Html.Attribute msg)
+textInputHtmlAttributes view =
     let
         node =
-            Tree.value input
+            Tree.value view.root
     in
     List.concat
-        [ if isAutocompleteable input then
+        [ if isAutocompleteable view.root then
             [ Attributes.autocomplete True
-            , Attributes.list (datalistId input path)
+            , Attributes.list (datalistId view.root view.path)
             ]
 
           else
             [ Attributes.autocomplete False ]
         , [ Attributes.placeholder (Maybe.withDefault "" node.placeholder)
-          , Attributes.id (inputId input path)
+          , Attributes.id (inputId view.root view.path)
           , Attributes.required node.isRequired
           , Attributes.disabled node.disabled
-          , Events.onFocus (attributes.onFocus node.identifier path)
-          , Events.onBlur (attributes.onBlur node.identifier path)
-          , nameAttribute input
+          , Events.onFocus (view.onFocus node.identifier view.path)
+          , Events.onBlur (view.onBlur node.identifier view.path)
+          , nameAttribute view.root
           , valueAttribute Attributes.min node.min
           , valueAttribute Attributes.max node.max
-          , ariaDescribedByAttribute input path
-          , ariaInvalidAttribute input
+          , ariaDescribedByAttribute view.root view.path
+          , ariaInvalidAttribute view.root
           ]
         , if List.member node.inputType [ Field.Text, Field.TextArea ] then
             [ selectionStartAttribute node.selectionStart
