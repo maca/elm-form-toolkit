@@ -1,18 +1,18 @@
 module FormToolkit.Value exposing
     ( Value(..)
-    , string, int, float, bool, blank
+    , string, int, float, bool, blank, json
     , date, month, time
     , toString, toBool, toFloat, toInt, toPosix
     )
 
 {-| Value is used to set default input values of type either string, integer,
-float, boolean, date, month, or time.
+float, boolean, date, month, time, or json.
 
 
 # Init
 
 @docs Value
-@docs string, int, float, bool, blank
+@docs string, int, float, bool, blank, json
 @docs date, month, time
 
 
@@ -23,6 +23,7 @@ float, boolean, date, month, or time.
 -}
 
 import Internal.Value as Internal
+import Json.Decode
 import String.Extra as String
 import Time exposing (Posix)
 
@@ -56,6 +57,12 @@ float =
 bool : Bool -> Value
 bool =
     Value << Internal.fromBool
+
+
+{-| -}
+json : Json.Decode.Value -> Value
+json =
+    Value << Internal.Json
 
 
 {-| -}

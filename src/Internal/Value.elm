@@ -23,6 +23,7 @@ module Internal.Value exposing
     )
 
 import Iso8601
+import Json.Decode as Decode
 import Json.Encode as Encode
 import String.Extra
 import Time exposing (Posix)
@@ -36,6 +37,7 @@ type Value
     | Date Posix
     | LocalTime Posix
     | Boolean Bool
+    | Json Decode.Value
     | Invalid
     | Blank
 
@@ -67,6 +69,9 @@ toString value =
 
         Boolean False ->
             Nothing
+
+        Json json ->
+            Just (Encode.encode 0 json)
 
         Invalid ->
             Nothing
@@ -138,6 +143,9 @@ encode value =
 
         Boolean b ->
             Encode.bool b
+
+        Json json ->
+            json
 
         Blank ->
             Encode.null
