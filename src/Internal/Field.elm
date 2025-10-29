@@ -10,6 +10,7 @@ module Internal.Field exposing
 @docs Field, Attributes, FieldType, Status
 @docs isBlank, isGroup
 @docs validateNode, validateTree, errors
+@docs mapAttributes
 
 -}
 

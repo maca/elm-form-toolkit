@@ -105,12 +105,6 @@ datetimeFieldTests =
                 datetimeInput
                     |> Parse.parse Parse.posix
                     |> Expect.equal (Ok (Time.millisToPosix 1609459200000))
-        , test "has correct input type" <|
-            \_ ->
-                datetimeInput
-                    |> Field.toProperties
-                    |> .inputType
-                    |> Expect.equal Field.LocalDatetime
         ]
 
 

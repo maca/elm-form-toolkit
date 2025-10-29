@@ -110,45 +110,25 @@ viewCustomFields field =
         |> View.fromField FormChanged
         |> View.customizeFields
             (\\config ->
-                case config.identifier of
+                case config.attributes.identifier of
                     Just AddressMap ->
                         -- Render custom map element
-                        Html.div
-                            [ Attr.class "field" ]
-                            [ config.label [ Attr.class "input-label" ]
-                            , Html.node "nominatim-reverse-geocoding"
-                                [ Events.on "address-selected"
-                                    (Decode.map MapAddressSelected Decode.value)
+                        Just
+                            (Html.div
+                                [ Attr.class "field" ]
+                                [ config.labelHtml []
+                                , Html.node "nominatim-reverse-geocoding"
+                                    [ Events.on "address-selected"
+                                        (Decode.map MapAddressSelected Decode.value)
+                                    ]
+                                    []
+                                , config.hintHtml []
                                 ]
-                                []
-                            , case config.hint of
-                                Just hintText ->
-                                    Html.p [ Attr.class "hint" ] [ Html.text hintText ]
-                                Nothing ->
-                                    Html.text ""
-                            ]
+                            )
 
                     _ ->
-                        -- Default rendering for other fields
-                        Html.div
-                            [ Attr.class "field"
-                            , Attr.classList [ ( "required", config.isRequired ) ]
-                            ]
-                            [ config.label [ Attr.class "input-label" ]
-                            , Html.div
-                                [ Attr.class "input-wrapper" ]
-                                [ config.fieldHtml []
-                                ]
-                            , case config.errors of
-                                err :: _ ->
-                                    Html.p [ Attr.class "errors" ] [ Html.text err ]
-                                [] ->
-                                    case config.hint of
-                                        Just hintText ->
-                                            Html.p [ Attr.class "hint" ] [ Html.text hintText ]
-                                        Nothing ->
-                                            Html.text ""
-                            ]
+                        -- Return Nothing to use default rendering
+                        Nothing
             )
         |> View.toHtml
 ```
@@ -185,12 +165,22 @@ update msg model =
 
 The configuration record passed to `customizeFields` contains:
 
-- **identifier**: The field's identifier (if any) - use this for pattern matching
+- **attributes**: Record containing the field's attributes including:
+  - **identifier**: The field's identifier (if any) - use `config.attributes.identifier` for pattern matching
+  - Other field attributes like name, placeholder, etc.
 - **isRequired**: Boolean indicating if the field is required
-- **label**: Function that takes HTML attributes and returns the label element
-- **fieldHtml**: Function that takes HTML attributes and returns the input element
+- **labelHtml**: Pre-rendered label HTML element (takes View attributes list)
+- **fieldHtml**: Pre-rendered input HTML element (takes View attributes list)
+- **hintHtml**: Pre-rendered hint HTML element (takes View attributes list)
 - **errors**: List of error messages for this field
-- **hint**: Optional hint text for the field
+- **class**: CSS classes applied to the field
+- **events**: Record containing event handlers:
+  - **inputOnChange**: Handler for input changes
+  - **inputOnCheck**: Handler for checkbox changes
+  - **inputOnBlur**: Handler for blur events
+  - **inputOnFocus**: Handler for focus events
+
+**Important**: The function should return `Just (Html msg)` for custom rendering, or `Nothing` to use the default rendering.
 
 
 ## Complete Example

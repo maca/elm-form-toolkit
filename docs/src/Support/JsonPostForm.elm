@@ -134,8 +134,8 @@ sampleValuesJson : String
 sampleValuesJson =
     """{
   "recipient": {
-    "first-name": "José",
-    "last-name": "García"
+    "first-name": "Ricardo",
+    "last-name": "Flores Magón"
   },
   "address": {
     "street-name": "Avenida Revolución",
@@ -146,7 +146,7 @@ sampleValuesJson =
     "country": "156"
   },
   "credit-card": {
-    "card-name": "José García",
+    "card-name": "Ricardo Flores Magón",
     "card-number": "4532123456789012",
     "expire-month": "12/25",
     "cvc": "123"

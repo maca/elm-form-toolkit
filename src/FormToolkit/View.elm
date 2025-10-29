@@ -34,7 +34,6 @@ import FormToolkit.Error exposing (Error)
 import FormToolkit.Field as Field exposing (Attributes, Field(..), Msg)
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
-import Internal.Field
 import Internal.View
 
 
@@ -204,38 +203,49 @@ customizeErrors viewFunc (View ({ attributes } as view)) =
 
 {-| Provide a function to override the rendering of a field.
 
-`label` and `input` are functions that take a list of
-[Attribute](#Attribute)s.
+The function receives a configuration record with pre-rendered HTML elements
+and field attributes, and should return `Just (Html msg)` for custom rendering
+or `Nothing` to use the default rendering.
 
-Use `params` for a greater level of customization of the field.
-It is possible to target specific fields by `InputType`, or `identifier`.
+Use `config.attributes` to access field properties like `identifier` for
+pattern matching on specific fields.
 
-The example bellow would render the input exactly as it normaly renders :P
+The example below shows custom rendering for a specific field identifier:
 
     view : View id val ()
     view =
-        Field.text [ Field.label "Name" ]
+        Field.text
+            [ Field.label "Name"
+            , Field.identifier MyField
+            ]
             |> View.fromField (always ())
             |> customizeFields
-                (\{ isRequired, label, fieldHtml, errors, hint } ->
-                    Html.div
-                        [ Attributes.class "field"
-                        , Attributes.classList [ ( "required", isRequired ) ]
-                        ]
-                        [ -- ↓ call with ↓ Attribute list
-                          label [ class "input-label" ]
-                        , Html.div
-                            [ Attributes.class "input-wrapper" ]
-                            [ -- ↓ same here, label `for` already references the input
-                              fieldHtml []
-                            ]
-                        , case errors of
-                            err :: _ ->
-                                Html.p [ Attributes.class "errors" ] [ Html.text err ]
+                (\config ->
+                    case config.attributes.identifier of
+                        Just MyField ->
+                            -- Custom rendering for MyField
+                            Just
+                                (Html.div
+                                    [ Attributes.class "field"
+                                    , Attributes.classList [ ( "required", config.isRequired ) ]
+                                    ]
+                                    [ config.labelHtml [ class "custom-label" ]
+                                    , Html.div
+                                        [ Attributes.class "input-wrapper" ]
+                                        [ config.fieldHtml []
+                                        ]
+                                    , case config.errors of
+                                        err :: _ ->
+                                            Html.p [ Attributes.class "errors" ] [ Html.text err ]
 
-                            [] ->
-                                hint []
-                        ]
+                                        [] ->
+                                            config.hintHtml []
+                                    ]
+                                )
+
+                        _ ->
+                            -- Use default rendering for other fields
+                            Nothing
                 )
 
 -}

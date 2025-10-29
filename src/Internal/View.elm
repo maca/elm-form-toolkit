@@ -1,14 +1,12 @@
 module Internal.View exposing
     ( View, init, partial, toHtml
     , UserAttributes, defaultAttributes
-    , inputId
     )
 
 {-|
 
 @docs View, init, partial, toHtml
 @docs UserAttributes, defaultAttributes
-@docs inputId
 
 -}
 

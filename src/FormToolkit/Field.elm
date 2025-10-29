@@ -15,7 +15,6 @@ module FormToolkit.Field exposing
     , copies, repeatableMin, repeatableMax
     , updateAttribute, updateAttributes, updateWithId
     , updateValuesFromJson
-    , InputType(..), Properties, toProperties
     , map
     )
 
@@ -59,13 +58,6 @@ their attributes, update, and render them.
 @docs updateValuesFromJson
 
 
-# Properties
-
-Read a Field properties
-
-@docs InputType, Properties, toProperties
-
-
 # Mapping and composition
 
 @docs map
@@ -75,7 +67,7 @@ Read a Field properties
 import Array
 import Dict exposing (Dict)
 import FormToolkit.Error exposing (Error(..))
-import FormToolkit.Value as Value exposing (Value)
+import FormToolkit.Value as Value
 import Html exposing (Html)
 import Internal.Field exposing (Field, FieldType)
 import Internal.Utils
@@ -911,120 +903,6 @@ classList =
     List.filter Tuple.second
         >> List.map (Tuple.first >> class)
         >> List.foldl combineAttrs noattr
-
-
-{-| Represents the type of input field.
--}
-type InputType
-    = Text
-    | TextArea
-    | Email
-    | Password
-    | StrictAutocomplete
-    | Integer
-    | Float
-    | Month
-    | Date
-    | LocalDatetime
-    | Select
-    | Radio
-    | Checkbox
-
-
-{-| Contains the properties and attributes of a field.
--}
-type alias Properties id =
-    { identifier : Maybe id
-    , inputType : InputType
-    , inputName : Maybe String
-    , inputPlaceholder : Maybe String
-    , inputValue : Value
-    , inputMin : Value
-    , inputMax : Value
-    , inputOptions : List ( String, Value )
-    , selectionStart : Int
-    , selectionEnd : Int
-    , labelText : Maybe String
-    , hintText : Maybe String
-    , idString : String
-    , isRequired : Bool
-    , isHidden : Bool
-    }
-
-
-{-| Extracts properties from a field for custom rendering.
--}
-toProperties : Field id -> Properties id
-toProperties (Field field) =
-    let
-        attrs =
-            Tree.value field
-    in
-    { identifier = attrs.identifier |> Debug.log "identifier"
-    , inputType = fieldTypeToInputType attrs.inputType
-    , inputName = attrs.name
-    , inputPlaceholder = attrs.placeholder
-    , inputValue = Value.Value attrs.value
-    , inputMin = Value.Value attrs.min
-    , inputMax = Value.Value attrs.max
-    , inputOptions = List.map (Tuple.mapSecond Value.Value) attrs.options
-    , labelText = attrs.label
-    , hintText = attrs.hint
-    , idString = ""
-    , selectionStart = attrs.selectionStart
-    , selectionEnd = attrs.selectionEnd
-    , isRequired = attrs.isRequired
-    , isHidden = attrs.hidden
-    }
-
-
-fieldTypeToInputType : Internal.Field.FieldType id err -> InputType
-fieldTypeToInputType inputType =
-    case inputType of
-        Internal.Field.Text ->
-            Text
-
-        Internal.Field.TextArea ->
-            TextArea
-
-        Internal.Field.Password ->
-            Password
-
-        Internal.Field.StrictAutocomplete ->
-            StrictAutocomplete
-
-        Internal.Field.Email ->
-            Email
-
-        Internal.Field.Integer ->
-            Integer
-
-        Internal.Field.Float ->
-            Float
-
-        Internal.Field.Month ->
-            Month
-
-        Internal.Field.Date ->
-            Date
-
-        Internal.Field.LocalDatetime ->
-            LocalDatetime
-
-        Internal.Field.Select ->
-            Select
-
-        Internal.Field.Radio ->
-            Radio
-
-        Internal.Field.Checkbox ->
-            Checkbox
-
-        Internal.Field.Repeatable _ ->
-            Text
-
-        Internal.Field.Group ->
-            Text
 
 
 {-| Sets whether a field is disabled. When set to True, the field input will have the disabled HTML attribute.
