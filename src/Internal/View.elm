@@ -16,21 +16,21 @@ import FormToolkit.Error exposing (Error(..))
 import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
-import Internal.Field as Field exposing (Field, FieldType(..), Status(..))
+import Internal.Field as Field exposing (FieldType(..), Status(..))
 import Internal.Value
 import Json.Decode
 import Json.Encode
 import RoseTree.Tree as Tree
 
 
-type alias Field id =
-    Field.Field id (Error id)
+type alias Node id =
+    Tree.Tree (Attributes id)
 
 
 type alias View id msg =
     { attributes : ViewAttributes id msg
     , path : List Int
-    , root : Field id
+    , root : Node id
     }
 
 
@@ -108,7 +108,7 @@ init :
         , onRemove : Maybe id -> List Int -> msg
         }
     , path : List Int
-    , field : Field id
+    , field : Node id
     }
     -> View id msg
 init { events, path, field } =
@@ -137,7 +137,7 @@ partial id { root, attributes } =
         |> Maybe.map (\( found, path ) -> View attributes path found)
 
 
-findNode : id -> Field id -> Maybe ( Field id, List Int )
+findNode : id -> Node id -> Maybe ( Node id, List Int )
 findNode id =
     Tree.foldWithPath
         (\path node foundPath ->
@@ -150,7 +150,7 @@ findNode id =
         Nothing
 
 
-inputStringToValue : Field id -> String -> Internal.Value.Value
+inputStringToValue : Node id -> String -> Internal.Value.Value
 inputStringToValue input str =
     let
         unwrappedField =
@@ -307,7 +307,7 @@ toHtml { root, path, attributes } =
             checkboxToHtml attributes path root
 
 
-labelToHtml : Maybe String -> List Int -> Field id -> (UserAttributes -> Html msg)
+labelToHtml : Maybe String -> List Int -> Node id -> (UserAttributes -> Html msg)
 labelToHtml label path input element =
     case label of
         Just str ->
@@ -327,7 +327,7 @@ labelToHtml label path input element =
             Html.text ""
 
 
-groupToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
+groupToHtml : ViewAttributes id msg -> List Int -> Node id -> Html msg
 groupToHtml attributes path input =
     let
         ({ identifier, label, classList } as attrs) =
@@ -345,7 +345,7 @@ groupToHtml attributes path input =
         }
 
 
-repeatableToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
+repeatableToHtml : ViewAttributes id msg -> List Int -> Node id -> Html msg
 repeatableToHtml attributes path input =
     let
         ({ identifier } as attrs) =
@@ -442,7 +442,7 @@ inputToHtml :
     ViewAttributes id msg
     -> String
     -> List Int
-    -> Field id
+    -> Node id
     -> List (Html.Attribute msg)
     -> (UserAttributes -> Html msg)
 inputToHtml attributes inputType path input htmlAttrs element =
@@ -492,7 +492,7 @@ inputToHtml attributes inputType path input htmlAttrs element =
 textAreaToHtml :
     ViewAttributes id msg
     -> List Int
-    -> Field id
+    -> Node id
     -> (UserAttributes -> Html msg)
 textAreaToHtml attributes path input element =
     let
@@ -559,7 +559,7 @@ textAreaToHtml attributes path input element =
 selectToHtml :
     ViewAttributes id msg
     -> List Int
-    -> Field id
+    -> Node id
     -> (UserAttributes -> Html msg)
 selectToHtml { onChange, onFocus, onBlur } path input element =
     let
@@ -603,7 +603,7 @@ selectToHtml { onChange, onFocus, onBlur } path input element =
 radioToHtml :
     ViewAttributes id msg
     -> List Int
-    -> Field id
+    -> Node id
     -> (UserAttributes -> Html msg)
 radioToHtml { onChange, onFocus, onBlur } path input element =
     let
@@ -657,7 +657,7 @@ radioToHtml { onChange, onFocus, onBlur } path input element =
 checkboxToHtml :
     ViewAttributes id msg
     -> List Int
-    -> Field id
+    -> Node id
     -> Html msg
 checkboxToHtml attributes path field =
     let
@@ -720,7 +720,7 @@ valueAttribute f inputValue =
                 |> Maybe.withDefault (Attributes.class "")
 
 
-textInputHtmlAttributes : ViewAttributes id msg -> List Int -> Field id -> List (Html.Attribute msg)
+textInputHtmlAttributes : ViewAttributes id msg -> List Int -> Node id -> List (Html.Attribute msg)
 textInputHtmlAttributes attributes path input =
     let
         node =
@@ -756,32 +756,32 @@ textInputHtmlAttributes attributes path input =
         ]
 
 
-inputId : Field id -> List Int -> String
+inputId : Node id -> List Int -> String
 inputId input path =
     String.join "-" (inputIdString input :: List.map String.fromInt path)
 
 
-labelId : Field id -> List Int -> String
+labelId : Node id -> List Int -> String
 labelId input path =
     inputId input path ++ "-label"
 
 
-hintId : Field id -> List Int -> String
+hintId : Node id -> List Int -> String
 hintId input path =
     inputId input path ++ "-hint"
 
 
-radioOptionId : Field id -> List Int -> String
+radioOptionId : Node id -> List Int -> String
 radioOptionId input path =
     inputId input path ++ "-option"
 
 
-datalistId : Field id -> List Int -> String
+datalistId : Node id -> List Int -> String
 datalistId input path =
     inputId input path ++ "-datalist"
 
 
-visibleErrors : Field id -> List (Error id)
+visibleErrors : Node id -> List (Error id)
 visibleErrors input =
     let
         params =
@@ -936,14 +936,14 @@ userProvidedAttributes element =
         :: List.map (\( k, v ) -> Attributes.style k v) element.styles
 
 
-nameAttribute : Field id -> Html.Attribute msg
+nameAttribute : Node id -> Html.Attribute msg
 nameAttribute input =
     (Tree.value input).name
         |> Maybe.map Attributes.name
         |> Maybe.withDefault (Attributes.class "")
 
 
-ariaDescribedByAttribute : Field id -> List Int -> Html.Attribute msg
+ariaDescribedByAttribute : Node id -> List Int -> Html.Attribute msg
 ariaDescribedByAttribute input path =
     (Tree.value input).hint
         |> Maybe.map
@@ -951,7 +951,7 @@ ariaDescribedByAttribute input path =
         |> Maybe.withDefault (Attributes.class "")
 
 
-ariaLabeledByAttribute : Field id -> List Int -> Html.Attribute msg
+ariaLabeledByAttribute : Node id -> List Int -> Html.Attribute msg
 ariaLabeledByAttribute input path =
     (Tree.value input).label
         |> Maybe.map
@@ -959,7 +959,7 @@ ariaLabeledByAttribute input path =
         |> Maybe.withDefault (Attributes.class "")
 
 
-ariaInvalidAttribute : Field id -> Html.Attribute msg
+ariaInvalidAttribute : Node id -> Html.Attribute msg
 ariaInvalidAttribute input =
     if List.isEmpty (visibleErrors input) then
         Attributes.class ""
@@ -998,7 +998,7 @@ onInputWithSelection tagger =
         )
 
 
-inputIdString : Field id -> String
+inputIdString : Node id -> String
 inputIdString input =
     let
         { name, inputType } =
@@ -1058,7 +1058,7 @@ inputTypeToString type_ =
             "group"
 
 
-isAutocompleteable : Field id -> Bool
+isAutocompleteable : Node id -> Bool
 isAutocompleteable input =
     let
         { inputType, options } =

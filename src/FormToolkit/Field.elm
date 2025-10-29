@@ -16,6 +16,7 @@ module FormToolkit.Field exposing
     , updateAttribute, updateAttributes, updateWithId
     , updateValuesFromJson
     , map
+    , validateTree
     )
 
 {-| Provides types and functions to create form fields of various types, set
@@ -62,6 +63,11 @@ their attributes, update, and render them.
 
 @docs map
 
+
+# Validation
+
+@docs validateTree
+
 -}
 
 import Array
@@ -69,19 +75,20 @@ import Dict exposing (Dict)
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
 import Html exposing (Html)
-import Internal.Field exposing (Field, FieldType(..), setError)
+import Internal.Field exposing (FieldType(..), Status(..))
 import Internal.Utils
 import Internal.Value
 import Internal.View
 import Json.Decode as Decode
 import Json.Encode as Encode
+import List.Extra
 import RoseTree.Path as Path
 import RoseTree.Tree as Tree
 import String.Extra
 
 
 type alias Node id =
-    Internal.Field.Field id (Error id)
+    Tree.Tree (Attributes id)
 
 
 {-| Represents a form field element, which can be an individual field or a group
@@ -161,7 +168,7 @@ update msg (Field field) =
                     Tree.getValueAt path field
                         |> Maybe.map .inputType
                 of
-                    Just (Internal.Field.Repeatable template) ->
+                    Just (Repeatable template) ->
                         updateAt path (Tree.push template) field
 
                     _ ->
@@ -197,45 +204,45 @@ inputStringToValue input str =
                     Internal.Value.blank
     in
     case unwrappedField.inputType of
-        Internal.Field.Text ->
+        Text ->
             Internal.Value.fromNonBlankString str
 
-        Internal.Field.TextArea ->
+        TextArea ->
             Internal.Value.fromNonEmptyString str
 
-        Internal.Field.Password ->
+        Password ->
             Internal.Value.fromNonBlankString str
 
-        Internal.Field.StrictAutocomplete ->
+        StrictAutocomplete ->
             Dict.fromList unwrappedField.options
                 |> Dict.get str
                 |> Maybe.withDefault Internal.Value.blank
 
-        Internal.Field.Email ->
+        Email ->
             Internal.Value.fromNonBlankString str
 
-        Internal.Field.Integer ->
+        Integer ->
             Internal.Value.intFromString str
 
-        Internal.Field.Float ->
+        Float ->
             Internal.Value.floatFromString str
 
-        Internal.Field.Month ->
+        Month ->
             Internal.Value.monthFromString str
 
-        Internal.Field.Date ->
+        Date ->
             Internal.Value.dateFromString str
 
-        Internal.Field.LocalDatetime ->
+        LocalDatetime ->
             Internal.Value.timeFromString str
 
-        Internal.Field.Select ->
+        Select ->
             getChoice ()
 
-        Internal.Field.Radio ->
+        Radio ->
             getChoice ()
 
-        Internal.Field.Checkbox ->
+        Checkbox ->
             case str of
                 "true" ->
                     Internal.Value.fromBool True
@@ -246,10 +253,10 @@ inputStringToValue input str =
                 _ ->
                     Internal.Value.blank
 
-        Internal.Field.Group ->
+        Group ->
             Internal.Value.blank
 
-        Internal.Field.Repeatable _ ->
+        Repeatable _ ->
             Internal.Value.blank
 
 
@@ -260,13 +267,13 @@ updateAt path func input =
             func input
 
         _ ->
-            Tree.updateAt path (func >> Internal.Field.validateNode) input
+            Tree.updateAt path (func >> validateNode) input
 
 
 focus : Attributes id -> Attributes id
 focus input =
     { input
-        | status = Internal.Field.Focused
+        | status = Focused
         , value =
             if Internal.Value.isInvalid input.value then
                 Internal.Value.Blank
@@ -279,10 +286,10 @@ focus input =
 blur : Attributes id -> Attributes id
 blur input =
     { input
-        | status = Internal.Field.Touched
+        | status = Touched
         , value =
             case input.inputType of
-                Internal.Field.StrictAutocomplete ->
+                StrictAutocomplete ->
                     if Internal.Value.isBlank input.value then
                         Internal.Value.Invalid
 
@@ -340,7 +347,7 @@ suggestions.
 -}
 text : List (Attribute id val) -> Field id
 text =
-    init Internal.Field.Text
+    init Text
 
 
 {-| Builds a Textarea input field.
@@ -356,7 +363,7 @@ text =
 -}
 textarea : List (Attribute id val) -> Field id
 textarea =
-    init Internal.Field.TextArea
+    init TextArea
 
 
 {-| Builds an email input field.
@@ -368,7 +375,7 @@ textarea =
 -}
 email : List (Attribute id val) -> Field id
 email =
-    init Internal.Field.Email
+    init Email
 
 
 {-| Builds a password input field.
@@ -380,7 +387,7 @@ email =
 -}
 password : List (Attribute id val) -> Field id
 password =
-    init Internal.Field.Password
+    init Password
 
 
 {-| Builds a text input field with strict autocomplete. If the user input doesn't
@@ -398,7 +405,7 @@ attribute. For string value options, see [stringOptions](#stringOptions).
 -}
 strictAutocomplete : List (Attribute id val) -> Field id
 strictAutocomplete =
-    init Internal.Field.StrictAutocomplete
+    init StrictAutocomplete
 
 
 {-| Builds an integer input field.
@@ -414,7 +421,7 @@ strictAutocomplete =
 -}
 int : List (Attribute id val) -> Field id
 int =
-    init Internal.Field.Integer
+    init Integer
 
 
 {-| Builds a floating-point number input field.
@@ -426,7 +433,7 @@ int =
 -}
 float : List (Attribute id val) -> Field id
 float =
-    init Internal.Field.Float
+    init Float
 
 
 {-| Builds a date input field.
@@ -438,7 +445,7 @@ float =
 -}
 date : List (Attribute id val) -> Field id
 date =
-    init Internal.Field.Date
+    init Date
 
 
 {-| Builds a month input field.
@@ -450,7 +457,7 @@ date =
 -}
 month : List (Attribute id val) -> Field id
 month =
-    init Internal.Field.Month
+    init Month
 
 
 {-| Builds a datetime-local input field.
@@ -462,7 +469,7 @@ month =
 -}
 datetime : List (Attribute id val) -> Field id
 datetime =
-    init Internal.Field.LocalDatetime
+    init LocalDatetime
 
 
 {-| Builds a select input field (dropdown).
@@ -477,7 +484,7 @@ datetime =
 -}
 select : List (Attribute id val) -> Field id
 select =
-    init Internal.Field.Select
+    init Select
 
 
 {-| Builds a radio button input field.
@@ -495,7 +502,7 @@ select =
 -}
 radio : List (Attribute id val) -> Field id
 radio =
-    init Internal.Field.Radio
+    init Radio
 
 
 {-| Builds a checkbox input field.
@@ -507,7 +514,7 @@ radio =
 -}
 checkbox : List (Attribute id val) -> Field id
 checkbox =
-    init Internal.Field.Checkbox
+    init Checkbox
 
 
 {-| Groups a list of fields.
@@ -524,10 +531,7 @@ checkbox =
 group : List (Attribute id val) -> List (Field id) -> Field id
 group attributes =
     List.map (\(Field field) -> field)
-        >> Tree.branch
-            (initAttributes Internal.Field.Group
-                attributes
-            )
+        >> Tree.branch (initAttributes Group attributes)
         >> Field
 
 
@@ -574,7 +578,7 @@ repeatable :
 repeatable attributes (Field template) updates =
     let
         params =
-            initAttributes (Internal.Field.Repeatable template) attributes
+            initAttributes (Repeatable template) attributes
 
         children =
             List.concat
@@ -609,7 +613,7 @@ initAttributes inputType_ =
         , isRequired = False
         , options = []
         , identifier = Nothing
-        , status = Internal.Field.Pristine
+        , status = Pristine
         , repeatableMin = 1
         , repeatableMax = Nothing
         , addFieldsButtonCopy = "Add"
@@ -644,29 +648,29 @@ init inputType_ attributes =
                 field
     in
     case ( attrs.inputType, attrs.options ) of
-        ( Internal.Field.Select, [] ) ->
+        ( Select, [] ) ->
             Field fieldWithMissingOptions
 
-        ( Internal.Field.Radio, [] ) ->
+        ( Radio, [] ) ->
             Field fieldWithMissingOptions
 
-        ( Internal.Field.StrictAutocomplete, [] ) ->
+        ( StrictAutocomplete, [] ) ->
             Field fieldWithMissingOptions
 
         _ ->
             Field field
 
 
-{-| Record of field attributes.
--}
-type alias Attributes id =
-    Internal.Field.Attributes id (FieldType id (Error id)) (Error id)
-
-
 {-| Represents an attribute that can be applied to a field.
 -}
 type Attribute id val
     = Attribute (Attributes id -> Attributes id)
+
+
+{-| Record of field attributes.
+-}
+type alias Attributes id =
+    Internal.Field.Attributes id (FieldType id (Error id)) (Error id)
 
 
 {-| Sets the name of a field.
@@ -1012,7 +1016,7 @@ updateWithId id (Attribute fn) (Field field) =
                 else
                     node
             )
-        |> Internal.Field.validateNode
+        |> validateNode
         |> Field
 
 
@@ -1069,7 +1073,7 @@ updateAttributes attrList (Field field) =
                     in
                     { updatedAttrs | identifier = attrs.identifier }
                 )
-            |> Internal.Field.validateNode
+            |> validateNode
         )
 
 
@@ -1132,7 +1136,7 @@ updateValuesFromJson jsonValue (Field field) =
                 )
                 (Ok field)
             )
-        |> Result.map (Internal.Field.validateNode >> Field)
+        |> Result.map (validateNode >> Field)
 
 
 valueToPathLists : Encode.Value -> Result (Error id) (List ( String, String ))
@@ -1327,7 +1331,7 @@ namesToPaths (Field field) =
                     in
                     ( ( namePath, path ) :: keys
                     , case (Tree.value node).inputType of
-                        Internal.Field.Repeatable _ ->
+                        Repeatable _ ->
                             namePath
 
                         _ ->
@@ -1424,22 +1428,234 @@ mapAttributes func errToErr input =
 
 
 
--- type FieldType id err
---     = Text
---     | TextArea
---     | Email
---     | Password
---     | StrictAutocomplete
---     | Integer
---     | Float
---     | Month
---     | Date
---     | LocalDatetime
---     | Select
---     | Radio
---     | Checkbox
---     | Group
---     | Repeatable (Internal.Field.Field id err)
---
---
---
+-- Node
+
+
+isBlank : Node id -> Bool
+isBlank input =
+    let
+        attrs =
+            Tree.value input
+    in
+    case attrs.inputType of
+        Group ->
+            False
+
+        Repeatable _ ->
+            False
+
+        _ ->
+            Internal.Value.isBlank attrs.value
+
+
+
+-- isGroup : Node id -> Bool
+-- isGroup input =
+--     case Tree.value input |> .inputType of
+--         Group ->
+--             True
+--         Repeatable _ ->
+--             True
+--         _ ->
+--             False
+-- errors : Node id -> List err
+-- errors =
+--     Tree.foldl
+--         (\node acc ->
+--             List.concat [ acc, (Tree.value node).errors ]
+--         )
+--         []
+--         >> List.Extra.unique
+-- Vaidation
+
+
+validateNode : Node id -> Node id
+validateNode node =
+    let
+        ifNotRequired fn =
+            if (Tree.value node).isRequired && isBlank node then
+                identity
+
+            else
+                fn
+    in
+    List.foldl (<|)
+        (clearErrors node)
+        [ checkRequired
+        , ifNotRequired checkInRange
+        , ifNotRequired checkEmail
+        , ifNotRequired checkPattern
+        ]
+
+
+{-| -}
+validateTree : Node id -> Node id
+validateTree =
+    Tree.map clearErrors >> validateTreeHelp
+
+
+validateTreeHelp : Node id -> Node id
+validateTreeHelp tree =
+    let
+        attrs =
+            Tree.value (clearErrors tree)
+    in
+    Tree.branch
+        (if attrs.hidden then
+            attrs
+
+         else
+            Tree.value (validateNode tree)
+        )
+        (if attrs.hidden then
+            Tree.children tree
+
+         else
+            Tree.children tree |> List.map validateTree
+        )
+
+
+clearErrors : Node id -> Node id
+clearErrors =
+    Tree.updateValue (\attrs -> { attrs | errors = [] })
+
+
+checkRequired : Node id -> Node id
+checkRequired node =
+    if (Tree.value node).isRequired && isBlank node then
+        setError IsBlank node
+
+    else
+        node
+
+
+checkInRange : Node id -> Node id
+checkInRange node =
+    let
+        attrs =
+            Tree.value node
+
+        val =
+            Value.Value attrs.value
+
+        minVal =
+            Value.Value attrs.min
+
+        maxVal =
+            Value.Value attrs.max
+    in
+    case
+        ( Internal.Value.compare attrs.value attrs.min
+        , Internal.Value.compare attrs.value attrs.max
+        )
+    of
+        ( Just LT, Just _ ) ->
+            setError
+                (\id ->
+                    ValueNotInRange id
+                        { value = val, min = minVal, max = maxVal }
+                )
+                node
+
+        ( Just _, Just GT ) ->
+            setError
+                (\id ->
+                    ValueNotInRange id
+                        { value = val, min = minVal, max = maxVal }
+                )
+                node
+
+        ( Just LT, Nothing ) ->
+            setError
+                (\id ->
+                    ValueTooSmall id
+                        { value = val, min = minVal }
+                )
+                node
+
+        ( Nothing, Just GT ) ->
+            setError
+                (\id ->
+                    ValueTooLarge id
+                        { value = val, max = maxVal }
+                )
+                node
+
+        _ ->
+            node
+
+
+checkEmail : Node id -> Node id
+checkEmail node =
+    let
+        attrs =
+            Tree.value node
+    in
+    case attrs.inputType of
+        Email ->
+            case Internal.Value.toString attrs.value of
+                Just str ->
+                    if Internal.Utils.isValidEmail str then
+                        node
+
+                    else
+                        setError EmailInvalid node
+
+                Nothing ->
+                    setError ParseError node
+
+        _ ->
+            node
+
+
+checkPattern : Node id -> Node id
+checkPattern node =
+    let
+        attrs =
+            Tree.value node
+    in
+    case attrs.pattern of
+        [] ->
+            node
+
+        mask ->
+            case Internal.Value.toString attrs.value of
+                Nothing ->
+                    setError ParseError node
+
+                Just str ->
+                    let
+                        { formatted, cursorPosition, maskConsumed } =
+                            Internal.Utils.formatMaskWithTokens
+                                { mask = mask
+                                , input = str
+                                , cursorPosition = attrs.selectionStart
+                                }
+                    in
+                    node
+                        |> Tree.updateValue
+                            (\nodeAttrs ->
+                                { nodeAttrs
+                                    | value = Internal.Value.fromNonBlankString formatted
+                                    , selectionStart = cursorPosition
+                                    , selectionEnd = cursorPosition
+                                }
+                            )
+                        |> (if maskConsumed then
+                                identity
+
+                            else
+                                setError PatternError
+                           )
+
+
+setError : (Maybe id -> Error id) -> Node id -> Node id
+setError errCons =
+    Tree.updateValue
+        (\attrs ->
+            { attrs
+                | errors =
+                    List.Extra.unique
+                        (errCons attrs.identifier :: attrs.errors)
+            }
+        )

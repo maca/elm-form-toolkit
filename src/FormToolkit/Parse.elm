@@ -41,7 +41,7 @@ import Dict
 import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value as Value
-import Internal.Field exposing (Status(..), isBlank, isGroup)
+import Internal.Field exposing (FieldType(..), Status(..))
 import Internal.Utils as Utils
 import Internal.Value
 import Json.Decode
@@ -52,7 +52,7 @@ import Time
 
 
 type alias Node id =
-    Internal.Field.Field id (Error id)
+    Tree.Tree (Field.Attributes id)
 
 
 type ParserResult id a
@@ -104,19 +104,15 @@ field id parser =
                 ( Just (Success node a), path ) ->
                     Success (Tree.replaceAt path node tree) a
 
-                ( Just (Failure node errors), path ) ->
-                    Failure (Tree.replaceAt path node tree) errors
+                ( Just (Failure node errList), path ) ->
+                    Failure (Tree.replaceAt path node tree) errList
 
                 ( Nothing, _ ) ->
                     failure tree (InputNotFound id)
         )
 
 
-fieldHelp :
-    id
-    -> Parser id a
-    -> Internal.Field.Field id (Error id)
-    -> ( Maybe (ParserResult id a), List Int )
+fieldHelp : id -> Parser id a -> Node id -> ( Maybe (ParserResult id a), List Int )
 fieldHelp id (Parser parser) =
     Tree.foldWithPath
         (\path tree acc ->
@@ -304,8 +300,8 @@ list (Parser parser) =
                 Ok elements ->
                     Success input2 elements
 
-                Err errors ->
-                    Failure input2 errors
+                Err errList ->
+                    Failure input2 errList
         )
 
 
@@ -329,11 +325,7 @@ oneOf parsers =
     Parser (\node -> oneOfHelp parsers node Nothing)
 
 
-oneOfHelp :
-    List (Parser id a)
-    -> Internal.Field.Field id (Error id)
-    -> Maybe (Error id)
-    -> ParserResult id a
+oneOfHelp : List (Parser id a) -> Node id -> Maybe (Error id) -> ParserResult id a
 oneOfHelp parsers input accError =
     let
         { identifier } =
@@ -506,15 +498,12 @@ json =
         )
 
 
-jsonEncodeObject : Internal.Field.Field id (Error id) -> Result (Error id) Json.Encode.Value
+jsonEncodeObject : Node id -> Result (Error id) Json.Encode.Value
 jsonEncodeObject input =
     jsonEncodeHelp input [] |> Result.map Json.Encode.object
 
 
-jsonEncodeHelp :
-    Internal.Field.Field id (Error id)
-    -> List ( String, Json.Decode.Value )
-    -> Result (Error id) (List ( String, Json.Decode.Value ))
+jsonEncodeHelp : Node id -> List ( String, Json.Decode.Value ) -> Result (Error id) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp input acc =
     let
         ({ name, inputType, identifier } as attrs) =
@@ -530,7 +519,7 @@ jsonEncodeHelp input acc =
                         (HasNoName identifier)
     in
     case inputType of
-        Internal.Field.Group ->
+        Group ->
             case name of
                 Nothing ->
                     Tree.children input
@@ -544,7 +533,7 @@ jsonEncodeHelp input acc =
                         |> Result.map Json.Encode.object
                         |> Result.andThen accumulate
 
-        Internal.Field.Repeatable _ ->
+        Repeatable _ ->
             Tree.children input
                 |> List.foldr (\e -> Result.map2 (::) (jsonEncodeObject e)) (Ok [])
                 |> Result.map (Json.Encode.list identity)
@@ -1087,21 +1076,21 @@ treeValidationParser =
         (\node ->
             let
                 updatedNode =
-                    Internal.Field.validateTree node
+                    Field.validateTree node
             in
-            case Internal.Field.errors updatedNode of
+            case errors updatedNode of
                 [] ->
                     Success updatedNode ()
 
                 err :: [] ->
                     Failure updatedNode err
 
-                errors ->
+                errList ->
                     let
                         identifier =
                             (Tree.value node).identifier
                     in
-                    Failure updatedNode (ErrorList identifier errors)
+                    Failure updatedNode (ErrorList identifier errList)
         )
 
 
@@ -1115,3 +1104,43 @@ combineErrors identifier err1 err2 =
             (List.concat [ Error.toList err1, Error.toList err2 ]
                 |> List.Extra.unique
             )
+
+
+errors : Tree.Tree { a | errors : List b } -> List b
+errors =
+    Tree.foldl
+        (\node acc ->
+            List.concat [ acc, (Tree.value node).errors ]
+        )
+        []
+        >> List.Extra.unique
+
+
+isBlank : Node id -> Bool
+isBlank input =
+    let
+        attrs =
+            Tree.value input
+    in
+    case attrs.inputType of
+        Group ->
+            False
+
+        Repeatable _ ->
+            False
+
+        _ ->
+            Internal.Value.isBlank attrs.value
+
+
+isGroup : Node id -> Bool
+isGroup input =
+    case (Tree.value input).inputType of
+        Group ->
+            True
+
+        Repeatable _ ->
+            True
+
+        _ ->
+            False
