@@ -60,14 +60,12 @@ fromField : (Msg id -> msg) -> Field id -> View id msg
 fromField toMsg (Field field) =
     View
         (Internal.View.init
-            { events =
-                { onChange = \id path value cursorPos -> toMsg (Field.InputChanged id path value cursorPos)
-                , onCheck = \id path checked -> toMsg (Field.OnCheck id path checked)
-                , onFocus = \id path -> toMsg (Field.InputFocused id path)
-                , onBlur = \id path -> toMsg (Field.InputBlured id path)
-                , onAdd = \id path -> toMsg (Field.InputsAdded id path)
-                , onRemove = \id path -> toMsg (Field.InputsRemoved id path)
-                }
+            { onChange = \id path value cursorPos -> toMsg (Field.InputChanged id path value cursorPos)
+            , onCheck = \id path checked -> toMsg (Field.OnCheck id path checked)
+            , onFocus = \id path -> toMsg (Field.InputFocused id path)
+            , onBlur = \id path -> toMsg (Field.InputBlured id path)
+            , onAdd = \id path -> toMsg (Field.InputsAdded id path)
+            , onRemove = \id path -> toMsg (Field.InputsRemoved id path)
             , path = []
             , field = field
             }
@@ -146,12 +144,12 @@ field, or for fields of a certain type.
             ]
             |> View.fromField (always ())
             |> View.customizeErrors
-                (\{ inputType, error } ->
+                (\attributes error ->
                     let
                         toString =
                             Value.toString >> Maybe.withDefault ""
                     in
-                    case ( inputType, error ) of
+                    case ( attributes.inputType, error ) of
                         ( _, ValueTooLarge _ data ) ->
                             toString data.max ++ " is too high"
 
@@ -179,23 +177,14 @@ field, or for fields of a certain type.
 
 -}
 customizeErrors :
-    ({ attributes : Attributes id
-     , error : Error id
-     }
+    (Attributes id
+     -> Error id
      -> String
     )
     -> View id msg
     -> View id msg
 customizeErrors viewFunc (View view) =
-    View
-        { view
-            | errorToString =
-                \attrs error ->
-                    viewFunc
-                        { attributes = attrs
-                        , error = error
-                        }
-        }
+    View { view | errorToString = \attrs error -> viewFunc attrs error }
 
 
 {-| Provide a function to override the rendering of a field.
@@ -217,26 +206,26 @@ The example below shows custom rendering for a specific field identifier:
             ]
             |> View.fromField (always ())
             |> customizeFields
-                (\config ->
-                    case config.attributes.identifier of
+                (\{ attributes, isRequired, labelHtml, fieldHtml, hintHtml, errors } ->
+                    case attributes.identifier of
                         Just MyField ->
                             -- Custom rendering for MyField
                             Just
                                 (Html.div
                                     [ Attributes.class "field"
-                                    , Attributes.classList [ ( "required", config.isRequired ) ]
+                                    , Attributes.classList [ ( "required", isRequired ) ]
                                     ]
-                                    [ config.labelHtml [ class "custom-label" ]
+                                    [ labelHtml [ class "custom-label" ]
                                     , Html.div
                                         [ Attributes.class "input-wrapper" ]
-                                        [ config.fieldHtml []
+                                        [ fieldHtml []
                                         ]
-                                    , case config.errors of
+                                    , case errors of
                                         err :: _ ->
                                             Html.p [ Attributes.class "errors" ] [ Html.text err ]
 
                                         [] ->
-                                            config.hintHtml []
+                                            hintHtml []
                                     ]
                                 )
 
@@ -247,19 +236,16 @@ The example below shows custom rendering for a specific field identifier:
 
 -}
 customizeFields :
-    ({ isRequired : Bool
-     , labelHtml : List (Attribute msg) -> Html msg
+    ({ labelHtml : List (Attribute msg) -> Html msg
      , fieldHtml : List (Attribute msg) -> Html msg
      , hintHtml : List (Attribute msg) -> Html msg
      , errors : List String
      , class : String
      , attributes : Field.Attributes id
-     , events :
-        { inputOnChange : Value -> { selectionStart : Int, selectionEnd : Int } -> msg
-        , inputOnCheck : Bool -> msg
-        , inputOnBlur : msg
-        , inputOnFocus : msg
-        }
+     , inputOnChange : Value -> { selectionStart : Int, selectionEnd : Int } -> msg
+     , inputOnCheck : Bool -> msg
+     , inputOnBlur : msg
+     , inputOnFocus : msg
      }
      -> Maybe (Html msg)
     )
@@ -274,20 +260,17 @@ customizeFields viewFunc (View view) =
             \params ->
                 case
                     viewFunc
-                        { isRequired = params.isRequired
-                        , labelHtml = toAttrs >> params.labelHtml
+                        { labelHtml = toAttrs >> params.labelHtml
                         , fieldHtml = toAttrs >> params.inputHtml
                         , hintHtml = toAttrs >> params.hintHtml
                         , errors = params.errors
                         , class = String.join " " params.attributes.classList
                         , attributes = params.attributes
-                        , events =
-                            { inputOnChange =
-                                \(Value val) cursorPos -> view.onChange params.attributes.identifier params.path val cursorPos
-                            , inputOnCheck = \checked -> view.onCheck params.attributes.identifier params.path checked
-                            , inputOnBlur = view.onBlur params.attributes.identifier params.path
-                            , inputOnFocus = view.onFocus params.attributes.identifier params.path
-                            }
+                        , inputOnChange =
+                            \(Value val) cursorPos -> view.onChange params.attributes.identifier params.path val cursorPos
+                        , inputOnCheck = \checked -> view.onCheck params.attributes.identifier params.path checked
+                        , inputOnBlur = view.onBlur params.attributes.identifier params.path
+                        , inputOnFocus = view.onFocus params.attributes.identifier params.path
                         }
                 of
                     Just html ->
@@ -361,7 +344,7 @@ To customize the template used to add a new input see
             []
             |> View.fromField (always ())
             |> customizeRepeatableFields
-                (\{ legendText, inputs, addFieldsButton } ->
+                (\{ legendText, fields, addFieldsButton } ->
                     Html.fieldset []
                         [ case legendText of
                             Just str ->
@@ -369,7 +352,7 @@ To customize the template used to add a new input see
 
                             Nothing ->
                                 Html.text ""
-                        , Html.div [] inputs
+                        , Html.div [] fields
                         , addFieldsButton []
                         ]
                 )
@@ -381,11 +364,9 @@ customizeRepeatableFields :
      , addFieldsButton : List (Attribute msg) -> Html msg
      , errors : List String
      , class : String
-     , params :
-        { identifier : Maybe id
-        , addFieldsButtonOnClick : Maybe msg
-        , addFieldsButtonCopy : String
-        }
+     , identifier : Maybe id
+     , addFieldsButtonOnClick : Maybe msg
+     , addFieldsButtonCopy : String
      }
      -> Html msg
     )
@@ -402,11 +383,9 @@ customizeRepeatableFields viewFunc (View view) =
                         , addFieldsButton = params.addFieldsButton << toAttrs
                         , errors = params.errors
                         , class = String.join " " params.attributes.classList
-                        , params =
-                            { identifier = params.attributes.identifier
-                            , addFieldsButtonOnClick = params.addFieldsButtonOnClick
-                            , addFieldsButtonCopy = params.attributes.addFieldsButtonCopy
-                            }
+                        , identifier = params.attributes.identifier
+                        , addFieldsButtonOnClick = params.addFieldsButtonOnClick
+                        , addFieldsButtonCopy = params.attributes.addFieldsButtonCopy
                         }
         }
 
@@ -428,23 +407,21 @@ To customize the group of inputs see
             )
             []
             |> View.fromField (always ())
-            |> customizeRepeatableField
-                (\{ input, removeFieldsButton } ->
+            |> customizeRepeatingFieldTemplates
+                (\{ field, removeFieldsButton } ->
                     Html.div
                         [ Attributes.class "group-repeat" ]
-                        [ input, removeFieldsButton [] ]
+                        [ field, removeFieldsButton [] ]
                 )
 
 -}
 customizeRepeatingFieldTemplates :
     ({ field : Html msg
      , removeFieldsButton : List (Attribute msg) -> Html msg
-     , params :
-        { identifier : Maybe id
-        , index : Int
-        , removeFieldsButtonOnClick : Maybe msg
-        , removeFieldsButtonCopy : String
-        }
+     , identifier : Maybe id
+     , index : Int
+     , removeFieldsButtonOnClick : Maybe msg
+     , removeFieldsButtonCopy : String
      }
      -> Html msg
     )
@@ -458,12 +435,10 @@ customizeRepeatingFieldTemplates viewFunc (View view) =
                     viewFunc
                         { field = params.field
                         , removeFieldsButton = params.removeFieldsButton << toAttrs
-                        , params =
-                            { identifier = params.attributes.identifier
-                            , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
-                            , index = params.index
-                            , removeFieldsButtonCopy = params.removeFieldsButtonCopy
-                            }
+                        , identifier = params.attributes.identifier
+                        , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
+                        , index = params.index
+                        , removeFieldsButtonCopy = params.removeFieldsButtonCopy
                         }
         }
 

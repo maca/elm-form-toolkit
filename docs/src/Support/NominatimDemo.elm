@@ -272,18 +272,18 @@ viewCustomFields field =
     field
         |> View.fromField FormChanged
         |> View.customizeFields
-            (\config ->
-                case config.attributes.identifier of
+            (\{ attributes, labelHtml, hintHtml } ->
+                case attributes.identifier of
                     Just AddressMap ->
                         Just
                             (Html.div
                                 [ Attr.class "field" ]
-                                [ config.labelHtml []
+                                [ labelHtml []
                                 , Html.node "nominatim-reverse-geocoding"
                                     [ Events.on "address-selected" (Decode.map MapAddressSelected Decode.value)
                                     ]
                                     []
-                                , config.hintHtml []
+                                , hintHtml []
                                 ]
                             )
 

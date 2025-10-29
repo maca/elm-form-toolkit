@@ -16,7 +16,7 @@ module FormToolkit.Field exposing
     , updateAttribute, updateAttributes, updateWithId
     , updateValuesFromJson
     , map
-    , validateTree
+    , validate
     )
 
 {-| Provides types and functions to create form fields of various types, set
@@ -66,7 +66,7 @@ their attributes, update, and render them.
 
 # Validation
 
-@docs validateTree
+@docs validate
 
 -}
 
@@ -318,14 +318,12 @@ blur input =
 toHtml : (Msg id -> msg) -> Field id -> Html msg
 toHtml onChange (Field field) =
     Internal.View.init
-        { events =
-            { onChange = \id path val cursorPos -> onChange (InputChanged id path val cursorPos)
-            , onCheck = \id path checked -> onChange (OnCheck id path checked)
-            , onFocus = \id path -> onChange (InputFocused id path)
-            , onBlur = \id path -> onChange (InputBlured id path)
-            , onAdd = \id path -> onChange (InputsAdded id path)
-            , onRemove = \id path -> onChange (InputsRemoved id path)
-            }
+        { onChange = \id path val cursorPos -> onChange (InputChanged id path val cursorPos)
+        , onCheck = \id path checked -> onChange (OnCheck id path checked)
+        , onFocus = \id path -> onChange (InputFocused id path)
+        , onBlur = \id path -> onChange (InputBlured id path)
+        , onAdd = \id path -> onChange (InputsAdded id path)
+        , onRemove = \id path -> onChange (InputsRemoved id path)
         , path = []
         , field = field
         }
@@ -1493,8 +1491,8 @@ validateNode node =
 
 
 {-| -}
-validateTree : Node id -> Node id
-validateTree =
+validate : Node id -> Node id
+validate =
     Tree.map clearErrors >> validateTreeHelp
 
 
@@ -1515,7 +1513,7 @@ validateTreeHelp tree =
             Tree.children tree
 
          else
-            Tree.children tree |> List.map validateTree
+            Tree.children tree |> List.map validate
         )
 
 

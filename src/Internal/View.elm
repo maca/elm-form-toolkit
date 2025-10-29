@@ -16,7 +16,7 @@ import FormToolkit.Error exposing (Error(..))
 import Html exposing (Html)
 import Html.Attributes as Attributes
 import Html.Events as Events
-import Internal.Field as Field exposing (FieldType(..), Status(..))
+import Internal.Field exposing (FieldType(..), Status(..))
 import Internal.Value
 import Json.Decode
 import Json.Encode
@@ -28,7 +28,7 @@ type alias Node id =
 
 
 type alias Attributes id =
-    Field.Attributes id (FieldType id (List (Error id))) (List (Error id))
+    Internal.Field.Attributes id (FieldType id (List (Error id))) (List (Error id))
 
 
 type alias View id msg =
@@ -50,8 +50,7 @@ type alias View id msg =
 
 
 type alias FieldView id msg =
-    { isRequired : Bool
-    , labelHtml : UserAttributes -> Html msg
+    { labelHtml : UserAttributes -> Html msg
     , inputHtml : UserAttributes -> Html msg
     , hintHtml : UserAttributes -> Html msg
     , errors : List String
@@ -94,33 +93,31 @@ type alias RepeatableFieldView id msg =
 
 
 init :
-    { events :
-        { onChange : Maybe id -> List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
-        , onCheck : Maybe id -> List Int -> Bool -> msg
-        , onFocus : Maybe id -> List Int -> msg
-        , onBlur : Maybe id -> List Int -> msg
-        , onAdd : Maybe id -> List Int -> msg
-        , onRemove : Maybe id -> List Int -> msg
-        }
+    { onChange : Maybe id -> List Int -> Internal.Value.Value -> { selectionStart : Int, selectionEnd : Int } -> msg
+    , onCheck : Maybe id -> List Int -> Bool -> msg
+    , onFocus : Maybe id -> List Int -> msg
+    , onBlur : Maybe id -> List Int -> msg
+    , onAdd : Maybe id -> List Int -> msg
+    , onRemove : Maybe id -> List Int -> msg
     , path : List Int
     , field : Node id
     }
     -> View id msg
-init { events, path, field } =
-    { onChange = events.onChange
-    , onCheck = events.onCheck
-    , onFocus = events.onFocus
-    , onBlur = events.onBlur
-    , onAdd = events.onAdd
-    , onRemove = events.onRemove
+init attrs =
+    { onChange = attrs.onChange
+    , onCheck = attrs.onCheck
+    , onFocus = attrs.onFocus
+    , onBlur = attrs.onBlur
+    , onAdd = attrs.onAdd
+    , onRemove = attrs.onRemove
     , errorToString = \_ -> FormToolkit.Error.toEnglish
     , fieldView = fieldView
     , checkboxFieldView = checkboxFieldView
     , groupView = groupView
     , repeatableFieldsGroupView = repeatableFieldsGroupView
     , repeatableFieldView = repeatableFieldView
-    , path = path
-    , root = field
+    , path = attrs.path
+    , root = attrs.field
     }
 
 
@@ -128,23 +125,7 @@ partial : id -> View id msg -> Maybe (View id msg)
 partial id view =
     findNode id view.root
         |> Maybe.map
-            (\( found, path ) ->
-                { onChange = view.onChange
-                , onCheck = view.onCheck
-                , onFocus = view.onFocus
-                , onBlur = view.onBlur
-                , onAdd = view.onAdd
-                , onRemove = view.onRemove
-                , errorToString = view.errorToString
-                , fieldView = view.fieldView
-                , checkboxFieldView = view.checkboxFieldView
-                , groupView = view.groupView
-                , repeatableFieldsGroupView = view.repeatableFieldsGroupView
-                , repeatableFieldView = view.repeatableFieldView
-                , path = path
-                , root = found
-                }
-            )
+            (\( found, path ) -> { view | path = path, root = found })
 
 
 findNode : id -> Node id -> Maybe ( Node id, List Int )
@@ -243,8 +224,7 @@ toHtml view =
         wrapInput : (UserAttributes -> Html msg) -> Html msg
         wrapInput inputHtml =
             view.fieldView
-                { isRequired = attrs.isRequired
-                , labelHtml = labelToHtml attrs.label view.path view.root
+                { labelHtml = labelToHtml attrs.label view.path view.root
                 , inputHtml = inputHtml
                 , errors = visibleErrors view.root |> List.map (view.errorToString attrs)
                 , hintHtml =
@@ -269,51 +249,51 @@ toHtml view =
         ( True, _ ) ->
             Html.text ""
 
-        ( False, Field.Group ) ->
+        ( False, Group ) ->
             groupToHtml view
 
-        ( False, Field.Repeatable _ ) ->
+        ( False, Repeatable _ ) ->
             repeatableToHtml view
 
-        ( False, Field.Text ) ->
+        ( False, Text ) ->
             wrapInput (inputToHtml view "text" [])
 
-        ( False, Field.StrictAutocomplete ) ->
+        ( False, StrictAutocomplete ) ->
             wrapInput (inputToHtml view "text" [])
 
-        ( False, Field.Email ) ->
+        ( False, Email ) ->
             wrapInput (inputToHtml view "email" [])
 
-        ( False, Field.Password ) ->
+        ( False, Password ) ->
             wrapInput (inputToHtml view "password" [])
 
-        ( False, Field.TextArea ) ->
+        ( False, TextArea ) ->
             wrapInput (textAreaToHtml view)
 
-        ( False, Field.Integer ) ->
+        ( False, Integer ) ->
             inputToHtml view "number" [ valueAttribute Attributes.step (Tree.value view.root).step ]
                 |> wrapInput
 
-        ( False, Field.Float ) ->
+        ( False, Float ) ->
             inputToHtml view "number" [ valueAttribute Attributes.step (Tree.value view.root).step ]
                 |> wrapInput
 
-        ( False, Field.Date ) ->
+        ( False, Date ) ->
             wrapInput (inputToHtml view "date" [])
 
-        ( False, Field.Month ) ->
+        ( False, Month ) ->
             wrapInput (inputToHtml view "month" [])
 
-        ( False, Field.LocalDatetime ) ->
+        ( False, LocalDatetime ) ->
             wrapInput (inputToHtml view "datetime-local" [])
 
-        ( False, Field.Select ) ->
+        ( False, Select ) ->
             wrapInput (selectToHtml view)
 
-        ( False, Field.Radio ) ->
+        ( False, Radio ) ->
             wrapInput (radioToHtml view)
 
-        ( False, Field.Checkbox ) ->
+        ( False, Checkbox ) ->
             checkboxToHtml view
 
 
@@ -324,7 +304,7 @@ labelToHtml label path input element =
             Html.label
                 (Attributes.for (inputId input path)
                     :: Attributes.id (labelId input path)
-                    :: (if (Tree.value input).inputType == Field.Checkbox then
+                    :: (if (Tree.value input).inputType == Checkbox then
                             Attributes.class "label-inline" :: userProvidedAttributes element
 
                         else
@@ -707,8 +687,7 @@ checkboxToHtml view =
                 []
     in
     view.checkboxFieldView
-        { isRequired = attrs.isRequired
-        , labelHtml = labelToHtml attrs.label view.path view.root
+        { labelHtml = labelToHtml attrs.label view.path view.root
         , inputHtml = inputHtml
         , errors = visibleErrors view.root |> List.map (view.errorToString attrs)
         , hintHtml =
@@ -771,7 +750,7 @@ textInputHtmlAttributes view =
           , ariaDescribedByAttribute view.root view.path
           , ariaInvalidAttribute view.root
           ]
-        , if List.member node.inputType [ Field.Text, Field.TextArea ] then
+        , if List.member node.inputType [ Text, TextArea ] then
             [ selectionStartAttribute node.selectionStart
             , selectionEndAttribute node.selectionEnd
             ]
@@ -816,10 +795,10 @@ visibleErrors input =
         ( Touched, _ ) ->
             params.errors
 
-        ( _, Field.Repeatable _ ) ->
+        ( _, Repeatable _ ) ->
             params.errors
 
-        ( _, Field.Group ) ->
+        ( _, Group ) ->
             params.errors
 
         _ ->
@@ -886,11 +865,11 @@ repeatableFieldView { field, removeFieldsButton, class } =
 
 
 fieldView : FieldView id msg -> Html msg
-fieldView { isRequired, labelHtml, inputHtml, errors, hintHtml, class } =
+fieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } =
     Html.div
         [ Attributes.class "field"
         , Attributes.classList
-            [ ( "required", isRequired )
+            [ ( "required", attributes.isRequired )
             , ( "with-errors", not (List.isEmpty errors) )
             ]
         , Attributes.class class
@@ -909,11 +888,11 @@ fieldView { isRequired, labelHtml, inputHtml, errors, hintHtml, class } =
 
 
 checkboxFieldView : FieldView id msg -> Html msg
-checkboxFieldView { isRequired, labelHtml, inputHtml, errors, hintHtml, class } =
+checkboxFieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } =
     Html.div
         [ Attributes.class "field"
         , Attributes.classList
-            [ ( "required", isRequired )
+            [ ( "required", attributes.isRequired )
             , ( "with-errors", not (List.isEmpty errors) )
             ]
         , Attributes.class class
