@@ -31,11 +31,11 @@ module FormToolkit.View exposing
 -}
 
 import FormToolkit.Error exposing (Error)
-import FormToolkit.Field as Field exposing (Field(..), Msg)
+import FormToolkit.Field as Field exposing (Attributes, Field(..), Msg)
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Html)
+import Internal.Field
 import Internal.View
-import RoseTree.Tree as Tree
 
 
 {-| A view is a way to configure the generated markup for an `Field` or group
@@ -180,18 +180,22 @@ field, or for fields of a certain type.
 
 -}
 customizeErrors :
-    ({ inputType : Field.InputType, error : Error id } -> String)
+    ({ attributes : Attributes id
+     , error : Error id
+     }
+     -> String
+    )
     -> View id msg
     -> View id msg
-customizeErrors viewFunc (View ({ attributes, field } as view)) =
+customizeErrors viewFunc (View ({ attributes } as view)) =
     View
         { view
             | attributes =
                 { attributes
                     | errorToString =
-                        \error ->
+                        \attrs error ->
                             viewFunc
-                                { inputType = (Field.toProperties (Field field)).inputType
+                                { attributes = attrs
                                 , error = error
                                 }
                 }
@@ -237,12 +241,12 @@ The example bellow would render the input exactly as it normaly renders :P
 -}
 customizeFields :
     ({ isRequired : Bool
-     , label : List (Attribute msg) -> Html msg
+     , labelHtml : List (Attribute msg) -> Html msg
      , fieldHtml : List (Attribute msg) -> Html msg
-     , hint : List (Attribute msg) -> Html msg
+     , hintHtml : List (Attribute msg) -> Html msg
      , errors : List String
      , class : String
-     , fieldProperties : Field.Properties id
+     , attributes : Field.Attributes id
      , events :
         { inputOnChange : Value -> { selectionStart : Int, selectionEnd : Int } -> msg
         , inputOnCheck : Bool -> msg
@@ -250,41 +254,40 @@ customizeFields :
         , inputOnFocus : msg
         }
      }
-     -> Html msg
+     -> Maybe (Html msg)
     )
     -> View id msg
     -> View id msg
-customizeFields viewFunc (View ({ attributes, field } as view)) =
+customizeFields viewFunc (View ({ attributes } as view)) =
     let
+        defaultViewFunction =
+            attributes.fieldView
+
         fieldView =
             \params ->
-                let
-                    unwrappedField =
-                        Tree.value field
-                in
-                viewFunc
-                    { isRequired = params.isRequired
-                    , label = toAttrs >> params.label
-                    , fieldHtml = toAttrs >> params.input
-                    , hint = toAttrs >> params.hint
-                    , errors = params.errors
-                    , class = String.join " " unwrappedField.classList
-                    , fieldProperties =
-                        let
-                            baseProperties =
-                                Field.toProperties (Field field)
-                        in
-                        { baseProperties
-                            | idString = Internal.View.inputId field params.path
+                case
+                    viewFunc
+                        { isRequired = params.isRequired
+                        , labelHtml = toAttrs >> params.labelHtml
+                        , fieldHtml = toAttrs >> params.inputHtml
+                        , hintHtml = toAttrs >> params.hintHtml
+                        , errors = params.errors
+                        , class = String.join " " params.attributes.classList
+                        , attributes = params.attributes
+                        , events =
+                            { inputOnChange =
+                                \(Value val) cursorPos -> attributes.onChange params.attributes.identifier params.path val cursorPos
+                            , inputOnCheck = \checked -> attributes.onCheck params.attributes.identifier params.path checked
+                            , inputOnBlur = attributes.onBlur params.attributes.identifier params.path
+                            , inputOnFocus = attributes.onFocus params.attributes.identifier params.path
+                            }
                         }
-                    , events =
-                        { inputOnChange =
-                            \(Value val) cursorPos -> attributes.onChange unwrappedField.identifier params.path val cursorPos
-                        , inputOnCheck = \checked -> attributes.onCheck unwrappedField.identifier params.path checked
-                        , inputOnBlur = attributes.onBlur unwrappedField.identifier params.path
-                        , inputOnFocus = attributes.onFocus unwrappedField.identifier params.path
-                        }
-                    }
+                of
+                    Just html ->
+                        html
+
+                    Nothing ->
+                        defaultViewFunction params
     in
     View
         { view
@@ -384,27 +387,23 @@ customizeRepeatableFields :
     )
     -> View id msg
     -> View id msg
-customizeRepeatableFields viewFunc (View ({ attributes, field } as view)) =
+customizeRepeatableFields viewFunc (View ({ attributes } as view)) =
     View
         { view
             | attributes =
                 { attributes
                     | repeatableFieldsGroupView =
                         \params ->
-                            let
-                                unwrappedField =
-                                    Tree.value field
-                            in
                             viewFunc
                                 { legendText = params.legendText
                                 , fields = params.fields
                                 , addFieldsButton = params.addFieldsButton << toAttrs
                                 , errors = params.errors
-                                , class = String.join " " unwrappedField.classList
+                                , class = String.join " " params.attributes.classList
                                 , params =
-                                    { identifier = unwrappedField.identifier
+                                    { identifier = params.attributes.identifier
                                     , addFieldsButtonOnClick = params.addFieldsButtonOnClick
-                                    , addFieldsButtonCopy = unwrappedField.addFieldsButtonCopy
+                                    , addFieldsButtonCopy = params.attributes.addFieldsButtonCopy
                                     }
                                 }
                 }
@@ -450,7 +449,7 @@ customizeRepeatingFieldTemplates :
     )
     -> View id msg
     -> View id msg
-customizeRepeatingFieldTemplates viewFunc (View ({ attributes, field } as view)) =
+customizeRepeatingFieldTemplates viewFunc (View ({ attributes } as view)) =
     View
         { view
             | attributes =
@@ -461,7 +460,7 @@ customizeRepeatingFieldTemplates viewFunc (View ({ attributes, field } as view))
                                 { field = params.field
                                 , removeFieldsButton = params.removeFieldsButton << toAttrs
                                 , params =
-                                    { identifier = Tree.value field |> .identifier
+                                    { identifier = params.attributes.identifier
                                     , removeFieldsButtonOnClick = params.removeFieldsButtonOnClick
                                     , index = params.index
                                     , removeFieldsButtonCopy = params.removeFieldsButtonCopy

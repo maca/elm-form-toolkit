@@ -32,8 +32,12 @@ type alias Field id =
 type alias View id msg =
     { attributes : ViewAttributes id msg
     , path : List Int
-    , field : Field id
+    , root : Field id
     }
+
+
+type alias Attributes id =
+    Field.Attributes id (FieldType id (Error id)) (Error id)
 
 
 type alias ViewAttributes id msg =
@@ -43,23 +47,24 @@ type alias ViewAttributes id msg =
     , onBlur : Maybe id -> List Int -> msg
     , onAdd : Maybe id -> List Int -> msg
     , onRemove : Maybe id -> List Int -> msg
-    , errorToString : Error id -> String
-    , fieldView : FieldView msg -> Html msg
-    , checkboxFieldView : FieldView msg -> Html msg
+    , errorToString : Attributes id -> Error id -> String
+    , fieldView : FieldView id msg -> Html msg
+    , checkboxFieldView : FieldView id msg -> Html msg
     , groupView : GroupView id msg -> Html msg
-    , repeatableFieldsGroupView : RepeatableFieldsGroupView msg -> Html msg
-    , repeatableFieldView : RepeatableFieldView msg -> Html msg
+    , repeatableFieldsGroupView : RepeatableFieldsGroupView id msg -> Html msg
+    , repeatableFieldView : RepeatableFieldView id msg -> Html msg
     }
 
 
-type alias FieldView msg =
+type alias FieldView id msg =
     { isRequired : Bool
-    , label : UserAttributes -> Html msg
-    , input : UserAttributes -> Html msg
-    , hint : UserAttributes -> Html msg
+    , labelHtml : UserAttributes -> Html msg
+    , inputHtml : UserAttributes -> Html msg
+    , hintHtml : UserAttributes -> Html msg
     , errors : List String
     , path : List Int
     , class : String
+    , attributes : Attributes id
     }
 
 
@@ -72,7 +77,7 @@ type alias GroupView id msg =
     }
 
 
-type alias RepeatableFieldsGroupView msg =
+type alias RepeatableFieldsGroupView id msg =
     { legendText : Maybe String
     , fields : List (Html msg)
     , addFieldsButton : UserAttributes -> Html msg
@@ -80,16 +85,18 @@ type alias RepeatableFieldsGroupView msg =
     , errors : List String
     , path : List Int
     , class : String
+    , attributes : Field.Attributes id (FieldType id (Error id)) (Error id)
     }
 
 
-type alias RepeatableFieldView msg =
+type alias RepeatableFieldView id msg =
     { field : Html msg
     , removeFieldsButton : UserAttributes -> Html msg
     , index : Int
     , removeFieldsButtonCopy : String
     , removeFieldsButtonOnClick : Maybe msg
     , class : String
+    , attributes : Field.Attributes id (FieldType id (Error id)) (Error id)
     }
 
 
@@ -114,7 +121,7 @@ init { events, path, field } =
         , onBlur = events.onBlur
         , onAdd = events.onAdd
         , onRemove = events.onRemove
-        , errorToString = FormToolkit.Error.toEnglish
+        , errorToString = \_ -> FormToolkit.Error.toEnglish
         , fieldView = fieldView
         , checkboxFieldView = checkboxFieldView
         , groupView = groupView
@@ -122,13 +129,13 @@ init { events, path, field } =
         , repeatableFieldView = repeatableFieldView
         }
     , path = path
-    , field = field
+    , root = field
     }
 
 
 partial : id -> View id msg -> Maybe (View id msg)
-partial id { field, attributes } =
-    findNode id field
+partial id { root, attributes } =
+    findNode id root
         |> Maybe.map (\( found, path ) -> View attributes path found)
 
 
@@ -220,25 +227,25 @@ inputStringToValue input str =
 
 
 toHtml : View id msg -> Html msg
-toHtml { field, path, attributes } =
+toHtml { root, path, attributes } =
     let
-        unwrappedField =
-            Tree.value field
+        attrs =
+            Tree.value root
 
         wrapInput : (UserAttributes -> Html msg) -> Html msg
         wrapInput inputHtml =
             attributes.fieldView
-                { isRequired = unwrappedField.isRequired
-                , label = labelToHtml unwrappedField.label path field
-                , input = inputHtml
-                , errors = visibleErrors field |> List.map attributes.errorToString
-                , hint =
+                { isRequired = attrs.isRequired
+                , labelHtml = labelToHtml attrs.label path root
+                , inputHtml = inputHtml
+                , errors = visibleErrors root |> List.map (attributes.errorToString attrs)
+                , hintHtml =
                     \attrList ->
-                        case unwrappedField.hint of
+                        case attrs.hint of
                             Just hintText ->
                                 Html.div
                                     (Attributes.class "hint"
-                                        :: Attributes.id (hintId field path)
+                                        :: Attributes.id (hintId root path)
                                         :: userProvidedAttributes attrList
                                     )
                                     [ Html.text hintText ]
@@ -246,59 +253,60 @@ toHtml { field, path, attributes } =
                             Nothing ->
                                 Html.text ""
                 , path = path
-                , class = String.join " " unwrappedField.classList
+                , class = String.join " " attrs.classList
+                , attributes = attrs
                 }
     in
-    case ( unwrappedField.hidden, unwrappedField.inputType ) of
+    case ( attrs.hidden, attrs.inputType ) of
         ( True, _ ) ->
             Html.text ""
 
         ( False, Field.Group ) ->
-            groupToHtml attributes path field
+            groupToHtml attributes path root
 
         ( False, Field.Repeatable _ ) ->
-            repeatableToHtml attributes path field
+            repeatableToHtml attributes path root
 
         ( False, Field.Text ) ->
-            wrapInput (inputToHtml attributes "text" path field [])
+            wrapInput (inputToHtml attributes "text" path root [])
 
         ( False, Field.StrictAutocomplete ) ->
-            wrapInput (inputToHtml attributes "text" path field [])
+            wrapInput (inputToHtml attributes "text" path root [])
 
         ( False, Field.Email ) ->
-            wrapInput (inputToHtml attributes "email" path field [])
+            wrapInput (inputToHtml attributes "email" path root [])
 
         ( False, Field.Password ) ->
-            wrapInput (inputToHtml attributes "password" path field [])
+            wrapInput (inputToHtml attributes "password" path root [])
 
         ( False, Field.TextArea ) ->
-            wrapInput (textAreaToHtml attributes path field)
+            wrapInput (textAreaToHtml attributes path root)
 
         ( False, Field.Integer ) ->
-            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Tree.value field).step ]
+            inputToHtml attributes "number" path root [ valueAttribute Attributes.step (Tree.value root).step ]
                 |> wrapInput
 
         ( False, Field.Float ) ->
-            inputToHtml attributes "number" path field [ valueAttribute Attributes.step (Tree.value field).step ]
+            inputToHtml attributes "number" path root [ valueAttribute Attributes.step (Tree.value root).step ]
                 |> wrapInput
 
         ( False, Field.Date ) ->
-            wrapInput (inputToHtml attributes "date" path field [])
+            wrapInput (inputToHtml attributes "date" path root [])
 
         ( False, Field.Month ) ->
-            wrapInput (inputToHtml attributes "month" path field [])
+            wrapInput (inputToHtml attributes "month" path root [])
 
         ( False, Field.LocalDatetime ) ->
-            wrapInput (inputToHtml attributes "datetime-local" path field [])
+            wrapInput (inputToHtml attributes "datetime-local" path root [])
 
         ( False, Field.Select ) ->
-            wrapInput (selectToHtml attributes path field)
+            wrapInput (selectToHtml attributes path root)
 
         ( False, Field.Radio ) ->
-            wrapInput (radioToHtml attributes path field)
+            wrapInput (radioToHtml attributes path root)
 
         ( False, Field.Checkbox ) ->
-            checkboxToHtml attributes path field
+            checkboxToHtml attributes path root
 
 
 labelToHtml : Maybe String -> List Int -> Field id -> (UserAttributes -> Html msg)
@@ -324,7 +332,7 @@ labelToHtml label path input element =
 groupToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
 groupToHtml attributes path input =
     let
-        { identifier, label, classList } =
+        ({ identifier, label, classList } as attrs) =
             Tree.value input
     in
     attributes.groupView
@@ -334,7 +342,7 @@ groupToHtml attributes path input =
                 |> List.indexedMap
                     (\idx -> View attributes (path ++ [ idx ]) >> toHtml)
         , identifier = identifier
-        , errors = visibleErrors input |> List.map attributes.errorToString
+        , errors = visibleErrors input |> List.map (attributes.errorToString attrs)
         , class = String.join " " classList
         }
 
@@ -342,10 +350,7 @@ groupToHtml attributes path input =
 repeatableToHtml : ViewAttributes id msg -> List Int -> Field id -> Html msg
 repeatableToHtml attributes path input =
     let
-        { identifier } =
-            Tree.value input
-
-        unwrappedField =
+        ({ identifier } as attrs) =
             Tree.value input
 
         children =
@@ -363,10 +368,10 @@ repeatableToHtml attributes path input =
                     attributes.onRemove identifier childPath
 
                 removeFieldsButtonCopy =
-                    unwrappedField.removeFieldsButtonCopy
+                    attrs.removeFieldsButtonCopy
 
                 removeFieldButtonEnabled =
-                    childrenCount > unwrappedField.repeatableMin
+                    childrenCount > attrs.repeatableMin
             in
             attributes.repeatableFieldView
                 { field = toHtml (View attributes childPath child)
@@ -394,10 +399,11 @@ repeatableToHtml attributes path input =
                     else
                         Nothing
                 , class = inputId input childPath ++ "-repeat"
+                , attributes = attrs
                 }
 
         addFieldsButtonEnabled =
-            case unwrappedField.repeatableMax of
+            case attrs.repeatableMax of
                 Just max ->
                     childrenCount < max
 
@@ -405,9 +411,9 @@ repeatableToHtml attributes path input =
                     True
     in
     repeatableFieldsGroupView
-        { legendText = unwrappedField.label
+        { legendText = attrs.label
         , fields = List.indexedMap inputsView children
-        , class = String.join " " unwrappedField.classList
+        , class = String.join " " attrs.classList
         , addFieldsButton =
             \attrList ->
                 Html.button
@@ -421,15 +427,16 @@ repeatableToHtml attributes path input =
                             )
                         :: userProvidedAttributes attrList
                     )
-                    [ Html.text unwrappedField.addFieldsButtonCopy ]
+                    [ Html.text attrs.addFieldsButtonCopy ]
         , addFieldsButtonOnClick =
             if addFieldsButtonEnabled then
                 Just (attributes.onAdd identifier path)
 
             else
                 Nothing
-        , errors = visibleErrors input |> List.map attributes.errorToString
+        , errors = visibleErrors input |> List.map (attributes.errorToString attrs)
         , path = path
+        , attributes = attrs
         }
 
 
@@ -656,10 +663,7 @@ checkboxToHtml :
     -> Html msg
 checkboxToHtml attributes path field =
     let
-        { identifier } =
-            Tree.value field
-
-        unwrappedField =
+        ({ identifier } as attrs) =
             Tree.value field
 
         inputHtml : UserAttributes -> Html msg
@@ -667,7 +671,7 @@ checkboxToHtml attributes path field =
             Html.input
                 (List.concat
                     [ Attributes.type_ "checkbox"
-                        :: (unwrappedField.value
+                        :: (attrs.value
                                 |> Internal.Value.toBool
                                 |> Maybe.map Attributes.checked
                                 |> Maybe.withDefault (Attributes.class "")
@@ -680,13 +684,13 @@ checkboxToHtml attributes path field =
                 []
     in
     attributes.checkboxFieldView
-        { isRequired = unwrappedField.isRequired
-        , label = labelToHtml unwrappedField.label path field
-        , input = inputHtml
-        , errors = visibleErrors field |> List.map attributes.errorToString
-        , hint =
+        { isRequired = attrs.isRequired
+        , labelHtml = labelToHtml attrs.label path field
+        , inputHtml = inputHtml
+        , errors = visibleErrors field |> List.map (attributes.errorToString attrs)
+        , hintHtml =
             \attrList ->
-                case unwrappedField.hint of
+                case attrs.hint of
                     Just hintText ->
                         Html.div
                             (Attributes.class "hint"
@@ -698,7 +702,8 @@ checkboxToHtml attributes path field =
                     Nothing ->
                         Html.text ""
         , path = path
-        , class = String.join " " unwrappedField.classList
+        , class = String.join " " attrs.classList
+        , attributes = attrs
         }
 
 
@@ -828,7 +833,7 @@ groupView { fields, legendText, errors, class } =
         )
 
 
-repeatableFieldsGroupView : RepeatableFieldsGroupView msg -> Html msg
+repeatableFieldsGroupView : RepeatableFieldsGroupView id msg -> Html msg
 repeatableFieldsGroupView { legendText, addFieldsButton, fields, errors, class } =
     Html.fieldset
         [ Attributes.class "group-repeatable"
@@ -846,7 +851,7 @@ repeatableFieldsGroupView { legendText, addFieldsButton, fields, errors, class }
         ]
 
 
-repeatableFieldView : RepeatableFieldView msg -> Html msg
+repeatableFieldView : RepeatableFieldView id msg -> Html msg
 repeatableFieldView { field, removeFieldsButton, class } =
     Html.div
         [ Attributes.class "group-repeat"
@@ -857,8 +862,8 @@ repeatableFieldView { field, removeFieldsButton, class } =
         ]
 
 
-fieldView : FieldView msg -> Html msg
-fieldView { isRequired, label, input, errors, hint, class } =
+fieldView : FieldView id msg -> Html msg
+fieldView { isRequired, labelHtml, inputHtml, errors, hintHtml, class } =
     Html.div
         [ Attributes.class "field"
         , Attributes.classList
@@ -867,21 +872,21 @@ fieldView { isRequired, label, input, errors, hint, class } =
             ]
         , Attributes.class class
         ]
-        [ label defaultAttributes
+        [ labelHtml defaultAttributes
         , Html.div
             [ Attributes.class "input-wrapper" ]
-            [ input defaultAttributes ]
+            [ inputHtml defaultAttributes ]
         , case errors of
             [] ->
-                hint defaultAttributes
+                hintHtml defaultAttributes
 
             _ ->
                 viewErrors errors
         ]
 
 
-checkboxFieldView : FieldView msg -> Html msg
-checkboxFieldView { isRequired, label, input, errors, hint, class } =
+checkboxFieldView : FieldView id msg -> Html msg
+checkboxFieldView { isRequired, labelHtml, inputHtml, errors, hintHtml, class } =
     Html.div
         [ Attributes.class "field"
         , Attributes.classList
@@ -892,12 +897,12 @@ checkboxFieldView { isRequired, label, input, errors, hint, class } =
         ]
         [ Html.div
             [ Attributes.class "input-wrapper" ]
-            [ input defaultAttributes
-            , label defaultAttributes
+            [ inputHtml defaultAttributes
+            , labelHtml defaultAttributes
             ]
         , case errors of
             [] ->
-                hint defaultAttributes
+                hintHtml defaultAttributes
 
             _ ->
                 viewErrors errors

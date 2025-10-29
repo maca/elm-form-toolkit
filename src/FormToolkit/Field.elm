@@ -957,24 +957,24 @@ type alias Properties id =
 toProperties : Field id -> Properties id
 toProperties (Field field) =
     let
-        unwrappedField =
+        attrs =
             Tree.value field
     in
-    { identifier = unwrappedField.identifier
-    , inputType = fieldTypeToInputType unwrappedField.inputType
-    , inputName = unwrappedField.name
-    , inputPlaceholder = unwrappedField.placeholder
-    , inputValue = Value.Value unwrappedField.value
-    , inputMin = Value.Value unwrappedField.min
-    , inputMax = Value.Value unwrappedField.max
-    , inputOptions = List.map (Tuple.mapSecond Value.Value) unwrappedField.options
-    , labelText = unwrappedField.label
-    , hintText = unwrappedField.hint
+    { identifier = attrs.identifier |> Debug.log "identifier"
+    , inputType = fieldTypeToInputType attrs.inputType
+    , inputName = attrs.name
+    , inputPlaceholder = attrs.placeholder
+    , inputValue = Value.Value attrs.value
+    , inputMin = Value.Value attrs.min
+    , inputMax = Value.Value attrs.max
+    , inputOptions = List.map (Tuple.mapSecond Value.Value) attrs.options
+    , labelText = attrs.label
+    , hintText = attrs.hint
     , idString = ""
-    , selectionStart = unwrappedField.selectionStart
-    , selectionEnd = unwrappedField.selectionEnd
-    , isRequired = unwrappedField.isRequired
-    , isHidden = unwrappedField.hidden
+    , selectionStart = attrs.selectionStart
+    , selectionEnd = attrs.selectionEnd
+    , isRequired = attrs.isRequired
+    , isHidden = attrs.hidden
     }
 
 
