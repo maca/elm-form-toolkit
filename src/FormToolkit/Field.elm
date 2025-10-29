@@ -123,7 +123,7 @@ and a [Msg](#Msg) to reflect user interactions.
 update : Msg id -> Field id -> Field id
 update msg (Field field) =
     Field
-        ((case msg of
+        (case msg of
             InputChanged _ path val selection ->
                 updateAt path
                     (Tree.updateValue
@@ -169,8 +169,6 @@ update msg (Field field) =
 
             InputsRemoved _ path ->
                 Tree.removeAt path field
-         )
-            |> Internal.Field.validateNode
         )
 
 
@@ -262,7 +260,7 @@ updateAt path func input =
             func input
 
         _ ->
-            Tree.updateAt path func input
+            Tree.updateAt path (func >> Internal.Field.validateNode) input
 
 
 focus : Attributes id -> Attributes id
@@ -749,7 +747,7 @@ value (Value.Value inputValue) =
     Attribute (\field -> { field | value = inputValue })
 
 
-{-| TODO
+{-| Sets string value of a field.
 -}
 stringValue : String -> Attribute id val
 stringValue str =
