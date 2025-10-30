@@ -292,57 +292,62 @@ view model =
         ]
 
 
-errorToSpanish : Field.Attributes ShipmentFields -> Error ShipmentFields -> String
-errorToSpanish attributes error =
+errorToSpanish : View.FieldAttributes ShipmentFields -> String
+errorToSpanish attributes =
     let
         toString =
             Value.toString >> Maybe.withDefault ""
+
+        errorToString error =
+            case error of
+                Error.IsBlank _ ->
+                    "Este campo es obligatorio"
+
+                Error.ValueTooSmall _ data ->
+                    "El valor mínimo es " ++ toString data.min
+
+                Error.ValueTooLarge _ data ->
+                    "El valor máximo es " ++ toString data.max
+
+                Error.ValueNotInRange _ data ->
+                    "El valor debe estar entre " ++ toString data.min ++ " y " ++ toString data.max
+
+                Error.NotNumber _ ->
+                    "Debe ser un número"
+
+                Error.NotBool _ ->
+                    "Debe ser verdadero o falso"
+
+                Error.HasNoName _ ->
+                    "No se pudo procesar"
+
+                Error.PatternError _ ->
+                    "Formato inválido"
+
+                Error.EmailInvalid _ ->
+                    "Debe ser una dirección de correo válida"
+
+                Error.IsGroupNotInput _ ->
+                    "Error en el grupo"
+
+                Error.NoOptionsProvided _ ->
+                    "No hay opciones disponibles"
+
+                Error.InputNotFound _ ->
+                    "Campo no encontrado"
+
+                Error.ErrorList _ errors ->
+                    "Errores: " ++ String.join ", " (List.map errorToString errors)
+
+                Error.ParseError _ ->
+                    "No se pudo procesar"
+
+                Error.CustomError _ message ->
+                    message
     in
-    case error of
-        Error.IsBlank _ ->
-            "Este campo es obligatorio"
-
-        Error.ValueTooSmall _ data ->
-            "El valor mínimo es " ++ toString data.min
-
-        Error.ValueTooLarge _ data ->
-            "El valor máximo es " ++ toString data.max
-
-        Error.ValueNotInRange _ data ->
-            "El valor debe estar entre " ++ toString data.min ++ " y " ++ toString data.max
-
-        Error.NotNumber _ ->
-            "Debe ser un número"
-
-        Error.NotBool _ ->
-            "Debe ser verdadero o falso"
-
-        Error.HasNoName _ ->
-            "No se pudo procesar"
-
-        Error.PatternError _ ->
-            "Formato inválido"
-
-        Error.EmailInvalid _ ->
-            "Debe ser una dirección de correo válida"
-
-        Error.IsGroupNotInput _ ->
-            "Error en el grupo"
-
-        Error.NoOptionsProvided _ ->
-            "No hay opciones disponibles"
-
-        Error.InputNotFound _ ->
-            "Campo no encontrado"
-
-        Error.ErrorList _ errors ->
-            "Errores: " ++ String.join ", " (List.map (errorToSpanish attributes) errors)
-
-        Error.ParseError _ ->
-            "No se pudo procesar"
-
-        Error.CustomError _ message ->
-            message
+    attributes.errors
+        |> List.map errorToString
+        |> String.join ", "
 
 
 success =

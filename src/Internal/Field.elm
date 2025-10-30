@@ -1,8 +1,8 @@
-module Internal.Field exposing (Attributes, FieldType(..), Status(..))
+module Internal.Field exposing (Attributes, FieldType(..), Status(..), mapAttributes)
 
 {-|
 
-@docs Attributes, FieldType, Status
+@docs Attributes, FieldType, Status, mapAttributes
 
 -}
 
@@ -17,7 +17,7 @@ type Status
     | Touched
 
 
-type FieldType id err
+type FieldType id value err
     = Text
     | TextArea
     | Email
@@ -32,24 +32,24 @@ type FieldType id err
     | Radio
     | Checkbox
     | Group
-    | Repeatable (Tree.Tree (Attributes id (FieldType id err) err))
+    | Repeatable (Tree.Tree (Attributes id (FieldType id value err) value Status err))
 
 
-type alias Attributes id fieldType err =
-    { inputType : fieldType
+type alias Attributes id fieldType value status err =
+    { fieldType : fieldType
     , name : Maybe String
-    , value : Value
+    , value : value
     , isRequired : Bool
     , label : Maybe String
     , placeholder : Maybe String
     , hint : Maybe String
-    , min : Value
-    , max : Value
-    , step : Value
+    , min : value
+    , max : value
+    , step : value
     , autogrow : Bool
-    , options : List ( String, Value )
+    , options : List ( String, value )
     , identifier : Maybe id
-    , status : Status
+    , status : status
     , repeatableMin : Int
     , repeatableMax : Maybe Int
     , addFieldsButtonCopy : String
@@ -61,4 +61,41 @@ type alias Attributes id fieldType err =
     , disabled : Bool
     , hidden : Bool
     , pattern : List Internal.Utils.MaskToken
+    }
+
+
+mapAttributes :
+    (a -> b)
+    -> (err1 -> err2)
+    -> (type1 -> type2)
+    -> (value1 -> value2)
+    -> (status1 -> status2)
+    -> Attributes a type1 value1 status1 err1
+    -> Attributes b type2 value2 status2 err2
+mapAttributes func errMapper typeMapper valueMapper statusMapper input =
+    { fieldType = typeMapper input.fieldType
+    , name = input.name
+    , value = valueMapper input.value
+    , isRequired = input.isRequired
+    , label = input.label
+    , placeholder = input.placeholder
+    , hint = input.hint
+    , min = valueMapper input.min
+    , max = valueMapper input.max
+    , step = valueMapper input.step
+    , autogrow = input.autogrow
+    , options = List.map (\( str, val ) -> ( str, valueMapper val )) input.options
+    , identifier = Maybe.map func input.identifier
+    , status = statusMapper input.status
+    , repeatableMin = input.repeatableMin
+    , repeatableMax = input.repeatableMax
+    , addFieldsButtonCopy = input.addFieldsButtonCopy
+    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
+    , errors = errMapper input.errors
+    , classList = input.classList
+    , selectionStart = input.selectionStart
+    , selectionEnd = input.selectionEnd
+    , disabled = input.disabled
+    , hidden = input.hidden
+    , pattern = input.pattern
     }

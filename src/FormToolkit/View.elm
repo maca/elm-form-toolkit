@@ -3,6 +3,7 @@ module FormToolkit.View exposing
     , partial
     , customizeErrors, customizeFields
     , customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
+    , FieldAttributes, FieldType(..), Status(..)
     )
 
 {-|
@@ -19,13 +20,77 @@ module FormToolkit.View exposing
 @docs customizeErrors, customizeFields
 @docs customizeGroups, customizeRepeatableFields, customizeRepeatingFieldTemplates
 
+
+# Field attributes
+
+@docs FieldAttributes, FieldType, Status
+
 -}
 
 import FormToolkit.Error exposing (Error)
-import FormToolkit.Field as Field exposing (Attributes, Field(..), Msg)
+import FormToolkit.Field as Field exposing (Field(..), Msg)
 import FormToolkit.Value exposing (Value(..))
 import Html exposing (Attribute, Html)
+import Internal.Field
+import Internal.Utils
 import Internal.View
+import RoseTree.Tree as Tree
+
+
+{-| -}
+type FieldType
+    = Text
+    | TextArea
+    | Email
+    | Password
+    | StrictAutocomplete
+    | Integer
+    | Float
+    | Month
+    | Date
+    | LocalDatetime
+    | Select
+    | Radio
+    | Checkbox
+    | Group
+    | Repeatable
+
+
+{-| -}
+type Status
+    = Pristine
+    | Focused
+    | Touched
+
+
+{-| -}
+type alias FieldAttributes id =
+    { fieldType : FieldType
+    , name : Maybe String
+    , value : Value
+    , isRequired : Bool
+    , label : Maybe String
+    , placeholder : Maybe String
+    , hint : Maybe String
+    , min : Value
+    , max : Value
+    , step : Value
+    , autogrow : Bool
+    , options : List ( String, Value )
+    , identifier : Maybe id
+    , status : Status
+    , repeatableMin : Int
+    , repeatableMax : Maybe Int
+    , addFieldsButtonCopy : String
+    , removeFieldsButtonCopy : String
+    , errors : List (Error id)
+    , classList : List String
+    , selectionStart : Int
+    , selectionEnd : Int
+    , disabled : Bool
+    , hidden : Bool
+    , pattern : List Internal.Utils.MaskToken
+    }
 
 
 {-| A view is a way to configure the generated markup for an `Field` or group
@@ -102,6 +167,8 @@ partial id (View view) =
 It's possible to override a specific error message for all fields, an individual
 field, or for fields of a certain type.
 
+See [FieldAttributes](#FieldAttributes) for all the avaiable field attributes.
+
     type Fields
         = Name
         | Temperature
@@ -140,7 +207,7 @@ field, or for fields of a certain type.
                         toString =
                             Value.toString >> Maybe.withDefault ""
                     in
-                    case ( attributes.inputType, error ) of
+                    case ( attributes.fieldType, error ) of
                         ( _, ValueTooLarge _ data ) ->
                             toString data.max ++ " is too high"
 
@@ -167,9 +234,9 @@ field, or for fields of a certain type.
                 )
 
 -}
-customizeErrors : (Attributes id -> Error id -> String) -> View id msg -> View id msg
+customizeErrors : (FieldAttributes id -> String) -> View id msg -> View id msg
 customizeErrors viewFunc (View view) =
-    View { view | errorToString = \attrs error -> viewFunc attrs error }
+    View { view | errorToString = \attrs error -> viewFunc (mapAttributes (Field (Tree.leaf attrs))) }
 
 
 {-| Provide a function to override the rendering of a field.
@@ -181,8 +248,9 @@ or `Nothing` to use the default rendering.
 The `labelHtml`, `fieldHtml`, and `hintHtml` functions take a list of `Html.Attribute msg`
 to allow customization of the rendered elements.
 
-Use `config.attributes` to access field properties like `identifier` for
-pattern matching on specific fields.
+Use `attributes` to access field properties like `identifier` for pattern
+matching on specific fields. See [FieldAttributes](#FieldAttributes) for all the
+avaiable field attributes.
 
 The example below shows custom rendering for a specific field identifier:
 
@@ -222,7 +290,7 @@ customizeFields :
      , hintHtml : List (Attribute msg) -> Html msg
      , errors : List String
      , class : String
-     , attributes : Field.Attributes id
+     , attributes : FieldAttributes id
      , inputOnChange : Value -> { selectionStart : Int, selectionEnd : Int } -> msg
      , inputOnCheck : Bool -> msg
      , inputOnBlur : msg
@@ -246,7 +314,7 @@ customizeFields viewFunc (View view) =
                         , hintHtml = params.hintHtml
                         , errors = params.errors
                         , class = String.join " " params.attributes.classList
-                        , attributes = params.attributes
+                        , attributes = mapAttributes (Field (Tree.leaf params.attributes))
                         , inputOnChange =
                             \(Value val) cursorPos -> view.onChange params.attributes.identifier params.path val cursorPos
                         , inputOnCheck = \checked -> view.onCheck params.attributes.identifier params.path checked
@@ -428,3 +496,73 @@ customizeRepeatingFieldTemplates viewFunc (View view) =
                         , removeFieldsButtonCopy = params.removeFieldsButtonCopy
                         }
         }
+
+
+mapAttributes : Field a -> FieldAttributes a
+mapAttributes (Field field) =
+    field
+        |> Tree.mapValues
+            (Internal.Field.mapAttributes identity identity mapFieldType Value mapStatus)
+        |> Tree.value
+
+
+mapStatus : Internal.Field.Status -> Status
+mapStatus status =
+    case status of
+        Internal.Field.Pristine ->
+            Pristine
+
+        Internal.Field.Focused ->
+            Focused
+
+        Internal.Field.Touched ->
+            Touched
+
+
+mapFieldType : Internal.Field.FieldType id value err -> FieldType
+mapFieldType fieldType =
+    case fieldType of
+        Internal.Field.Repeatable _ ->
+            Repeatable
+
+        Internal.Field.Text ->
+            Text
+
+        Internal.Field.TextArea ->
+            TextArea
+
+        Internal.Field.Email ->
+            Email
+
+        Internal.Field.Password ->
+            Password
+
+        Internal.Field.StrictAutocomplete ->
+            StrictAutocomplete
+
+        Internal.Field.Integer ->
+            Integer
+
+        Internal.Field.Float ->
+            Float
+
+        Internal.Field.Month ->
+            Month
+
+        Internal.Field.Date ->
+            Date
+
+        Internal.Field.LocalDatetime ->
+            LocalDatetime
+
+        Internal.Field.Select ->
+            Select
+
+        Internal.Field.Radio ->
+            Radio
+
+        Internal.Field.Checkbox ->
+            Checkbox
+
+        Internal.Field.Group ->
+            Group

@@ -1,6 +1,4 @@
-module Internal.View exposing
-    ( View, init, partial, toHtml
-    )
+module Internal.View exposing (View, init, partial, toHtml)
 
 {-|
 
@@ -26,7 +24,7 @@ type alias Node id =
 
 
 type alias Attributes id =
-    Internal.Field.Attributes id (FieldType id (List (Error id))) (List (Error id))
+    Internal.Field.Attributes id (FieldType id Internal.Value.Value (List (Error id))) Internal.Value.Value Status (List (Error id))
 
 
 type alias View id msg =
@@ -156,7 +154,7 @@ inputStringToValue input str =
                 Nothing ->
                     Internal.Value.blank
     in
-    case unwrappedField.inputType of
+    case unwrappedField.fieldType of
         Text ->
             Internal.Value.fromNonBlankString str
 
@@ -243,7 +241,7 @@ toHtml view =
                 , attributes = attrs
                 }
     in
-    case ( attrs.hidden, attrs.inputType ) of
+    case ( attrs.hidden, attrs.fieldType ) of
         ( True, _ ) ->
             Html.text ""
 
@@ -302,7 +300,7 @@ labelToHtml label path input element =
             Html.label
                 (Attributes.for (inputId input path)
                     :: Attributes.id (labelId input path)
-                    :: (if (Tree.value input).inputType == Checkbox then
+                    :: (if (Tree.value input).fieldType == Checkbox then
                             Attributes.class "label-inline" :: element
 
                         else
@@ -464,7 +462,7 @@ inputToHtml :
     -> String
     -> List (Html.Attribute msg)
     -> (List (Html.Attribute msg) -> Html msg)
-inputToHtml view inputType htmlAttrs element =
+inputToHtml view fieldType htmlAttrs element =
     let
         unwrappedField =
             Tree.value view.root
@@ -473,7 +471,7 @@ inputToHtml view inputType htmlAttrs element =
             Html.input
                 (List.concat
                     [ htmlAttrs
-                    , Attributes.type_ inputType
+                    , Attributes.type_ fieldType
                         :: (Internal.Value.toString unwrappedField.value
                                 |> Maybe.withDefault ""
                                 |> Attributes.value
@@ -748,7 +746,7 @@ textInputHtmlAttributes view =
           , ariaDescribedByAttribute view.root view.path
           , ariaInvalidAttribute view.root
           ]
-        , if List.member node.inputType [ Text, TextArea ] then
+        , if List.member node.fieldType [ Text, TextArea ] then
             [ selectionStartAttribute node.selectionStart
             , selectionEndAttribute node.selectionEnd
             ]
@@ -789,7 +787,7 @@ visibleErrors input =
         params =
             Tree.value input
     in
-    case ( params.status, params.inputType ) of
+    case ( params.status, params.fieldType ) of
         ( Touched, _ ) ->
             params.errors
 
@@ -984,16 +982,16 @@ onInputWithSelection tagger =
 inputIdString : Node id -> String
 inputIdString input =
     let
-        { name, inputType } =
+        { name, fieldType } =
             Tree.value input
     in
     name
         |> Maybe.withDefault
-            (inputTypeToString inputType)
+            (fieldTypeToString fieldType)
 
 
-inputTypeToString : FieldType id err -> String
-inputTypeToString type_ =
+fieldTypeToString : FieldType id value err -> String
+fieldTypeToString type_ =
     case type_ of
         Text ->
             "text"
@@ -1044,10 +1042,10 @@ inputTypeToString type_ =
 isAutocompleteable : Node id -> Bool
 isAutocompleteable input =
     let
-        { inputType, options } =
+        { fieldType, options } =
             Tree.value input
     in
-    case inputType of
+    case fieldType of
         Text ->
             not (List.isEmpty options)
 

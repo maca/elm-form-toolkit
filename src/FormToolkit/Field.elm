@@ -11,7 +11,6 @@ module FormToolkit.Field exposing
     , options, stringOptions, min, max, step, autogrow
     , class, classList
     , disabled, hidden, noattr, pattern
-    , Attributes
     , copies, repeatableMin, repeatableMax
     , updateAttribute, updateAttributes, updateWithId
     , updateValuesFromJson
@@ -45,7 +44,6 @@ their attributes, update, and render them.
 @docs options, stringOptions, min, max, step, autogrow
 @docs class, classList
 @docs disabled, hidden, noattr, pattern
-@docs Attributes
 
 
 # Groups
@@ -166,7 +164,7 @@ update msg (Field field) =
             InputsAdded _ path ->
                 case
                     Tree.getValueAt path field
-                        |> Maybe.map .inputType
+                        |> Maybe.map .fieldType
                 of
                     Just (Repeatable template) ->
                         updateAt path (Tree.push template) field
@@ -203,7 +201,7 @@ inputStringToValue input str =
                 Nothing ->
                     Internal.Value.blank
     in
-    case unwrappedField.inputType of
+    case unwrappedField.fieldType of
         Text ->
             Internal.Value.fromNonBlankString str
 
@@ -288,7 +286,7 @@ blur input =
     { input
         | status = Touched
         , value =
-            case input.inputType of
+            case input.fieldType of
                 StrictAutocomplete ->
                     if Internal.Value.isBlank input.value then
                         Internal.Value.Invalid
@@ -595,10 +593,10 @@ repeatable attributes (Field template) updates =
     Field (Tree.branch params children)
 
 
-initAttributes : FieldType id (List (Error id)) -> List (Attribute id val) -> Attributes id
-initAttributes inputType_ =
+initAttributes : FieldType id Internal.Value.Value (List (Error id)) -> List (Attribute id val) -> Attributes id
+initAttributes fieldType =
     List.foldl ((<|) << (\(Attribute f) -> f))
-        { inputType = inputType_
+        { fieldType = fieldType
         , name = Nothing
         , label = Nothing
         , hint = Nothing
@@ -626,11 +624,11 @@ initAttributes inputType_ =
         }
 
 
-init : FieldType id (List (Error id)) -> List (Attribute id val) -> Field id
-init inputType_ attributes =
+init : FieldType id Internal.Value.Value (List (Error id)) -> List (Attribute id val) -> Field id
+init fieldType attributes =
     let
         field =
-            Tree.leaf (initAttributes inputType_ attributes)
+            Tree.leaf (initAttributes fieldType attributes)
 
         attrs =
             Tree.value field
@@ -645,7 +643,7 @@ init inputType_ attributes =
                 )
                 field
     in
-    case ( attrs.inputType, attrs.options ) of
+    case ( attrs.fieldType, attrs.options ) of
         ( Select, [] ) ->
             Field fieldWithMissingOptions
 
@@ -668,7 +666,7 @@ type Attribute id val
 {-| Record of field attributes.
 -}
 type alias Attributes id =
-    Internal.Field.Attributes id (FieldType id (List (Error id))) (List (Error id))
+    Internal.Field.Attributes id (FieldType id Internal.Value.Value (List (Error id))) Internal.Value.Value Status (List (Error id))
 
 
 {-| Sets the name of a field.
@@ -1233,7 +1231,7 @@ map func (Field field) =
     in
     Field
         (Tree.mapValues
-            (mapAttributes func errorsMapper (mapFieldType func errorsMapper))
+            (Internal.Field.mapAttributes func errorsMapper (mapFieldType func errorsMapper) identity identity)
             field
         )
 
@@ -1277,7 +1275,7 @@ namesToPaths (Field field) =
                                         |> List.concat
                     in
                     ( ( namePath, path ) :: keys
-                    , case (Tree.value node).inputType of
+                    , case (Tree.value node).fieldType of
                         Repeatable _ ->
                             namePath
 
@@ -1305,7 +1303,7 @@ isBlank input =
         attrs =
             Tree.value input
     in
-    case attrs.inputType of
+    case attrs.fieldType of
         Group ->
             False
 
@@ -1319,7 +1317,7 @@ isBlank input =
 
 -- isGroup : Node id -> Bool
 -- isGroup input =
---     case Tree.value input |> .inputType of
+--     case Tree.value input |> .fieldType of
 --         Group ->
 --             True
 --         Repeatable _ ->
@@ -1459,7 +1457,7 @@ checkEmail node =
         attrs =
             Tree.value node
     in
-    case attrs.inputType of
+    case attrs.fieldType of
         Email ->
             case Internal.Value.toString attrs.value of
                 Just str ->
@@ -1533,41 +1531,6 @@ setError errCons =
 -- Mapping
 
 
-mapAttributes :
-    (a -> b)
-    -> (err1 -> err2)
-    -> (type1 -> type2)
-    -> Internal.Field.Attributes a type1 err1
-    -> Internal.Field.Attributes b type2 err2
-mapAttributes func errToErr typeMapper input =
-    { inputType = typeMapper input.inputType
-    , name = input.name
-    , value = input.value
-    , isRequired = input.isRequired
-    , label = input.label
-    , placeholder = input.placeholder
-    , hint = input.hint
-    , min = input.min
-    , max = input.max
-    , step = input.step
-    , autogrow = input.autogrow
-    , options = input.options
-    , identifier = Maybe.map func input.identifier
-    , status = input.status
-    , repeatableMin = input.repeatableMin
-    , repeatableMax = input.repeatableMax
-    , addFieldsButtonCopy = input.addFieldsButtonCopy
-    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
-    , errors = errToErr input.errors
-    , classList = input.classList
-    , selectionStart = input.selectionStart
-    , selectionEnd = input.selectionEnd
-    , disabled = input.disabled
-    , hidden = input.hidden
-    , pattern = input.pattern
-    }
-
-
 mapError : (a -> b) -> Error a -> Error b
 mapError transformId error =
     case error of
@@ -1627,11 +1590,20 @@ mapError transformId error =
             ErrorList (Maybe.map transformId id) (List.map (mapError transformId) errorList)
 
 
-mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
-mapFieldType func errToErr inputType_ =
-    case inputType_ of
+mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a value err1 -> FieldType b value err2
+mapFieldType func errMapper fieldType =
+    case fieldType of
         Repeatable tree ->
-            Repeatable (Tree.mapValues (mapAttributes func errToErr (mapFieldType func errToErr)) tree)
+            Repeatable
+                (Tree.mapValues
+                    (Internal.Field.mapAttributes func
+                        errMapper
+                        (mapFieldType func errMapper)
+                        identity
+                        identity
+                    )
+                    tree
+                )
 
         Text ->
             Text

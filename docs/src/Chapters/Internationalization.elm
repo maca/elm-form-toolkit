@@ -80,7 +80,7 @@ Field.text
 
 ## Translating Error Messages
 
-Use `View.customizeErrors` to translate validation error messages.
+Use `View.customizeErrors` to translate validation error messages. The function receives `FieldAttributes` which includes all field errors in the `errors` field.
 
 ```elm
 model.shipmentFields
@@ -88,23 +88,29 @@ model.shipmentFields
     |> View.customizeErrors errorToSpanish
     |> View.toHtml
 
-errorToSpanish : Field.Attributes id -> Error.Error id -> String
-errorToSpanish attributes error =
-    case error of
-        Error.IsBlank _ ->
-            "Este campo es obligatorio"
+errorToSpanish : View.FieldAttributes id -> String
+errorToSpanish attributes =
+    let
+        errorToString error =
+            case error of
+                Error.IsBlank _ ->
+                    "Este campo es obligatorio"
 
-        Error.NotAnInteger _ ->
-            "Debe ser un número entero"
+                Error.NotAnInteger _ ->
+                    "Debe ser un número entero"
 
-        Error.ValueTooSmall _ data ->
-            "El valor mínimo es " ++ toString data.min
+                Error.ValueTooSmall _ data ->
+                    "El valor mínimo es " ++ toString data.min
 
-        Error.CustomError message ->
-            message
+                Error.CustomError _ message ->
+                    message
 
-        _ ->
-            "Error en el campo"
+                _ ->
+                    "Error en el campo"
+    in
+    attributes.errors
+        |> List.map errorToString
+        |> String.join ", "
 ```
 
 ## Translating Repeatable Field Buttons

@@ -112,8 +112,9 @@ Nominatim and Leaflet, and a tag selector using Choices.js.
 <component with-label="Demo"/>
 
 The `customizeFields` function receives pre-rendered elements `labelHtml`,
-`hintHtml` and event handlers `inputOnChange` for each field. Return `Just` with
-custom HTML to override the default rendering, or `Nothing` to use the default.
+`hintHtml`, event handlers `inputOnChange`, and field `attributes` for each field.
+Return `Just` with custom HTML to override the default rendering, or `Nothing` to
+use the default.
 
 ```elm
 field

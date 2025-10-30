@@ -51,8 +51,12 @@ import RoseTree.Tree as Tree
 import Time
 
 
+type alias Attributes id =
+    Internal.Field.Attributes id (FieldType id Internal.Value.Value (List (Error id))) Internal.Value.Value Status (List (Error id))
+
+
 type alias Node id =
-    Tree.Tree (Field.Attributes id)
+    Tree.Tree (Attributes id)
 
 
 type ParserResult id a
@@ -517,7 +521,7 @@ jsonEncodeObject input =
 jsonEncodeHelp : Node id -> List ( String, Json.Decode.Value ) -> Result (Error id) (List ( String, Json.Decode.Value ))
 jsonEncodeHelp input acc =
     let
-        ({ name, inputType, identifier } as attrs) =
+        ({ name, fieldType, identifier } as attrs) =
             Tree.value input
 
         accumulate jsonValue =
@@ -529,7 +533,7 @@ jsonEncodeHelp input acc =
                     Err
                         (HasNoName identifier)
     in
-    case inputType of
+    case fieldType of
         Group ->
             case name of
                 Nothing ->
@@ -1133,7 +1137,7 @@ isBlank input =
         attrs =
             Tree.value input
     in
-    case attrs.inputType of
+    case attrs.fieldType of
         Group ->
             False
 
@@ -1146,7 +1150,7 @@ isBlank input =
 
 isGroup : Node id -> Bool
 isGroup input =
-    case (Tree.value input).inputType of
+    case (Tree.value input).fieldType of
         Group ->
             True
 
