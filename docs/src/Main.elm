@@ -51,7 +51,11 @@ main =
             , ( "Reference"
               , [ Chapter.chapterLink
                     { title = "Api"
-                    , url = "https://example.com"
+                    , url = "https://package.elm-lang.org/packages/maca/form-toolkit/latest/"
+                    }
+                , Chapter.chapterLink
+                    { title = "Source"
+                    , url = "https://github.com/maca/elm-form-toolkit"
                     }
                 ]
               )
