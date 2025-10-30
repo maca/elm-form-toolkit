@@ -73,7 +73,7 @@ jobs:
         run: |
           cd docs
           sass static/styles.scss:static/styles.css --style=expanded
-          elm make src/Main.elm --output=static/main.js --optimize
+          elm make src/Main.elm --output=static/main.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
