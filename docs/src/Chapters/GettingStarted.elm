@@ -30,8 +30,8 @@ update msg model =
                     Demo.update demoMsg model.demo
             in
             ( { model | demo = demo }
-            , Task.perform (Actions.logActionWithString "Result")
-                (Task.succeed (Debug.toString demo.result))
+            , Task.perform (Actions.logActionWithString "Demo")
+                (Task.succeed "Press Submit to perform a request and see results")
             )
 
 

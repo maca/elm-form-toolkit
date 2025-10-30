@@ -1134,7 +1134,7 @@ updateValuesFromJson jsonValue (Field field) =
                 )
                 (Ok field)
             )
-        |> Result.map (validateNode >> Field)
+        |> Result.map (validate >> Field)
 
 
 valueToPathLists : Encode.Value -> Result (Error id) (List ( String, String ))

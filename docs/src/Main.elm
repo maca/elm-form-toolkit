@@ -34,7 +34,7 @@ init =
 
 main : Book Model
 main =
-    book "Elm-UI"
+    book "form-toolkit"
         |> ElmBook.withStatefulOptions
             [ StatefulOptions.initialState init
             ]
