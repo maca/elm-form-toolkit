@@ -4,7 +4,7 @@ import ElmBook
 import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import Html
-import Support.ShipmentForm as Demo
+import Support.AddressForm as Demo
 import Task
 
 
@@ -80,7 +80,7 @@ any shape, and flexible rendering.
 - Flexible rendering with customization options
 - Support for complex forms with repeatable fields
 
-Let's build a shipment form step by step to see how form-toolkit works!
+Let's build an address form step by step to see how form-toolkit works!
 
 
 <component with-label="Demo"/>
@@ -92,13 +92,13 @@ A `Field` represents all of the user inputs for a form and their corresponding
 labels, hints and validation errors. It can be a single input field, a group of
 Fields or a group of repeatable Fields.
 
-Let's declare a shipment form with recipient information and shipping address.
+Let's declare an address form with recipient information and address details.
 
 
 ```elm
 -- Define field identifiers,
 -- we will use this to refer to particular fields when parsing
-type ShipmentFields
+type AddressFields
     = AddressNameGroup
     | AddressFirstName
     | AddressLastName
@@ -111,8 +111,8 @@ type ShipmentFields
     | AddressCountry
 
 -- Declare the form
-shipmentFieldsDefinition : Field ShipmentFields
-shipmentFieldsDefinition =
+addressFieldsDefinition : Field AddressFields
+addressFieldsDefinition =
     Field.group
         []
         [ Field.group
@@ -215,13 +215,9 @@ because it keeps track of the Fields state, and validation errors.
 
 ```elm
 type alias Model =
-    { shipmentFields : Field ShipmentFields
+    { addressFields : Field AddressFields
     , submitted : Bool
-    , result : Maybe (Result (Error ShipmentFields) Shipment)
-    }
-
-type alias Shipment =
-    { shipping : Address
+    , result : Maybe (Result (Error AddressFields) Address)
     }
 
 type alias Address =
@@ -237,7 +233,7 @@ type alias Address =
 
 init : Model
 init =
-    { shipmentFields = shipmentFieldsDefinition
+    { addressFields = addressFieldsDefinition
     , submitted = False
     , result = Nothing
     }
@@ -252,7 +248,7 @@ Define your Msg type and update function:
 
 ```elm
 type Msg
-    = FormChanged (Field.Msg ShipmentFields)
+    = FormChanged (Field.Msg AddressFields)
     | FormSubmitted
 
 update : Msg -> Model -> Model
@@ -260,34 +256,29 @@ update msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                ( shipmentFields, result ) =
-                    Parse.parseUpdate shipmentParser inputMsg model.shipmentFields
+                ( addressFields, result ) =
+                    Parse.parseUpdate addressParser inputMsg model.addressFields
             in
             { model
-                | shipmentFields = shipmentFields
+                | addressFields = addressFields
                 , result = Just result
             }
 
         FormSubmitted ->
-            case Parse.parseValidate Parse.json model.shipmentFields of
+            case Parse.parseValidate Parse.json model.addressFields of
                 ( updatedField, Ok jsonValue ) ->
                     { model
-                        | shipmentFields = updatedField
+                        | addressFields = updatedField
                         , submitted = True
                         , result = Nothing
                     }
 
                 ( updatedField, Err _ ) ->
-                    { model | shipmentFields = updatedField }
+                    { model | addressFields = updatedField }
 
--- Parser to convert form data to Shipment type
-shipmentParser : Parse.Parser ShipmentFields Shipment
-shipmentParser =
-    Parse.map Shipment
-        shipmentAddressParser
-
-shipmentAddressParser : Parse.Parser ShipmentFields Address
-shipmentAddressParser =
+-- Parser to convert form data to Address type
+addressParser : Parse.Parser AddressFields Address
+addressParser =
     Parse.succeed Address
         |> Parse.andMap (Parse.field AddressFirstName Parse.string)
         |> Parse.andMap (Parse.field AddressLastName Parse.string)
@@ -296,10 +287,10 @@ shipmentAddressParser =
         |> Parse.andMap (Parse.field AddressExtra (Parse.maybe Parse.string))
         |> Parse.andMap (Parse.field PostalCode Parse.string)
         |> Parse.andMap (Parse.field AddressState Parse.string)
-        |> Parse.andMap shipmentCountryParser
+        |> Parse.andMap countryParser
 
-shipmentCountryParser : Parse.Parser ShipmentFields Countries.Country
-shipmentCountryParser =
+countryParser : Parse.Parser AddressFields Countries.Country
+countryParser =
     Parse.field AddressCountry
         (Parse.string
             |> Parse.andThen
@@ -336,7 +327,7 @@ view : Model -> Html Msg
 view model =
     Html.form
         [ onSubmit FormSubmitted ]
-        [ Field.toHtml FormChanged model.shipmentFields
+        [ Field.toHtml FormChanged model.addressFields
         , Html.button
             [ onClick FormSubmitted ]
             [ Html.text "Submit" ]
@@ -354,8 +345,9 @@ view model =
 
 ## Complete Example
 
-You can find the complete working example of this shipment form here:
-[ShipmentForm.elm](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/ShipmentForm.elm)
+A full example of a sandbox application for this form can be found
+[here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/AddressForm.elm).
+
 
 This example demonstrates:
 - Complex nested field groups

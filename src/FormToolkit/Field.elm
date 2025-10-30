@@ -1354,7 +1354,8 @@ validateNode node =
         ]
 
 
-{-| -}
+{-| Check all contained inputs and display errors for failed validations.
+-}
 validate : Node id -> Node id
 validate =
     Tree.map clearErrors >> validateTreeHelp

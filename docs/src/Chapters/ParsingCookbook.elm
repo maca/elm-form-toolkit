@@ -9,7 +9,7 @@ import FormToolkit.Value as Value
 import Html
 import Html.Attributes as Attr
 import Iso8601
-import Support.ShipmentForm as ShipmentForm
+import Support.AddressForm as AddressForm
 import Task
 
 
@@ -19,14 +19,14 @@ type alias Book book =
 
 type Msg
     = PersonFormChanged (Field.Msg PersonFields)
-    | ShipmentFormChanged ShipmentForm.Msg
+    | AddressFormChanged AddressForm.Msg
     | EventFieldsChanged (Field.Msg EventFields)
     | ZalgoTextFieldChanged (Field.Msg Never)
 
 
 type alias Model =
     { personForm : Field PersonFields
-    , shipmentForm : ShipmentForm.Model
+    , addressForm : AddressForm.Model
     , eventFields : Field EventFields
     , zalgoTextField : Field Never
     }
@@ -48,7 +48,7 @@ type EventFields
 init : Model
 init =
     { personForm = personForm
-    , shipmentForm = ShipmentForm.init
+    , addressForm = AddressForm.init
     , eventFields = eventFields
     , zalgoTextField = zalgoTextField
     }
@@ -72,12 +72,12 @@ update msg book =
                         (Task.succeed (Debug.toString result))
                     )
 
-                ShipmentFormChanged innerMsg ->
+                AddressFormChanged innerMsg ->
                     let
-                        updatedShipmentForm =
-                            ShipmentForm.update innerMsg model.shipmentForm
+                        updatedAddressForm =
+                            AddressForm.update innerMsg model.addressForm
                     in
-                    ( { model | shipmentForm = updatedShipmentForm }
+                    ( { model | addressForm = updatedAddressForm }
                     , Task.perform (Actions.logActionWithString "Demo")
                         (Task.succeed "Press Submit to see results")
                     )
@@ -117,11 +117,11 @@ chapter =
                         ]
                         |> Html.map (Actions.updateStateWithCmdWith update)
               )
-            , ( "Shipment Form (andMap Pipeline)"
+            , ( "Address Form (andMap Pipeline)"
               , \book ->
-                    book.parsingCookbook.shipmentForm
-                        |> ShipmentForm.view
-                        |> Html.map (ShipmentFormChanged >> Actions.updateStateWithCmdWith update)
+                    book.parsingCookbook.addressForm
+                        |> AddressForm.view
+                        |> Html.map (AddressFormChanged >> Actions.updateStateWithCmdWith update)
               )
             , ( "Event Fields (Conditional)"
               , \book ->
@@ -219,7 +219,7 @@ personParser =
 
 For complex forms with multiple fields, use the applicative pattern with `andMap` to build parsing pipelines.
 
-<component with-label="Shipment Form (andMap Pipeline)"/>
+<component with-label="Address Form (andMap Pipeline)"/>
 
 ```elm
 import Countries
@@ -269,7 +269,7 @@ shipmentCountryParser =
         )
 ```
 
-A full example of a sandbox application for this form can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/ShipmentForm.elm).
+A full example of a sandbox application for this form can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/AddressForm.elm).
 
 
 ## Updating field attributes while parsing

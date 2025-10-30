@@ -1,4 +1,4 @@
-module Support.ShipmentForm exposing (Model, Msg, init, update, view)
+module Support.AddressForm exposing (Model, Msg, init, update, view)
 
 import Browser
 import Countries
@@ -25,14 +25,9 @@ main =
 
 
 type alias Model =
-    { shipmentFields : Field ShipmentFields
+    { addressFields : Field AddressFields
     , submitted : Bool
-    , result : Maybe (Result (Error ShipmentFields) Shipment)
-    }
-
-
-type alias Shipment =
-    { shipping : Address
+    , result : Maybe (Result (Error AddressFields) Address)
     }
 
 
@@ -48,7 +43,7 @@ type alias Address =
     }
 
 
-type ShipmentFields
+type AddressFields
     = AddressNameGroup
     | AddressFirstName
     | AddressLastName
@@ -62,7 +57,7 @@ type ShipmentFields
 
 
 type Msg
-    = FormChanged (Field.Msg ShipmentFields)
+    = FormChanged (Field.Msg AddressFields)
     | FormSubmitted
 
 
@@ -72,7 +67,7 @@ type Msg
 
 init : Model
 init =
-    { shipmentFields = shipmentFieldsDefinition
+    { addressFields = addressFields
     , submitted = False
     , result = Nothing
     }
@@ -87,33 +82,33 @@ update msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                ( shipmentFields, result ) =
-                    Parse.parseUpdate shipmentParser inputMsg model.shipmentFields
+                ( fields, result ) =
+                    Parse.parseUpdate addressParser inputMsg model.addressFields
             in
             { model
-                | shipmentFields = shipmentFields
+                | addressFields = fields
                 , result = Just result
             }
 
         FormSubmitted ->
-            case Parse.parseValidate Parse.json model.shipmentFields of
+            case Parse.parseValidate Parse.json model.addressFields of
                 ( updatedField, Ok jsonValue ) ->
                     { model
-                        | shipmentFields = updatedField
+                        | addressFields = updatedField
                         , submitted = True
                         , result = Nothing
                     }
 
                 ( updatedField, Err _ ) ->
-                    { model | shipmentFields = updatedField }
+                    { model | addressFields = updatedField }
 
 
 
 -- FORM DEFINITION
 
 
-shipmentFieldsDefinition : Field ShipmentFields
-shipmentFieldsDefinition =
+addressFields : Field AddressFields
+addressFields =
     Field.group
         []
         [ Field.group
@@ -201,14 +196,8 @@ shipmentFieldsDefinition =
 -- PARSER
 
 
-shipmentParser : Parse.Parser ShipmentFields Shipment
-shipmentParser =
-    Parse.map Shipment
-        shipmentAddressParser
-
-
-shipmentAddressParser : Parse.Parser ShipmentFields Address
-shipmentAddressParser =
+addressParser : Parse.Parser AddressFields Address
+addressParser =
     Parse.succeed Address
         |> Parse.andMap (Parse.field AddressFirstName Parse.string)
         |> Parse.andMap (Parse.field AddressLastName Parse.string)
@@ -217,11 +206,11 @@ shipmentAddressParser =
         |> Parse.andMap (Parse.field AddressExtra (Parse.maybe Parse.string))
         |> Parse.andMap (Parse.field PostalCode Parse.string)
         |> Parse.andMap (Parse.field AddressState Parse.string)
-        |> Parse.andMap shipmentCountryParser
+        |> Parse.andMap countryParser
 
 
-shipmentCountryParser : Parse.Parser ShipmentFields Countries.Country
-shipmentCountryParser =
+countryParser : Parse.Parser AddressFields Countries.Country
+countryParser =
     Parse.field AddressCountry
         (Parse.string
             |> Parse.andThen
@@ -251,7 +240,7 @@ view model =
         ]
         [ Html.form
             [ onSubmit FormSubmitted, novalidate True ]
-            [ Field.toHtml FormChanged model.shipmentFields
+            [ Field.toHtml FormChanged model.addressFields
             , Html.button
                 [ onClick FormSubmitted
                 , Attr.style "margin-top" "1rem"
@@ -268,7 +257,7 @@ view model =
                         , Html.div
                             []
                             [ Html.text
-                                ("Parsed Shipment for: " ++ shipment.shipping.firstName ++ " " ++ shipment.shipping.lastName)
+                                ("Parsed Shipment for: " ++ shipment.firstName ++ " " ++ shipment.lastName)
                             ]
                         ]
 
