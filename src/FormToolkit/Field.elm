@@ -511,8 +511,8 @@ radio =
 
 -}
 checkbox : List (Attribute id val) -> Field id
-checkbox =
-    init Checkbox
+checkbox attrs =
+    init Checkbox (value (Value.bool False) :: attrs)
 
 
 {-| Groups a list of fields.

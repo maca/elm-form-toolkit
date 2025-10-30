@@ -188,24 +188,6 @@ checkboxFieldTests =
                         , Query.find [ id "checkbox-hint" ]
                             >> Query.has [ text "You have to check the box" ]
                         ]
-        , test "shows validation feedback" <|
-            \_ ->
-                let
-                    { field } =
-                        Interaction.init Parse.bool checkboxInput
-                            |> blur "checkbox"
-                in
-                field
-                    |> Field.toHtml (always never)
-                    |> Query.fromHtml
-                    |> Expect.all
-                        [ Query.has [ class "required" ]
-                        , Query.find [ tag "input" ]
-                            >> Query.has
-                                [ attribute (Attrs.attribute "aria-invalid" "true") ]
-                        , Query.find [ class "errors" ]
-                            >> Query.has [ containing [ text "Should be provided" ] ]
-                        ]
         ]
 
 

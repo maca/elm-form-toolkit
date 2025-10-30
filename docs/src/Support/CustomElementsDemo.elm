@@ -229,7 +229,7 @@ successMessage demo =
         , Attr.style "background" "#e8f5e8"
         , Attr.style "border-radius" "4px"
         ]
-        [ Html.div [] [ Html.text "Form submitted successfully!" ]
+        [ Html.div [] [ Html.text "Form parsed successfully!" ]
         , Html.div [ Attr.style "padding-bottom" "2rem" ]
             [ Html.h5 [] [ Html.text "Address Data:" ]
             , case demo.addressData of

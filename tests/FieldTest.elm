@@ -21,6 +21,7 @@ suite =
         , repeatableTests
         , datetimeFieldTests
         , updateValuesFromJsonTests
+        , checkboxTests
         ]
 
 
@@ -256,3 +257,42 @@ hobbiesFormValues =
 
         Err _ ->
             Encode.null
+
+
+checkboxTests : Test
+checkboxTests =
+    describe "checkbox field"
+        [ test "initializes with false value when no value attribute is provided" <|
+            \_ ->
+                let
+                    field =
+                        Field.checkbox [ Field.name "consent" ]
+                in
+                field
+                    |> Expect.all
+                        [ Parse.parse Parse.bool
+                            >> Expect.equal (Ok False)
+                        , Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "consent") ]
+                            >> Query.hasNot [ attribute (Attrs.checked True) ]
+                        ]
+        , test "false value is overridden by passing value True attribute" <|
+            \_ ->
+                let
+                    field =
+                        Field.checkbox
+                            [ Field.name "consent"
+                            , Field.value (Value.bool True)
+                            ]
+                in
+                field
+                    |> Expect.all
+                        [ Parse.parse Parse.bool
+                            >> Expect.equal (Ok True)
+                        , Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "consent") ]
+                            >> Query.has [ attribute (Attrs.checked True) ]
+                        ]
+        ]

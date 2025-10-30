@@ -37,7 +37,7 @@ update msg model =
 
 chapter : Chapter { x | customization : Model }
 chapter =
-    Chapter.chapter "Customization"
+    Chapter.chapter "View Customization and Custom HTML Components"
         |> Chapter.withStatefulComponentList
             [ ( "Demo"
               , \book ->
