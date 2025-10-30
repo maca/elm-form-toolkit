@@ -163,11 +163,12 @@ partial id (View view) =
     Internal.View.partial id view |> Maybe.map View
 
 
-{-| Customizes how the error copies are displayed, to be used for i18n errors.
-It's possible to override a specific error message for all fields, an individual
-field, or for fields of a certain type.
+{-| Customizes how the error messages are displayed, to be used for i18n errors.
+The function receives field attributes including all errors for the field.
+It's possible to override error messages for all fields, individual fields,
+or fields of a certain type.
 
-See [FieldAttributes](#FieldAttributes) for all the avaiable field attributes.
+See [FieldAttributes](#FieldAttributes) for all the available field attributes.
 
     type Fields
         = Name
@@ -202,35 +203,40 @@ See [FieldAttributes](#FieldAttributes) for all the avaiable field attributes.
             ]
             |> View.fromField (always ())
             |> View.customizeErrors
-                (\attributes error ->
+                (\attributes ->
                     let
                         toString =
                             Value.toString >> Maybe.withDefault ""
+
+                        errorToString error =
+                            case ( attributes.inputType, error ) of
+                                ( _, ValueTooLarge _ data ) ->
+                                    toString data.max ++ " is too high"
+
+                                ( _, ValueTooSmall _ data ) ->
+                                    toString data.min ++ " is too low"
+
+                                ( _, ValueNotInRange _ data ) ->
+                                    "Make it in between " ++ toString data.min ++ " and " ++ toString data.max
+
+                                ( Select, IsBlank _ ) ->
+                                    "Make up your mind"
+
+                                ( _, IsBlank (Just Name) ) ->
+                                    "Who are you?"
+
+                                ( _, IsBlank _ ) ->
+                                    "You forgot to fill in this"
+
+                                ( _, CustomError _ message ) ->
+                                    message
+
+                                _ ->
+                                    "Humm...?"
                     in
-                    case ( attributes.fieldType, error ) of
-                        ( _, ValueTooLarge _ data ) ->
-                            toString data.max ++ " is too high"
-
-                        ( _, ValueTooSmall _ data ) ->
-                            toString data.min ++ " is too low"
-
-                        ( _, ValueNotInRange _ data ) ->
-                            "Make it in between " ++ toString data.min ++ " and " ++ toString data.max
-
-                        ( Field.Select, IsBlank _ ) ->
-                            "Make up your mind"
-
-                        ( _, IsBlank (Just Name) ) ->
-                            "Who are you?"
-
-                        ( _, IsBlank _ ) ->
-                            "You forgot to fill in this"
-
-                        ( _, CustomError message ) ->
-                            message
-
-                        _ ->
-                            "Humm...?"
+                    attributes.errors
+                        |> List.map errorToString
+                        |> String.join ", "
                 )
 
 -}
