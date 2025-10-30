@@ -242,7 +242,7 @@ See [FieldAttributes](#FieldAttributes) for all the available field attributes.
 -}
 customizeErrors : (FieldAttributes id -> String) -> View id msg -> View id msg
 customizeErrors viewFunc (View view) =
-    View { view | errorToString = \attrs error -> viewFunc (mapAttributes (Field (Tree.leaf attrs))) }
+    View { view | errorToString = \attrs _ -> viewFunc (mapAttributes (Field (Tree.leaf attrs))) }
 
 
 {-| Provide a function to override the rendering of a field.

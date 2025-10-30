@@ -68,7 +68,6 @@ their attributes, update, and render them.
 
 -}
 
-import Array
 import Dict exposing (Dict)
 import FormToolkit.Error exposing (Error(..))
 import FormToolkit.Value as Value
@@ -180,82 +179,8 @@ update msg (Field field) =
 updateValueWithString : String -> Node id -> Node id
 updateValueWithString str field =
     Tree.updateValue
-        (\attrs -> { attrs | value = inputStringToValue field str })
+        (\attrs -> { attrs | value = Internal.Field.inputStringToValue field str })
         field
-
-
-inputStringToValue : Node id -> String -> Internal.Value.Value
-inputStringToValue input str =
-    let
-        unwrappedField =
-            Tree.value input
-
-        getChoice () =
-            case String.toInt str of
-                Just idx ->
-                    Array.fromList unwrappedField.options
-                        |> Array.get idx
-                        |> Maybe.map Tuple.second
-                        |> Maybe.withDefault Internal.Value.blank
-
-                Nothing ->
-                    Internal.Value.blank
-    in
-    case unwrappedField.fieldType of
-        Text ->
-            Internal.Value.fromNonBlankString str
-
-        TextArea ->
-            Internal.Value.fromNonEmptyString str
-
-        Password ->
-            Internal.Value.fromNonBlankString str
-
-        StrictAutocomplete ->
-            Dict.fromList unwrappedField.options
-                |> Dict.get str
-                |> Maybe.withDefault Internal.Value.blank
-
-        Email ->
-            Internal.Value.fromNonBlankString str
-
-        Integer ->
-            Internal.Value.intFromString str
-
-        Float ->
-            Internal.Value.floatFromString str
-
-        Month ->
-            Internal.Value.monthFromString str
-
-        Date ->
-            Internal.Value.dateFromString str
-
-        LocalDatetime ->
-            Internal.Value.timeFromString str
-
-        Select ->
-            getChoice ()
-
-        Radio ->
-            getChoice ()
-
-        Checkbox ->
-            case str of
-                "true" ->
-                    Internal.Value.fromBool True
-
-                "false" ->
-                    Internal.Value.fromBool False
-
-                _ ->
-                    Internal.Value.blank
-
-        Group ->
-            Internal.Value.blank
-
-        Repeatable _ ->
-            Internal.Value.blank
 
 
 updateAt : List Int -> (Node id -> Node id) -> Node id -> Node id
@@ -1314,46 +1239,6 @@ isBlank input =
             Internal.Value.isBlank attrs.value
 
 
-
--- isGroup : Node id -> Bool
--- isGroup input =
---     case Tree.value input |> .fieldType of
---         Group ->
---             True
---         Repeatable _ ->
---             True
---         _ ->
---             False
--- errors : Node id -> List err
--- errors =
---     Tree.foldl
---         (\node acc ->
---             List.concat [ acc, (Tree.value node).errors ]
---         )
---         []
---         >> List.Extra.unique
--- Vaidation
-
-
-validateNode : Node id -> Node id
-validateNode node =
-    let
-        ifNotRequired fn =
-            if (Tree.value node).isRequired && isBlank node then
-                identity
-
-            else
-                fn
-    in
-    List.foldl (<|)
-        (clearErrors node)
-        [ checkRequired
-        , ifNotRequired checkInRange
-        , ifNotRequired checkEmail
-        , ifNotRequired checkPattern
-        ]
-
-
 {-| Check all contained inputs and display errors for failed validations.
 -}
 validate : Node id -> Node id
@@ -1387,6 +1272,26 @@ clearErrors =
     Tree.updateValue (\attrs -> { attrs | errors = [] })
 
 
+validateNode : Node id -> Node id
+validateNode node =
+    let
+        ifNotRequired fn =
+            if (Tree.value node).isRequired && isBlank node then
+                identity
+
+            else
+                fn
+    in
+    List.foldl (<|)
+        (clearErrors node)
+        [ checkRequired
+        , ifNotRequired checkStrictAutocomplete
+        , ifNotRequired checkInRange
+        , ifNotRequired checkEmail
+        , ifNotRequired checkPattern
+        ]
+
+
 checkRequired : Node id -> Node id
 checkRequired node =
     if (Tree.value node).isRequired && isBlank node then
@@ -1394,6 +1299,30 @@ checkRequired node =
 
     else
         node
+
+
+checkStrictAutocomplete : Node id -> Node id
+checkStrictAutocomplete node =
+    let
+        attrs =
+            Tree.value node
+    in
+    case attrs.fieldType of
+        StrictAutocomplete ->
+            case
+                attrs.value
+                    |> Internal.Value.toString
+                    |> Maybe.andThen
+                        (\str -> Dict.fromList attrs.options |> Dict.get str)
+            of
+                Just _ ->
+                    node
+
+                Nothing ->
+                    setError IsBlank node
+
+        _ ->
+            node
 
 
 checkInRange : Node id -> Node id

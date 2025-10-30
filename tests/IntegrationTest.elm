@@ -19,6 +19,7 @@ suite =
         , datetimeFieldTests
         , validationFocusBlurTests
         , conditionalRepeatableFieldTests
+        , strictAutocompleteFieldTests
         ]
 
 
@@ -302,5 +303,66 @@ conditionalRepeatableFieldTests =
                                     , participants = []
                                     }
                                 )
+                        ]
+        ]
+
+
+strictAutocompleteFieldTests : Test
+strictAutocompleteFieldTests =
+    let
+        autocompleteField =
+            Field.strictAutocomplete
+                [ Field.label "Language"
+                , Field.name "language"
+                , Field.options
+                    [ ( "Español", Value.int 1 )
+                    , ( "English", Value.int 2 )
+                    , ( "Deutsch", Value.int 3 )
+                    ]
+                ]
+
+        stringAutocompleteField =
+            Field.strictAutocomplete
+                [ Field.label "Country"
+                , Field.name "country"
+                , Field.stringOptions [ "España", "England", "Deutschland" ]
+                ]
+    in
+    describe "strict autocomplete field integration" <|
+        [ test "allows typing incomplete name and keeps value in HTML attribute but parsing fails" <|
+            \_ ->
+                Interaction.init Parse.int autocompleteField
+                    |> fillInput "language" "Esp"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "language") ]
+                            >> Query.has [ attribute (Attrs.value "Esp") ]
+                        , .result >> Expect.err
+                        ]
+        , test "correctly parses when entering a complete matching option" <|
+            \_ ->
+                Interaction.init Parse.int autocompleteField
+                    |> fillInput "language" "English"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "language") ]
+                            >> Query.has [ attribute (Attrs.value "English") ]
+                        , .result >> Expect.equal (Ok 2)
+                        ]
+        , test "correctly parses string value when using stringOptions" <|
+            \_ ->
+                Interaction.init Parse.string stringAutocompleteField
+                    |> fillInput "country" "England"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "country") ]
+                            >> Query.has [ attribute (Attrs.value "England") ]
+                        , .result >> Expect.equal (Ok "England")
                         ]
         ]

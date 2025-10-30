@@ -3,7 +3,6 @@ module ViewTest exposing (suite)
 import Expect
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
-import FormToolkit.Value as Value
 import Html.Attributes as Attrs exposing (for, name, required)
 import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
@@ -143,18 +142,6 @@ strictAutocompleteFieldTests =
                             |> fillInput "language" "Español"
                 in
                 Expect.equal result (Ok "Español")
-        , test "restricts value" <|
-            \_ ->
-                let
-                    { result } =
-                        Field.strictAutocomplete
-                            [ Field.name "language"
-                            , Field.stringOptions [ "Español", "English", "Deutsch" ]
-                            ]
-                            |> Interaction.init Parse.value
-                            |> fillInput "language" "Else"
-                in
-                Expect.equal result (Ok Value.blank)
         , test "errors with when no options are provided" <|
             \_ ->
                 Field.strictAutocomplete []

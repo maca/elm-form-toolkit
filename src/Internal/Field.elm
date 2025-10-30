@@ -1,11 +1,13 @@
-module Internal.Field exposing (Attributes, FieldType(..), Status(..), mapAttributes)
+module Internal.Field exposing (Attributes, FieldType(..), Status(..), mapAttributes, inputStringToValue)
 
 {-|
 
-@docs Attributes, FieldType, Status, mapAttributes
+@docs Attributes, FieldType, Status, mapAttributes, inputStringToValue
 
 -}
 
+import Array
+import Dict
 import Internal.Utils
 import Internal.Value exposing (Value)
 import RoseTree.Tree as Tree
@@ -99,3 +101,80 @@ mapAttributes func errMapper typeMapper valueMapper statusMapper input =
     , hidden = input.hidden
     , pattern = input.pattern
     }
+
+
+type alias Node err id =
+    Tree.Tree
+        (Attributes id (FieldType id Internal.Value.Value err) Internal.Value.Value Status err)
+
+
+inputStringToValue : Node err id -> String -> Value
+inputStringToValue input str =
+    let
+        attrs =
+            Tree.value input
+
+        getChoice () =
+            case String.toInt str of
+                Just idx ->
+                    Array.fromList attrs.options
+                        |> Array.get idx
+                        |> Maybe.map Tuple.second
+                        |> Maybe.withDefault Internal.Value.blank
+
+                Nothing ->
+                    Internal.Value.blank
+    in
+    case attrs.fieldType of
+        Text ->
+            Internal.Value.fromNonBlankString str
+
+        TextArea ->
+            Internal.Value.fromNonEmptyString str
+
+        Password ->
+            Internal.Value.fromNonBlankString str
+
+        StrictAutocomplete ->
+            Internal.Value.fromNonBlankString str
+
+        Email ->
+            Internal.Value.fromNonBlankString str
+
+        Integer ->
+            Internal.Value.intFromString str
+
+        Float ->
+            Internal.Value.floatFromString str
+
+        Month ->
+            Internal.Value.monthFromString str
+
+        Date ->
+            Internal.Value.dateFromString str
+
+        LocalDatetime ->
+            Internal.Value.timeFromString str
+
+        Select ->
+            getChoice ()
+
+        Radio ->
+            getChoice ()
+
+        Checkbox ->
+            case str of
+                "true" ->
+                    Internal.Value.fromBool True
+
+                "false" ->
+                    Internal.Value.fromBool False
+
+                _ ->
+                    Internal.Value.blank
+
+        Group ->
+            Internal.Value.blank
+
+        Repeatable _ ->
+            Internal.Value.blank

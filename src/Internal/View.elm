@@ -6,8 +6,6 @@ module Internal.View exposing (View, init, partial, toHtml)
 
 -}
 
-import Array
-import Dict
 import FormToolkit.Error exposing (Error(..))
 import Html exposing (Html)
 import Html.Attributes as Attributes
@@ -135,80 +133,6 @@ findNode id =
                 foundPath
         )
         Nothing
-
-
-inputStringToValue : Node id -> String -> Internal.Value.Value
-inputStringToValue input str =
-    let
-        unwrappedField =
-            Tree.value input
-
-        getChoice () =
-            case String.toInt str of
-                Just idx ->
-                    Array.fromList unwrappedField.options
-                        |> Array.get idx
-                        |> Maybe.map Tuple.second
-                        |> Maybe.withDefault Internal.Value.blank
-
-                Nothing ->
-                    Internal.Value.blank
-    in
-    case unwrappedField.fieldType of
-        Text ->
-            Internal.Value.fromNonBlankString str
-
-        TextArea ->
-            Internal.Value.fromNonEmptyString str
-
-        Password ->
-            Internal.Value.fromNonBlankString str
-
-        StrictAutocomplete ->
-            Dict.fromList unwrappedField.options
-                |> Dict.get str
-                |> Maybe.withDefault Internal.Value.blank
-
-        Email ->
-            Internal.Value.fromNonBlankString str
-
-        Integer ->
-            Internal.Value.intFromString str
-
-        Float ->
-            Internal.Value.floatFromString str
-
-        Month ->
-            Internal.Value.monthFromString str
-
-        Date ->
-            Internal.Value.dateFromString str
-
-        LocalDatetime ->
-            Internal.Value.timeFromString str
-
-        Select ->
-            getChoice ()
-
-        Radio ->
-            getChoice ()
-
-        Checkbox ->
-            case str of
-                "true" ->
-                    Internal.Value.fromBool True
-
-                "false" ->
-                    Internal.Value.fromBool False
-
-                _ ->
-                    Internal.Value.blank
-
-        Group ->
-            Internal.Value.blank
-
-        Repeatable _ ->
-            Internal.Value.blank
 
 
 toHtml : View id msg -> Html msg
@@ -480,7 +404,7 @@ inputToHtml view fieldType htmlAttrs element =
                             (\inputStr ->
                                 view.onChange unwrappedField.identifier
                                     view.path
-                                    (inputStringToValue view.root inputStr)
+                                    (Internal.Field.inputStringToValue view.root inputStr)
                             )
                         :: textInputHtmlAttributes view
                     , element
@@ -541,7 +465,7 @@ textAreaToHtml view element =
                     (\inputStr ->
                         view.onChange identifier
                             view.path
-                            (inputStringToValue view.root inputStr)
+                            (Internal.Field.inputStringToValue view.root inputStr)
                     )
                     :: Attributes.value valueStr
                     :: textInputHtmlAttributes view
@@ -586,7 +510,7 @@ selectToHtml view element =
                 (\inputStr ->
                     view.onChange identifier
                         view.path
-                        (inputStringToValue view.root inputStr)
+                        (Internal.Field.inputStringToValue view.root inputStr)
                 )
             :: Events.onFocus (view.onFocus identifier view.path)
             :: Events.onBlur (view.onBlur identifier view.path)
@@ -639,7 +563,7 @@ radioToHtml view element =
                                 (\inputStr ->
                                     view.onChange identifier
                                         view.path
-                                        (inputStringToValue view.root inputStr)
+                                        (Internal.Field.inputStringToValue view.root inputStr)
                                 )
                             :: Events.onFocus (view.onFocus identifier view.path)
                             :: Events.onBlur (view.onBlur identifier view.path)
