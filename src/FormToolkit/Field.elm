@@ -1227,66 +1227,15 @@ with identifiers of different types.
 -}
 map : (a -> b) -> Field a -> Field b
 map func (Field field) =
-    Field (Tree.mapValues (mapAttributes func (List.map (mapError func))) field)
-
-
-mapError : (a -> b) -> Error a -> Error b
-mapError transformId error =
-    case error of
-        ValueTooLarge id params ->
-            ValueTooLarge (Maybe.map transformId id)
-                { value = params.value
-                , max = params.max
-                }
-
-        ValueTooSmall id params ->
-            ValueTooSmall (Maybe.map transformId id)
-                { value = params.value
-                , min = params.min
-                }
-
-        ValueNotInRange id params ->
-            ValueNotInRange (Maybe.map transformId id)
-                { value = params.value
-                , min = params.min
-                , max = params.max
-                }
-
-        IsGroupNotInput id ->
-            IsGroupNotInput (Maybe.map transformId id)
-
-        IsBlank id ->
-            IsBlank (Maybe.map transformId id)
-
-        CustomError id err ->
-            CustomError (Maybe.map transformId id) err
-
-        HasNoName id ->
-            HasNoName (Maybe.map transformId id)
-
-        NoOptionsProvided id ->
-            NoOptionsProvided (Maybe.map transformId id)
-
-        PatternError id ->
-            PatternError (Maybe.map transformId id)
-
-        EmailInvalid id ->
-            EmailInvalid (Maybe.map transformId id)
-
-        ParseError id ->
-            ParseError (Maybe.map transformId id)
-
-        NotNumber id ->
-            NotNumber (Maybe.map transformId id)
-
-        NotBool id ->
-            NotBool (Maybe.map transformId id)
-
-        InputNotFound id ->
-            InputNotFound (transformId id)
-
-        ErrorList id errorList ->
-            ErrorList (Maybe.map transformId id) (List.map (mapError transformId) errorList)
+    let
+        errorsMapper =
+            List.map (mapError func)
+    in
+    Field
+        (Tree.mapValues
+            (mapAttributes func errorsMapper (mapFieldType func errorsMapper))
+            field
+        )
 
 
 dasherize : String -> String
@@ -1344,89 +1293,6 @@ namesToPaths (Field field) =
         |> Tuple.first
         |> List.map (Tuple.mapFirst (String.join "."))
         |> Dict.fromList
-
-
-mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
-mapFieldType func errToErr inputType_ =
-    case inputType_ of
-        Repeatable tree ->
-            Repeatable (Tree.mapValues (mapAttributes func errToErr) tree)
-
-        Text ->
-            Text
-
-        TextArea ->
-            TextArea
-
-        Email ->
-            Email
-
-        Password ->
-            Password
-
-        StrictAutocomplete ->
-            StrictAutocomplete
-
-        Integer ->
-            Integer
-
-        Float ->
-            Float
-
-        Month ->
-            Month
-
-        Date ->
-            Date
-
-        LocalDatetime ->
-            LocalDatetime
-
-        Select ->
-            Select
-
-        Radio ->
-            Radio
-
-        Checkbox ->
-            Checkbox
-
-        Group ->
-            Group
-
-
-mapAttributes :
-    (a -> b)
-    -> (err1 -> err2)
-    -> Internal.Field.Attributes a (FieldType a err1) err1
-    -> Internal.Field.Attributes b (FieldType b err2) err2
-mapAttributes func errToErr input =
-    { inputType = mapFieldType func errToErr input.inputType
-    , name = input.name
-    , value = input.value
-    , isRequired = input.isRequired
-    , label = input.label
-    , placeholder = input.placeholder
-    , hint = input.hint
-    , min = input.min
-    , max = input.max
-    , step = input.step
-    , autogrow = input.autogrow
-    , options = input.options
-    , identifier = Maybe.map func input.identifier
-    , status = input.status
-    , repeatableMin = input.repeatableMin
-    , repeatableMax = input.repeatableMax
-    , addFieldsButtonCopy = input.addFieldsButtonCopy
-    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
-    , errors = errToErr input.errors
-    , classList = input.classList
-    , selectionStart = input.selectionStart
-    , selectionEnd = input.selectionEnd
-    , disabled = input.disabled
-    , hidden = input.hidden
-    , pattern = input.pattern
-    }
 
 
 
@@ -1661,3 +1527,150 @@ setError errCons =
                         (errCons attrs.identifier :: attrs.errors)
             }
         )
+
+
+
+-- Mapping
+
+
+mapAttributes :
+    (a -> b)
+    -> (err1 -> err2)
+    -> (type1 -> type2)
+    -> Internal.Field.Attributes a type1 err1
+    -> Internal.Field.Attributes b type2 err2
+mapAttributes func errToErr typeMapper input =
+    { inputType = typeMapper input.inputType
+    , name = input.name
+    , value = input.value
+    , isRequired = input.isRequired
+    , label = input.label
+    , placeholder = input.placeholder
+    , hint = input.hint
+    , min = input.min
+    , max = input.max
+    , step = input.step
+    , autogrow = input.autogrow
+    , options = input.options
+    , identifier = Maybe.map func input.identifier
+    , status = input.status
+    , repeatableMin = input.repeatableMin
+    , repeatableMax = input.repeatableMax
+    , addFieldsButtonCopy = input.addFieldsButtonCopy
+    , removeFieldsButtonCopy = input.removeFieldsButtonCopy
+    , errors = errToErr input.errors
+    , classList = input.classList
+    , selectionStart = input.selectionStart
+    , selectionEnd = input.selectionEnd
+    , disabled = input.disabled
+    , hidden = input.hidden
+    , pattern = input.pattern
+    }
+
+
+mapError : (a -> b) -> Error a -> Error b
+mapError transformId error =
+    case error of
+        ValueTooLarge id params ->
+            ValueTooLarge (Maybe.map transformId id)
+                { value = params.value
+                , max = params.max
+                }
+
+        ValueTooSmall id params ->
+            ValueTooSmall (Maybe.map transformId id)
+                { value = params.value
+                , min = params.min
+                }
+
+        ValueNotInRange id params ->
+            ValueNotInRange (Maybe.map transformId id)
+                { value = params.value
+                , min = params.min
+                , max = params.max
+                }
+
+        IsGroupNotInput id ->
+            IsGroupNotInput (Maybe.map transformId id)
+
+        IsBlank id ->
+            IsBlank (Maybe.map transformId id)
+
+        CustomError id err ->
+            CustomError (Maybe.map transformId id) err
+
+        HasNoName id ->
+            HasNoName (Maybe.map transformId id)
+
+        NoOptionsProvided id ->
+            NoOptionsProvided (Maybe.map transformId id)
+
+        PatternError id ->
+            PatternError (Maybe.map transformId id)
+
+        EmailInvalid id ->
+            EmailInvalid (Maybe.map transformId id)
+
+        ParseError id ->
+            ParseError (Maybe.map transformId id)
+
+        NotNumber id ->
+            NotNumber (Maybe.map transformId id)
+
+        NotBool id ->
+            NotBool (Maybe.map transformId id)
+
+        InputNotFound id ->
+            InputNotFound (transformId id)
+
+        ErrorList id errorList ->
+            ErrorList (Maybe.map transformId id) (List.map (mapError transformId) errorList)
+
+
+mapFieldType : (a -> b) -> (err1 -> err2) -> FieldType a err1 -> FieldType b err2
+mapFieldType func errToErr inputType_ =
+    case inputType_ of
+        Repeatable tree ->
+            Repeatable (Tree.mapValues (mapAttributes func errToErr (mapFieldType func errToErr)) tree)
+
+        Text ->
+            Text
+
+        TextArea ->
+            TextArea
+
+        Email ->
+            Email
+
+        Password ->
+            Password
+
+        StrictAutocomplete ->
+            StrictAutocomplete
+
+        Integer ->
+            Integer
+
+        Float ->
+            Float
+
+        Month ->
+            Month
+
+        Date ->
+            Date
+
+        LocalDatetime ->
+            LocalDatetime
+
+        Select ->
+            Select
+
+        Radio ->
+            Radio
+
+        Checkbox ->
+            Checkbox
+
+        Group ->
+            Group
