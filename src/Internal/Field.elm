@@ -7,7 +7,6 @@ module Internal.Field exposing (Attributes, FieldType(..), Status(..), mapAttrib
 -}
 
 import Array
-import Dict
 import Internal.Utils
 import Internal.Value exposing (Value)
 import RoseTree.Tree as Tree

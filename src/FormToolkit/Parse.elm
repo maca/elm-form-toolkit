@@ -1090,8 +1090,8 @@ treeValidationParser =
     Parser
         (\node ->
             let
-                updatedNode =
-                    Field.validate node
+                (Field updatedNode) =
+                    Field.validate (Field node)
             in
             case errors updatedNode of
                 [] ->

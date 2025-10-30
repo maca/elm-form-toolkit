@@ -15,7 +15,7 @@ module FormToolkit.Field exposing
     , updateAttribute, updateAttributes, updateWithId
     , updateValuesFromJson
     , map
-    , validate
+    , validate, touch
     )
 
 {-| Provides types and functions to create form fields of various types, set
@@ -64,7 +64,7 @@ their attributes, update, and render them.
 
 # Validation
 
-@docs validate
+@docs validate, touch
 
 -}
 
@@ -1057,7 +1057,7 @@ updateValuesFromJson jsonValue (Field field) =
                 )
                 (Ok field)
             )
-        |> Result.map (validate >> Field)
+        |> Result.map (validateTree >> Field)
 
 
 valueToPathLists : Encode.Value -> Result (Error id) (List ( String, String ))
@@ -1241,8 +1241,29 @@ isBlank input =
 
 {-| Check all contained inputs and display errors for failed validations.
 -}
-validate : Node id -> Node id
-validate =
+validate : Field id -> Field id
+validate (Field node) =
+    node |> validateTree |> Field
+
+
+{-| Mark all inputs as touched displaying errors for invalid fields.
+-}
+touch : Field id -> Field id
+touch (Field node) =
+    node
+        |> Tree.map (Tree.updateValue (\attrs -> { attrs | status = Touched }))
+        |> Field
+
+
+{-| Clear the form of all error messages.
+-}
+clearErrors : Node id -> Node id
+clearErrors =
+    Tree.updateValue (\attrs -> { attrs | errors = [] })
+
+
+validateTree : Node id -> Node id
+validateTree =
     Tree.map clearErrors >> validateTreeHelp
 
 
@@ -1263,13 +1284,8 @@ validateTreeHelp tree =
             Tree.children tree
 
          else
-            Tree.children tree |> List.map validate
+            Tree.children tree |> List.map validateTree
         )
-
-
-clearErrors : Node id -> Node id
-clearErrors =
-    Tree.updateValue (\attrs -> { attrs | errors = [] })
 
 
 validateNode : Node id -> Node id

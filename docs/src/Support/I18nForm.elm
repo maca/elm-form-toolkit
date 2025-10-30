@@ -87,22 +87,19 @@ update msg model =
                 ( shipmentFields, result ) =
                     Parse.parseUpdate shipmentParser inputMsg model.shipmentFields
             in
-            { model
-                | shipmentFields = shipmentFields
-                , result = Just result
+            { shipmentFields = shipmentFields
+            , submitted = False
+            , result = Just result
             }
 
         FormSubmitted ->
-            case Parse.parseValidate Parse.json model.shipmentFields of
-                ( updatedField, Ok jsonValue ) ->
-                    { model
-                        | shipmentFields = updatedField
-                        , submitted = True
-                        , result = Nothing
-                    }
-
-                ( updatedField, Err _ ) ->
-                    { model | shipmentFields = updatedField }
+            { model
+                | submitted = True
+                , shipmentFields =
+                    model.shipmentFields
+                        |> Field.validate
+                        |> Field.touch
+            }
 
 
 
@@ -264,7 +261,7 @@ view model =
                     success
                         [ Html.div
                             []
-                            [ Html.text "¡Formulario enviado exitosamente!" ]
+                            [ Html.text "¡El formulario fue correctamente llenado!" ]
                         , Html.div
                             []
                             [ Html.text
@@ -274,14 +271,7 @@ view model =
 
                 Just (Err error) ->
                     failure
-                        [ Html.text "Hay algunos errores:"
-                        , Html.ul []
-                            (Error.toList error
-                                |> List.map
-                                    (\e ->
-                                        Html.li [] [ Html.text (Debug.toString e) ]
-                                    )
-                            )
+                        [ Html.text "Por favor revise los errores"
                         ]
 
                 Nothing ->

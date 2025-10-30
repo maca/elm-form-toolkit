@@ -20,6 +20,7 @@ suite =
         , validationFocusBlurTests
         , conditionalRepeatableFieldTests
         , strictAutocompleteFieldTests
+        , validationTests
         ]
 
 
@@ -365,4 +366,45 @@ strictAutocompleteFieldTests =
                             >> Query.has [ attribute (Attrs.value "England") ]
                         , .result >> Expect.equal (Ok "England")
                         ]
+        ]
+
+
+validationTests : Test
+validationTests =
+    let
+        requiredFieldsForm =
+            Field.group []
+                [ Field.text
+                    [ Field.label "Name"
+                    , Field.name "name"
+                    , Field.required True
+                    ]
+                , Field.text
+                    [ Field.label "Email"
+                    , Field.name "email"
+                    , Field.required True
+                    ]
+                , Field.text
+                    [ Field.label "Phone"
+                    , Field.name "phone"
+                    , Field.required True
+                    ]
+                ]
+    in
+    describe "validation tests" <|
+        [ test "untouched required fields show no errors in DOM" <|
+            \_ ->
+                requiredFieldsForm
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Query.hasNot [ class "errors" ]
+        , test "after Field.validate errors are displayed for all required fields" <|
+            \_ ->
+                requiredFieldsForm
+                    |> Field.validate
+                    |> Field.touch
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Query.findAll [ class "errors" ]
+                    |> Query.count (Expect.equal 3)
         ]
