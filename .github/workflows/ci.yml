@@ -31,6 +31,7 @@ jobs:
           npm install -g elm@0.19.1-5
           npm install -g elm-test@0.19.1-revision12
           npm install -g elm-review@2.10.3
+          npm install -g elm-format@0.8.8
 
       - name: Run elm-test
         run: |
