@@ -33,7 +33,19 @@ jobs:
           npm install -g elm-review@2.10.3
 
       - name: Run elm-test
-        run: elm-test
+        run: |
+          cat > tests/DocumentationCodeSnippetTest.elm << 'EOF'
+          module DocumentationCodeSnippetTest exposing (tests)
+
+          import Test
+
+
+          tests : Test.Test
+          tests =
+              Test.describe "documentation code snippets" []
+          EOF
+          elm-review --rules Review.Documentation.CodeSnippet --fix-all-without-prompt
+          elm-test
 
       - name: Run elm-review
         run: elm-review
