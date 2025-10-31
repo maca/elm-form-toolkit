@@ -37,13 +37,17 @@ update msg book =
                     Demo.update demoMsg model.demo
             in
             ( { book | geocodingAutocomplete = { model | demo = demo } }
-            , Cmd.map (DemoUpdated >> Actions.updateStateWithCmdWith update) demoCmd
+            , Cmd.batch
+                [ Cmd.map (DemoUpdated >> Actions.updateStateWithCmdWith update) demoCmd
+                , Task.perform (Actions.logActionWithString "Demo")
+                    (Task.succeed "Interact to see results")
+                ]
             )
 
 
 chapter : Chapter (Book book)
 chapter =
-    Chapter.chapter "Geocoding Autocomplete"
+    Chapter.chapter "Autocomplete Demo - Geocoding"
         |> Chapter.withStatefulComponentList
             [ ( "Demo"
               , \book ->

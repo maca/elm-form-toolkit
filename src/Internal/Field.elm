@@ -141,7 +141,7 @@ inputStringToValue input str =
                 Internal.Value.fromNonBlankString str
 
             else
-                Internal.Value.Invalid str
+                Internal.Value.provisional str
 
         Email ->
             Internal.Value.fromNonBlankString str

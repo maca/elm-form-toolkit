@@ -23,7 +23,6 @@ float, boolean, date, month, time, or json.
 -}
 
 import Internal.Value as Internal
-import Json.Decode
 import String.Extra as String
 import Time exposing (Posix)
 

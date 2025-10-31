@@ -1,6 +1,7 @@
 module IntegrationTest exposing (suite)
 
 import Expect
+import FormToolkit.Error as Error
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
@@ -26,7 +27,6 @@ suite =
         , datetimeFieldTests
         , repeatableFieldsTests
         , validationFocusBlurTests
-        , conditionalRepeatableFieldTests
         , validationTests
         ]
 
@@ -229,13 +229,6 @@ strictAutocompleteFieldTests =
                             |> fillInput "language" "Español"
                 in
                 Expect.equal result (Ok "Español")
-        , test "errors with when no options are provided" <|
-            \_ ->
-                Field.strictAutocomplete []
-                    |> Field.toHtml (always never)
-                    |> Query.fromHtml
-                    |> Query.find [ class "errors" ]
-                    |> Query.has [ containing [ text "No options have been provided" ] ]
         , test "allows typing incomplete name and keeps value in HTML attribute but parsing fails" <|
             \_ ->
                 Interaction.init Parse.int autocompleteField
@@ -246,7 +239,7 @@ strictAutocompleteFieldTests =
                             >> Query.fromHtml
                             >> Query.find [ tag "input", attribute (Attrs.name "language") ]
                             >> Query.has [ attribute (Attrs.value "Esp") ]
-                        , .result >> Expect.err
+                        , .result >> Expect.equal (Err (Error.InvalidValue Nothing))
                         ]
         , test "correctly parses when entering a complete matching option" <|
             \_ ->
@@ -573,31 +566,175 @@ datetimeFieldTests =
 
 repeatableFieldsTests : Test
 repeatableFieldsTests =
-    test "repeatable inputs" <|
-        \_ ->
-            let
-                { result } =
-                    Interaction.init bandParser bandFields
-                        |> fillInput "band-name" "Love and Rockets"
-                        |> fillInput "member-name" "Daniel Ash"
-                        |> fillInput "member-age" "67"
-                        |> clickButton "Add"
-                        |> fillInputWithIndex 1 "member-name" "David J"
-                        |> fillInputWithIndex 1 "member-age" "67"
-                        |> clickButton "Add"
-                        |> fillInputWithIndex 2 "member-name" "Kevin Haskins"
-                        |> fillInputWithIndex 2 "member-age" "64"
-            in
-            Expect.equal result
-                (Ok
-                    { name = "Love and Rockets"
-                    , members =
-                        [ { name = "Daniel Ash", age = 67 }
-                        , { name = "David J", age = 67 }
-                        , { name = "Kevin Haskins", age = 64 }
+    describe "repeatable fields" <|
+        [ test "repeatable inputs" <|
+            \_ ->
+                let
+                    { result } =
+                        Interaction.init bandParser bandFields
+                            |> fillInput "band-name" "Love and Rockets"
+                            |> fillInput "member-name" "Daniel Ash"
+                            |> fillInput "member-age" "67"
+                            |> clickButton "Add"
+                            |> fillInputWithIndex 1 "member-name" "David J"
+                            |> fillInputWithIndex 1 "member-age" "67"
+                            |> clickButton "Add"
+                            |> fillInputWithIndex 2 "member-name" "Kevin Haskins"
+                            |> fillInputWithIndex 2 "member-age" "64"
+                in
+                Expect.equal result
+                    (Ok
+                        { name = "Love and Rockets"
+                        , members =
+                            [ { name = "Daniel Ash", age = 67 }
+                            , { name = "David J", age = 67 }
+                            , { name = "Kevin Haskins", age = 64 }
+                            ]
+                        }
+                    )
+        , test "when checkbox is checked, repeatable fields are shown and produce errors when empty" <|
+            \_ ->
+                let
+                    eventField =
+                        Field.group []
+                            [ Field.text
+                                [ Field.label "Event Name"
+                                , Field.identifier "event-name"
+                                , Field.name "event-name"
+                                , Field.required True
+                                ]
+                            , Field.checkbox
+                                [ Field.label "Notify Participants"
+                                , Field.identifier "notify-participants"
+                                , Field.name "notify-participants"
+                                , Field.value (Value.bool True)
+                                ]
+                            , Field.repeatable
+                                [ Field.label "Participants"
+                                , Field.repeatableMin 1
+                                , Field.identifier "participants"
+                                ]
+                                (Field.text
+                                    [ Field.required True
+                                    , Field.identifier "participant-name"
+                                    , Field.name "participant-name"
+                                    ]
+                                )
+                                []
+                            ]
+
+                    eventParser =
+                        Parse.map2
+                            (\participants name ->
+                                { name = name
+                                , participants = participants
+                                }
+                            )
+                            (Parse.field "notify-participants" Parse.bool
+                                |> Parse.andUpdate
+                                    (\field notify ->
+                                        ( Field.updateWithId "participants" (Field.hidden (not notify)) field
+                                        , if notify then
+                                            Parse.field "participants" (Parse.list Parse.string)
+
+                                          else
+                                            Parse.succeed []
+                                        )
+                                    )
+                            )
+                            (Parse.field "event-name" Parse.string)
+
+                    interaction =
+                        Interaction.init eventParser eventField
+                            |> fillInput "event-name" "Team Meeting"
+                            |> clickButton "Add Participants"
+                            |> check "notify-participants" True
+                            |> blur "participant-name"
+                in
+                interaction
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Should be provided" ] ]
+                        , .result
+                            >> Expect.err
                         ]
-                    }
-                )
+        , test "when checkbox is unchecked, repeatable fields are hidden and no errors are produced" <|
+            \_ ->
+                let
+                    eventField =
+                        Field.group []
+                            [ Field.text
+                                [ Field.label "Event Name"
+                                , Field.identifier "event-name"
+                                , Field.name "event-name"
+                                , Field.required True
+                                ]
+                            , Field.checkbox
+                                [ Field.label "Notify Participants"
+                                , Field.identifier "notify-participants"
+                                , Field.name "notify-participants"
+                                , Field.value (Value.bool True)
+                                ]
+                            , Field.repeatable
+                                [ Field.label "Participants"
+                                , Field.repeatableMin 1
+                                , Field.identifier "participants"
+                                ]
+                                (Field.text
+                                    [ Field.required True
+                                    , Field.identifier "participant-name"
+                                    , Field.name "participant-name"
+                                    ]
+                                )
+                                []
+                            ]
+
+                    eventParser =
+                        Parse.map2
+                            (\participants name ->
+                                { name = name
+                                , participants = participants
+                                }
+                            )
+                            (Parse.field "notify-participants" Parse.bool
+                                |> Parse.andUpdate
+                                    (\field notify ->
+                                        ( Field.updateWithId "participants" (Field.hidden (not notify)) field
+                                        , if notify then
+                                            Parse.field "participants" (Parse.list Parse.string)
+
+                                          else
+                                            Parse.succeed []
+                                        )
+                                    )
+                            )
+                            (Parse.field "event-name" Parse.string)
+
+                    interaction =
+                        Interaction.init eventParser eventField
+                            |> fillInput "event-name" "Team Meeting"
+                            |> clickButton "Add Participants"
+                            |> check "notify-participants" False
+                            |> blur "participant-name"
+                in
+                interaction
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.hasNot [ class "errors" ]
+                        , .result
+                            >> Expect.equal
+                                (Ok
+                                    { name = "Team Meeting"
+                                    , participants = []
+                                    }
+                                )
+                        ]
+        ]
 
 
 validationFocusBlurTests : Test
@@ -689,106 +826,6 @@ validationFocusBlurTests =
                             >> Field.toHtml (always never)
                             >> Query.fromHtml
                             >> Query.hasNot [ class "errors" ]
-                        ]
-        ]
-
-
-conditionalRepeatableFieldTests : Test
-conditionalRepeatableFieldTests =
-    let
-        eventField =
-            Field.group []
-                [ Field.text
-                    [ Field.label "Event Name"
-                    , Field.identifier "event-name"
-                    , Field.name "event-name"
-                    , Field.required True
-                    ]
-                , Field.checkbox
-                    [ Field.label "Notify Participants"
-                    , Field.identifier "notify-participants"
-                    , Field.name "notify-participants"
-                    , Field.value (Value.bool True)
-                    ]
-                , Field.repeatable
-                    [ Field.label "Participants"
-                    , Field.repeatableMin 1
-                    , Field.identifier "participants"
-                    ]
-                    (Field.text
-                        [ Field.required True
-                        , Field.identifier "participant-name"
-                        , Field.name "participant-name"
-                        ]
-                    )
-                    []
-                ]
-
-        eventParser =
-            Parse.map2
-                (\participants name ->
-                    { name = name
-                    , participants = participants
-                    }
-                )
-                (Parse.field "notify-participants" Parse.bool
-                    |> Parse.andUpdate
-                        (\field notify ->
-                            ( Field.updateWithId "participants" (Field.hidden (not notify)) field
-                            , if notify then
-                                Parse.field "participants" (Parse.list Parse.string)
-
-                              else
-                                Parse.succeed []
-                            )
-                        )
-                )
-                (Parse.field "event-name" Parse.string)
-    in
-    describe "conditional repeatable field with checkbox" <|
-        [ test "when checkbox is checked, repeatable fields are shown and produce errors when empty" <|
-            \_ ->
-                let
-                    interaction =
-                        Interaction.init eventParser eventField
-                            |> fillInput "event-name" "Team Meeting"
-                            |> clickButton "Add Participants"
-                            |> check "notify-participants" True
-                            |> blur "participant-name"
-                in
-                interaction
-                    |> Expect.all
-                        [ .field
-                            >> Field.toHtml (always never)
-                            >> Query.fromHtml
-                            >> Query.find [ class "errors" ]
-                            >> Query.has [ containing [ text "Should be provided" ] ]
-                        , .result
-                            >> Expect.err
-                        ]
-        , test "when checkbox is unchecked, repeatable fields are hidden and no errors are produced" <|
-            \_ ->
-                let
-                    interaction =
-                        Interaction.init eventParser eventField
-                            |> fillInput "event-name" "Team Meeting"
-                            |> clickButton "Add Participants"
-                            |> check "notify-participants" False
-                            |> blur "participant-name"
-                in
-                interaction
-                    |> Expect.all
-                        [ .field
-                            >> Field.toHtml (always never)
-                            >> Query.fromHtml
-                            >> Query.hasNot [ class "errors" ]
-                        , .result
-                            >> Expect.equal
-                                (Ok
-                                    { name = "Team Meeting"
-                                    , participants = []
-                                    }
-                                )
                         ]
         ]
 

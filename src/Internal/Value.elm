@@ -14,6 +14,7 @@ module Internal.Value exposing
     , isBlank
     , isInvalid
     , monthFromString
+    , provisional
     , timeFromString
     , toBool
     , toFloat
@@ -36,7 +37,7 @@ type Value
     | Date Posix
     | LocalTime Posix
     | Boolean Bool
-    | Invalid String
+    | Provisional String
     | Blank
 
 
@@ -68,7 +69,7 @@ toString value =
         Boolean False ->
             Nothing
 
-        Invalid str ->
+        Provisional str ->
             Just str
 
         Blank ->
@@ -258,8 +259,15 @@ isBlank value =
 isInvalid : Value -> Bool
 isInvalid value =
     case value of
-        Invalid _ ->
+        Provisional _ ->
             True
 
         _ ->
             False
+
+
+provisional : String -> Value
+provisional str =
+    String.Extra.nonBlank str
+        |> Maybe.map Provisional
+        |> Maybe.withDefault Blank

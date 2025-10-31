@@ -201,7 +201,15 @@ focus input =
 
 blur : Attributes id -> Attributes id
 blur input =
-    { input | status = Touched }
+    { input
+        | status = Touched
+
+        -- , value =
+        --     if Internal.Value.isInvalid input.value then
+        --         Internal.Value.blank
+        --     else
+        --         input.value
+    }
 
 
 {-| Renders the form.
@@ -553,9 +561,6 @@ init fieldType attributes =
             Field fieldWithMissingOptions
 
         ( Radio, [] ) ->
-            Field fieldWithMissingOptions
-
-        ( StrictAutocomplete, [] ) ->
             Field fieldWithMissingOptions
 
         _ ->
@@ -1280,7 +1285,8 @@ validateNode node =
     in
     List.foldl (<|)
         (clearErrors node)
-        [ checkRequired
+        [ checkInvalidValues
+        , checkRequired
         , ifNotRequired checkInRange
         , ifNotRequired checkEmail
         , ifNotRequired checkPattern
@@ -1291,6 +1297,22 @@ checkRequired : Node id -> Node id
 checkRequired node =
     if (Tree.value node).isRequired && isBlank node then
         setError IsBlank node
+
+    else
+        node
+
+
+checkInvalidValues : Node id -> Node id
+checkInvalidValues node =
+    let
+        attrs =
+            Tree.value node
+    in
+    if
+        Internal.Value.isInvalid attrs.value
+            && (attrs.status == Touched)
+    then
+        setError InvalidValue node
 
     else
         node

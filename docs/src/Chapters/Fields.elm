@@ -157,7 +157,7 @@ update msg book =
                 AutocompleteChanged fieldMsg ->
                     let
                         ( updatedField, result ) =
-                            Parse.parseUpdate Parse.string fieldMsg model.autocomplete
+                            Parse.parseUpdate Parse.int fieldMsg model.autocomplete
                     in
                     ( { model | autocomplete = updatedField }
                     , Task.perform (Actions.logActionWithString "Result")
@@ -579,20 +579,27 @@ Parsed using `Parse.string`.
 Strict autocomplete that only allows selection from predefined options.
 Use `Field.strictAutocomplete` instead of `Field.text`.
 
+
 ```elm
-autocompleteField : Field ()
-autocompleteField =
     Field.strictAutocomplete
         [ Field.label "Strict Autocomplete"
         , Field.placeholder "Choose from options"
-        , Field.stringOptions [ "Apple", "Banana", "Cherry", "Date" ]
+        , Field.options
+            [ ( "Apple", Value.int 1 )
+            , ( "Banana", Value.int 2 )
+            , ( "Cherry", Value.int 3 )
+            , ( "Date", Value.int 4 )
+            ]
         , Field.required True
         ]
 ```
 
 <component with-label="Autocomplete"/>
 
-Parsed using `Parse.string`.
+Parsed using `Parse.int`.
+
+For all fields accepting options, either `Field.stringOptions` or
+`Field.options` can be used.
 
 
 ### Integer
@@ -985,7 +992,12 @@ autocompleteField =
     Field.strictAutocomplete
         [ Field.label "Strict Autocomplete"
         , Field.placeholder "Choose from options"
-        , Field.stringOptions [ "Apple", "Banana", "Cherry", "Date" ]
+        , Field.options
+            [ ( "Apple", Value.int 1 )
+            , ( "Banana", Value.int 2 )
+            , ( "Cherry", Value.int 3 )
+            , ( "Date", Value.int 4 )
+            ]
         , Field.required True
         ]
 

@@ -154,7 +154,7 @@ fieldHelp id (Parser parser) =
 -}
 string : Parser id String
 string =
-    parseValue
+    parseValidValue
         (\id (Value val) ->
             if Internal.Value.isInvalid val then
                 Err (Error.InvalidValue id)
@@ -189,7 +189,7 @@ stringLenient =
 -}
 int : Parser id Int
 int =
-    parseValue
+    parseValidValue
         (\id val ->
             Value.toInt val
                 |> Result.fromMaybe (Error.NotNumber id)
@@ -208,7 +208,7 @@ int =
 -}
 float : Parser id Float
 float =
-    parseValue
+    parseValidValue
         (\id val ->
             Value.toFloat val
                 |> Result.fromMaybe (Error.NotNumber id)
@@ -227,7 +227,7 @@ float =
 -}
 bool : Parser id Bool
 bool =
-    parseValue
+    parseValidValue
         (\id val ->
             Value.toBool val
                 |> Result.fromMaybe (Error.NotBool id)
@@ -239,7 +239,7 @@ bool =
 -}
 posix : Parser id Time.Posix
 posix =
-    parseValue
+    parseValidValue
         (\id val ->
             Value.toPosix val
                 |> Result.fromMaybe (Error.ParseError id)
@@ -403,13 +403,13 @@ oneOfHelp parsers input accError =
 -}
 value : Parser id Value.Value
 value =
-    parseValue (always Ok)
+    parseValidValue (always Ok)
 
 
 {-| -}
 email : Parser id String
 email =
-    parseValue
+    parseValidValue
         (\id val ->
             Value.toString val
                 |> Result.fromMaybe (Error.ParseError id)
@@ -421,6 +421,18 @@ email =
                         else
                             Err (EmailInvalid id)
                     )
+        )
+
+
+parseValidValue : (Maybe id -> Value.Value -> Result (Error id) a) -> Parser id a
+parseValidValue func =
+    parseValue
+        (\id (Value val) ->
+            if Internal.Value.isInvalid val then
+                Err (InvalidValue id)
+
+            else
+                func id (Value val)
         )
 
 
