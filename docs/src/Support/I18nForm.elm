@@ -269,7 +269,7 @@ view model =
                             ]
                         ]
 
-                Just (Err error) ->
+                Just (Err _) ->
                     failure
                         [ Html.text "Por favor revise los errores"
                         ]

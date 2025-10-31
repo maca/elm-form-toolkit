@@ -92,7 +92,7 @@ update msg model =
 
         FormSubmitted ->
             case Parse.parseValidate Parse.json model.addressFields of
-                ( updatedField, Ok jsonValue ) ->
+                ( updatedField, Ok _ ) ->
                     { model
                         | addressFields = updatedField
                         , submitted = True

@@ -1,13 +1,11 @@
 module Support.AutocompleteGeocodingForm exposing (Model, Msg, init, main, update, view)
 
 import Browser
-import FormToolkit.Error as Error exposing (Error)
 import FormToolkit.Field as Field exposing (Field)
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Html exposing (Html)
-import Html.Attributes as Attr exposing (novalidate)
-import Html.Events exposing (onClick, onSubmit)
+import Html.Attributes as Attr
 import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -46,7 +44,7 @@ type alias SearchResult =
 
 type Msg
     = FormChanged (Field.Msg Never)
-    | GotSearchResults (Result Http.Error (List SearchResult))
+    | GotSearchResults String (Result Http.Error (List SearchResult))
 
 
 
@@ -79,9 +77,6 @@ update msg model =
     case msg of
         FormChanged fieldMsg ->
             let
-                _ =
-                    Debug.log "field msg" fieldMsg
-
                 ( updatedField, result ) =
                     Parse.parseUpdate Parse.string fieldMsg model.addressField
 
@@ -108,14 +103,21 @@ update msg model =
                     , Cmd.none
                     )
 
-        GotSearchResults results ->
+        GotSearchResults query results ->
             let
                 options =
                     results
                         |> Result.withDefault []
                         |> List.map
                             (\opt ->
-                                ( opt.displayName
+                                ( if
+                                    String.contains (String.toLower query)
+                                        (String.toLower opt.displayName)
+                                  then
+                                    opt.displayName
+
+                                  else
+                                    opt.displayName ++ " (" ++ query ++ ")"
                                 , Value.string (Encode.encode 2 opt.json)
                                 )
                             )
@@ -140,7 +142,9 @@ searchGeocode query =
         , headers = []
         , url = "https://photon.komoot.io/api?q=" ++ Url.percentEncode query ++ "&limit=5"
         , body = Http.emptyBody
-        , expect = Http.expectJson GotSearchResults searchResultsDecoder
+        , expect =
+            Http.expectJson (GotSearchResults query)
+                searchResultsDecoder
         , timeout = Nothing
         , tracker = Just "geocode-autocomplete"
         }
