@@ -714,10 +714,34 @@ visibleErrors input =
             params.errors
 
         ( Pristine, _ ) ->
-            []
+            params.errors
+                |> List.filter
+                    (\err ->
+                        case err of
+                            NoOptionsProvided _ ->
+                                True
+
+                            _ ->
+                                False
+                    )
 
         ( Editing, _ ) ->
-            []
+            params.errors
+                |> List.filter
+                    (\err ->
+                        case err of
+                            IsBlank _ ->
+                                False
+
+                            PatternError _ ->
+                                False
+
+                            InvalidValue _ ->
+                                False
+
+                            _ ->
+                                True
+                    )
 
         ( Touched, _ ) ->
             params.errors

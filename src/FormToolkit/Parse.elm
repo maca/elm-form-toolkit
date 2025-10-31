@@ -51,6 +51,8 @@ import RoseTree.Tree as Tree
 import Time
 
 
+{-| Look away ;)
+-}
 type alias Attributes id =
     Internal.Field.Attributes id (FieldType id Internal.Value.Value (List (Error id))) Internal.Value.Value Status (List (Error id))
 

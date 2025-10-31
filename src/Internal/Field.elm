@@ -137,9 +137,11 @@ inputStringToValue input str =
             Internal.Value.fromNonBlankString str
 
         StrictAutocomplete ->
-            Dict.fromList attrs.options
-                |> Dict.get str
-                |> Maybe.withDefault (Internal.Value.Invalid str)
+            if Dict.fromList attrs.options |> Dict.member str then
+                Internal.Value.fromNonBlankString str
+
+            else
+                Internal.Value.Invalid str
 
         Email ->
             Internal.Value.fromNonBlankString str

@@ -4,23 +4,455 @@ import Expect
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
-import Html.Attributes as Attrs
+import Html.Attributes as Attrs exposing (for, name, required)
+import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
+import Test.Html.Event as Event
 import Test.Html.Query as Query
-import Test.Html.Selector exposing (attribute, class, containing, tag, text)
+import Test.Html.Selector exposing (attribute, class, containing, id, tag, text)
 import Time
 
 
 suite : Test
 suite =
     describe "Integration Tests"
-        [ dateFieldTests
+        [ stringFieldTests
+        , strictAutocompleteFieldTests
+        , checkboxFieldTests
+        , selectFieldTests
+        , radioFieldTests
+        , dateFieldTests
         , datetimeFieldTests
+        , repeatableFieldsTests
         , validationFocusBlurTests
         , conditionalRepeatableFieldTests
-        , strictAutocompleteFieldTests
         , validationTests
+        ]
+
+
+stringFieldTests : Test
+stringFieldTests =
+    describe "string field" <|
+        [ test "label and hint" <|
+            \_ ->
+                stringInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.find [ tag "input" ]
+                            >> Query.has
+                                [ attribute
+                                    (Attrs.attribute "aria-describedby" "string-field-hint")
+                                , attribute (Attrs.placeholder "String value")
+                                ]
+                        , Query.find [ tag "label" ]
+                            >> Query.has
+                                [ text "Enter your string"
+                                , id "string-field-label"
+                                , attribute (for "string-field")
+                                ]
+                        , Query.find [ id "string-field-hint" ]
+                            >> Query.has [ text "Must be a string" ]
+                        ]
+        , test "class" <|
+            \_ ->
+                stringInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.has
+                            [ class "field"
+                            , class "styled-string-field"
+                            ]
+                        ]
+        , test "validation feedback" <|
+            \_ ->
+                let
+                    { field } =
+                        Interaction.init Parse.string blankInput
+                            |> blur "blank-field"
+                in
+                field
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.has [ class "required" ]
+                        , Query.has
+                            [ containing
+                                [ tag "input"
+                                , attribute (Attrs.attribute "aria-invalid" "true")
+                                ]
+                            ]
+                        , Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Should be provided" ] ]
+                        ]
+        , test "datalist options" <|
+            \_ ->
+                stringInputWithOptions
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.has
+                            [ attribute (Attrs.attribute "list" "string-field-datalist")
+                            , attribute (Attrs.attribute "autocomplete" "on")
+                            ]
+                        , Query.find [ tag "datalist" ]
+                            >> Expect.all
+                                [ Query.has
+                                    [ id "string-field-datalist"
+                                    , attribute (Attrs.attribute "role" "listbox")
+                                    ]
+                                , Query.has
+                                    [ containing
+                                        [ tag "option"
+                                        , attribute (Attrs.attribute "value" "red")
+                                        ]
+                                    ]
+                                , Query.has
+                                    [ containing
+                                        [ tag "option"
+                                        , attribute (Attrs.attribute "value" "green")
+                                        ]
+                                    ]
+                                , Query.has
+                                    [ containing
+                                        [ tag "option"
+                                        , attribute (Attrs.attribute "value" "blue")
+                                        ]
+                                    ]
+                                ]
+                        ]
+        , test "text field with options parses to int value when matching option" <|
+            \_ ->
+                let
+                    textFieldWithOptions =
+                        Field.text
+                            [ Field.name "color"
+                            , Field.options
+                                [ ( "Red", Value.int 1 )
+                                , ( "Green", Value.int 2 )
+                                , ( "Blue", Value.int 3 )
+                                ]
+                            ]
+                in
+                Interaction.init Parse.int textFieldWithOptions
+                    |> fillInput "color" "Green"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "color") ]
+                            >> Query.has [ attribute (Attrs.value "Green") ]
+                        , .result >> Expect.equal (Ok 2)
+                        ]
+        , test "text field with options fails to parse int when value doesn't match option" <|
+            \_ ->
+                let
+                    textFieldWithOptions =
+                        Field.text
+                            [ Field.name "color"
+                            , Field.options
+                                [ ( "Red", Value.int 1 )
+                                , ( "Green", Value.int 2 )
+                                , ( "Blue", Value.int 3 )
+                                ]
+                            ]
+                in
+                Interaction.init Parse.int textFieldWithOptions
+                    |> fillInput "color" "Purple"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "color") ]
+                            >> Query.has [ attribute (Attrs.value "Purple") ]
+                        , .result >> Expect.err
+                        ]
+        , test "text field with options parses to string value when not matching option" <|
+            \_ ->
+                let
+                    textFieldWithOptions =
+                        Field.text
+                            [ Field.name "color"
+                            , Field.options
+                                [ ( "Red", Value.int 1 )
+                                , ( "Green", Value.int 2 )
+                                , ( "Blue", Value.int 3 )
+                                ]
+                            ]
+                in
+                Interaction.init Parse.string textFieldWithOptions
+                    |> fillInput "color" "Purple"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "color") ]
+                            >> Query.has [ attribute (Attrs.value "Purple") ]
+                        , .result >> Expect.equal (Ok "Purple")
+                        ]
+        ]
+
+
+strictAutocompleteFieldTests : Test
+strictAutocompleteFieldTests =
+    let
+        autocompleteField =
+            Field.strictAutocomplete
+                [ Field.label "Language"
+                , Field.name "language"
+                , Field.options
+                    [ ( "Español", Value.int 1 )
+                    , ( "English", Value.int 2 )
+                    , ( "Deutsch", Value.int 3 )
+                    ]
+                ]
+
+        stringAutocompleteField =
+            Field.strictAutocomplete
+                [ Field.label "Country"
+                , Field.name "country"
+                , Field.stringOptions [ "España", "England", "Deutschland" ]
+                ]
+    in
+    describe "strict autocomplete" <|
+        [ test "sets value" <|
+            \_ ->
+                let
+                    { result } =
+                        Field.strictAutocomplete
+                            [ Field.name "language"
+                            , Field.stringOptions [ "Español", "English", "Deutsch" ]
+                            ]
+                            |> Interaction.init Parse.string
+                            |> fillInput "language" "Español"
+                in
+                Expect.equal result (Ok "Español")
+        , test "errors with when no options are provided" <|
+            \_ ->
+                Field.strictAutocomplete []
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Query.find [ class "errors" ]
+                    |> Query.has [ containing [ text "No options have been provided" ] ]
+        , test "allows typing incomplete name and keeps value in HTML attribute but parsing fails" <|
+            \_ ->
+                Interaction.init Parse.int autocompleteField
+                    |> fillInput "language" "Esp"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "language") ]
+                            >> Query.has [ attribute (Attrs.value "Esp") ]
+                        , .result >> Expect.err
+                        ]
+        , test "correctly parses when entering a complete matching option" <|
+            \_ ->
+                Interaction.init Parse.int autocompleteField
+                    |> fillInput "language" "English"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "language") ]
+                            >> Query.has [ attribute (Attrs.value "English") ]
+                        , .result >> Expect.equal (Ok 2)
+                        ]
+        , test "correctly parses string value when using stringOptions" <|
+            \_ ->
+                Interaction.init Parse.string stringAutocompleteField
+                    |> fillInput "country" "England"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "country") ]
+                            >> Query.has [ attribute (Attrs.value "England") ]
+                        , .result >> Expect.equal (Ok "England")
+                        ]
+        ]
+
+
+checkboxFieldTests : Test
+checkboxFieldTests =
+    describe "checkbox" <|
+        [ test "label references input" <|
+            \_ ->
+                checkboxInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.find [ tag "input" ]
+                            >> Query.has
+                                [ attribute
+                                    (Attrs.attribute "aria-describedby" "checkbox-hint")
+                                ]
+                        , Query.find [ tag "label" ]
+                            >> Query.has
+                                [ text "Accept"
+                                , id "checkbox-label"
+                                , attribute (for "checkbox")
+                                ]
+                        , Query.find [ id "checkbox-hint" ]
+                            >> Query.has [ text "You have to check the box" ]
+                        ]
+        ]
+
+
+selectFieldTests : Test
+selectFieldTests =
+    describe "select" <|
+        [ test "label references input" <|
+            \_ ->
+                selectInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.find [ tag "label" ]
+                            >> Query.has [ text "Language" ]
+                        , Query.find [ tag "label" ]
+                            >> Query.has [ attribute (for "select") ]
+                        , Query.find [ tag "select" ]
+                            >> Query.has
+                                [ attribute (Attrs.attribute "aria-labelledby" "select-label") ]
+                        , Query.find [ tag "select" ]
+                            >> Query.has
+                                [ attribute (Attrs.attribute "aria-describedby" "select-hint") ]
+                        , Query.find [ tag "select" ]
+                            >> Query.hasNot
+                                [ attribute (Attrs.attribute "aria-invalid" "true") ]
+                        , Query.has [ class "required" ]
+                        ]
+        , test "options" <|
+            \_ ->
+                selectInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.find [ tag "option", containing [ text "Español" ] ]
+                            >> Query.has [ tag "option" ]
+                        , Query.find [ tag "option", containing [ text "English" ] ]
+                            >> Query.has [ tag "option" ]
+                        , Query.find [ tag "option", containing [ text "Deutsch" ] ]
+                            >> Query.has [ tag "option" ]
+                        ]
+        , test "has errors if no options are provided" <|
+            \_ ->
+                Field.select []
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Query.find [ class "errors" ]
+                    |> Query.has [ containing [ text "No options have been provided" ] ]
+        , test "shows validation feedback" <|
+            \_ ->
+                let
+                    { field } =
+                        Interaction.init Parse.string selectInput
+                            |> blur "select"
+                in
+                field
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.has [ class "required" ]
+                        , Query.find [ tag "select" ]
+                            >> Query.has
+                                [ attribute (Attrs.attribute "aria-invalid" "true") ]
+                        , Query.find [ class "errors" ]
+                            >> Query.has [ containing [ text "Should be provided" ] ]
+                        ]
+        ]
+
+
+radioFieldTests : Test
+radioFieldTests =
+    describe "radio" <|
+        [ test "has labeled radiogroup" <|
+            \_ ->
+                radioInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.find
+                            [ tag "label"
+                            , attribute (Attrs.for "radio-inputs")
+                            , id "radio-inputs-label"
+                            ]
+                            >> Query.has [ text "Radio inputs" ]
+                        , Query.find [ attribute (Attrs.attribute "role" "radiogroup") ]
+                            >> Query.has
+                                [ attribute
+                                    (Attrs.attribute "aria-labelledby" "radio-inputs-label")
+                                , attribute
+                                    (Attrs.attribute "aria-describedby" "radio-inputs-hint")
+                                ]
+                        , Query.find [ id "radio-inputs-hint" ]
+                            >> Query.has [ text "Turn the light on or off" ]
+                        ]
+        , test "has options described by hint" <|
+            \_ ->
+                radioInput
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.find [ id "radio-inputs-hint" ]
+                            >> Query.has [ text "Turn the light on or off" ]
+                        , Query.find [ tag "input", id "radio-inputs-0-option" ]
+                            >> Query.has
+                                [ attribute (name "radio-inputs")
+                                , attribute (required True)
+                                ]
+                        , Query.find
+                            [ tag "label"
+                            , attribute (Attrs.for "radio-inputs-0-option")
+                            ]
+                            >> Query.has [ text "On" ]
+                        , Query.find [ tag "input", id "radio-inputs-1-option" ]
+                            >> Query.has
+                                [ attribute (name "radio-inputs")
+                                , attribute (required True)
+                                ]
+                        , Query.find
+                            [ tag "label"
+                            , attribute (Attrs.for "radio-inputs-1-option")
+                            ]
+                            >> Query.has [ text "Off" ]
+                        ]
+        , test "has errors if no options are provided" <|
+            \_ ->
+                Field.radio []
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Query.find [ class "errors" ]
+                    |> Query.has [ containing [ text "No options have been provided" ] ]
+        , test "has invalid options and errors after failed validation" <|
+            \_ ->
+                let
+                    { field } =
+                        Interaction.init Parse.bool radioInput
+                            |> interact
+                                (Query.find [ id "radio-inputs-1-option" ])
+                                Event.blur
+                in
+                field
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.find [ tag "input", id "radio-inputs-0-option" ]
+                            >> Query.has
+                                [ attribute (name "radio-inputs")
+                                , attribute (required True)
+                                , attribute (Attrs.attribute "aria-invalid" "true")
+                                ]
+                        , Query.find [ tag "input", id "radio-inputs-1-option" ]
+                            >> Query.has
+                                [ attribute (name "radio-inputs")
+                                , attribute (required True)
+                                , attribute (Attrs.attribute "aria-invalid" "true")
+                                ]
+                        ]
         ]
 
 
@@ -113,6 +545,35 @@ datetimeFieldTests =
                     |> Query.find [ tag "input" ]
                     |> Query.has [ attribute (Attrs.attribute "value" "2024-01-01T12:00:00.000") ]
         ]
+
+
+repeatableFieldsTests : Test
+repeatableFieldsTests =
+    test "repeatable inputs" <|
+        \_ ->
+            let
+                { result } =
+                    Interaction.init bandParser bandFields
+                        |> fillInput "band-name" "Love and Rockets"
+                        |> fillInput "member-name" "Daniel Ash"
+                        |> fillInput "member-age" "67"
+                        |> clickButton "Add"
+                        |> fillInputWithIndex 1 "member-name" "David J"
+                        |> fillInputWithIndex 1 "member-age" "67"
+                        |> clickButton "Add"
+                        |> fillInputWithIndex 2 "member-name" "Kevin Haskins"
+                        |> fillInputWithIndex 2 "member-age" "64"
+            in
+            Expect.equal result
+                (Ok
+                    { name = "Love and Rockets"
+                    , members =
+                        [ { name = "Daniel Ash", age = 67 }
+                        , { name = "David J", age = 67 }
+                        , { name = "Kevin Haskins", age = 64 }
+                        ]
+                    }
+                )
 
 
 validationFocusBlurTests : Test
@@ -304,67 +765,6 @@ conditionalRepeatableFieldTests =
                                     , participants = []
                                     }
                                 )
-                        ]
-        ]
-
-
-strictAutocompleteFieldTests : Test
-strictAutocompleteFieldTests =
-    let
-        autocompleteField =
-            Field.strictAutocomplete
-                [ Field.label "Language"
-                , Field.name "language"
-                , Field.options
-                    [ ( "Español", Value.int 1 )
-                    , ( "English", Value.int 2 )
-                    , ( "Deutsch", Value.int 3 )
-                    ]
-                ]
-
-        stringAutocompleteField =
-            Field.strictAutocomplete
-                [ Field.label "Country"
-                , Field.name "country"
-                , Field.stringOptions [ "España", "England", "Deutschland" ]
-                ]
-    in
-    describe "strict autocomplete field integration" <|
-        [ test "allows typing incomplete name and keeps value in HTML attribute but parsing fails" <|
-            \_ ->
-                Interaction.init Parse.int autocompleteField
-                    |> fillInput "language" "Esp"
-                    |> Expect.all
-                        [ .field
-                            >> Field.toHtml (always never)
-                            >> Query.fromHtml
-                            >> Query.find [ tag "input", attribute (Attrs.name "language") ]
-                            >> Query.has [ attribute (Attrs.value "Esp") ]
-                        , .result >> Expect.err
-                        ]
-        , test "correctly parses when entering a complete matching option" <|
-            \_ ->
-                Interaction.init Parse.int autocompleteField
-                    |> fillInput "language" "English"
-                    |> Expect.all
-                        [ .field
-                            >> Field.toHtml (always never)
-                            >> Query.fromHtml
-                            >> Query.find [ tag "input", attribute (Attrs.name "language") ]
-                            >> Query.has [ attribute (Attrs.value "English") ]
-                        , .result >> Expect.equal (Ok 2)
-                        ]
-        , test "correctly parses string value when using stringOptions" <|
-            \_ ->
-                Interaction.init Parse.string stringAutocompleteField
-                    |> fillInput "country" "England"
-                    |> Expect.all
-                        [ .field
-                            >> Field.toHtml (always never)
-                            >> Query.fromHtml
-                            >> Query.find [ tag "input", attribute (Attrs.name "country") ]
-                            >> Query.has [ attribute (Attrs.value "England") ]
-                        , .result >> Expect.equal (Ok "England")
                         ]
         ]
 
