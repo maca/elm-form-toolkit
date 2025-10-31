@@ -1280,8 +1280,7 @@ validateNode node =
     in
     List.foldl (<|)
         (clearErrors node)
-        [ checkInvalidValues
-        , checkRequired
+        [ checkRequired
         , ifNotRequired checkInRange
         , ifNotRequired checkEmail
         , ifNotRequired checkPattern
@@ -1292,19 +1291,6 @@ checkRequired : Node id -> Node id
 checkRequired node =
     if (Tree.value node).isRequired && isBlank node then
         setError IsBlank node
-
-    else
-        node
-
-
-checkInvalidValues : Node id -> Node id
-checkInvalidValues node =
-    let
-        attrs =
-            Tree.value node
-    in
-    if Internal.Value.isInvalid attrs.value then
-        setError InvalidValue node
 
     else
         node

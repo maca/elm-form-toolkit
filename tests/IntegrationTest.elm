@@ -272,6 +272,30 @@ strictAutocompleteFieldTests =
                             >> Query.has [ attribute (Attrs.value "England") ]
                         , .result >> Expect.equal (Ok "England")
                         ]
+        , test "Parse.stringLenient succeeds when text doesn't match any option" <|
+            \_ ->
+                Interaction.init Parse.stringLenient stringAutocompleteField
+                    |> fillInput "country" "France"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "country") ]
+                            >> Query.has [ attribute (Attrs.value "France") ]
+                        , .result >> Expect.equal (Ok "France")
+                        ]
+        , test "Parse.stringLenient also works when text matches option" <|
+            \_ ->
+                Interaction.init Parse.stringLenient stringAutocompleteField
+                    |> fillInput "country" "England"
+                    |> Expect.all
+                        [ .field
+                            >> Field.toHtml (always never)
+                            >> Query.fromHtml
+                            >> Query.find [ tag "input", attribute (Attrs.name "country") ]
+                            >> Query.has [ attribute (Attrs.value "England") ]
+                        , .result >> Expect.equal (Ok "England")
+                        ]
         ]
 
 

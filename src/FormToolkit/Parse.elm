@@ -2,7 +2,7 @@ module FormToolkit.Parse exposing
     ( Parser, parse, parseUpdate, parseValidate
     , field
     , string, int, float, bool, posix, maybe, list, oneOf
-    , formattedString, email
+    , stringLenient, formattedString, email
     , value, json
     , succeed, fail
     , map, map2, map3, map4, map5, map6, map7, map8
@@ -20,7 +20,7 @@ know `Json.Decode` you know how to use this module ;)
 
 @docs field
 @docs string, int, float, bool, posix, maybe, list, oneOf
-@docs formattedString, email
+@docs stringLenient, formattedString, email
 @docs value, json
 @docs succeed, fail
 
@@ -40,7 +40,7 @@ know `Json.Decode` you know how to use this module ;)
 import Dict
 import FormToolkit.Error as Error exposing (Error(..))
 import FormToolkit.Field as Field exposing (Field(..), Msg)
-import FormToolkit.Value as Value
+import FormToolkit.Value as Value exposing (Value(..))
 import Internal.Field exposing (FieldType(..), Status(..))
 import Internal.Utils as Utils
 import Internal.Value
@@ -154,6 +154,22 @@ fieldHelp id (Parser parser) =
 -}
 string : Parser id String
 string =
+    parseValue
+        (\id (Value val) ->
+            if Internal.Value.isInvalid val then
+                Err (Error.InvalidValue id)
+
+            else
+                Value.toString (Value val)
+                    |> Result.fromMaybe (Error.ParseError id)
+        )
+
+
+{-| Parses the input value as a `String` for strictAutocomplete, even when
+the text doesn't match an option.
+-}
+stringLenient : Parser id String
+stringLenient =
     parseValue
         (\id val ->
             Value.toString val
