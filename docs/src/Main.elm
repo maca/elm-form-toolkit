@@ -2,6 +2,7 @@ module Main exposing (main)
 
 import Chapters.Customization as Customization
 import Chapters.Fields as Fields
+import Chapters.GeocodingAutocomplete as GeocodingAutocomplete
 import Chapters.GettingStarted as GettingStarted
 import Chapters.Internationalization as Internationalization
 import Chapters.ParsingCookbook as ParsingCookbook
@@ -16,6 +17,7 @@ type alias Model =
     , fields : Fields.Model
     , parsingCookbook : ParsingCookbook.Model
     , parsingToJson : ParsingToJson.Model
+    , geocodingAutocomplete : GeocodingAutocomplete.Model
     , customization : Customization.Model
     , internationalization : Internationalization.Model
     }
@@ -27,6 +29,7 @@ init =
     , fields = Fields.init
     , parsingCookbook = ParsingCookbook.init
     , parsingToJson = ParsingToJson.init
+    , geocodingAutocomplete = GeocodingAutocomplete.init
     , customization = Customization.init
     , internationalization = Internationalization.init
     }
@@ -44,6 +47,7 @@ main =
                 , Fields.chapter
                 , ParsingCookbook.chapter
                 , ParsingToJson.chapter
+                , GeocodingAutocomplete.chapter
                 , Customization.chapter
                 , Internationalization.chapter
                 ]
