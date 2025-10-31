@@ -16,6 +16,7 @@ import RoseTree.Tree as Tree
 type Status
     = Pristine
     | Focused
+    | Editing
     | Touched
 
 

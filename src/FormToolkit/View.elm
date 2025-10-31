@@ -60,6 +60,7 @@ type FieldType
 type Status
     = Pristine
     | Focused
+    | Editing
     | Touched
 
 
@@ -520,6 +521,9 @@ mapStatus status =
 
         Internal.Field.Focused ->
             Focused
+
+        Internal.Field.Editing ->
+            Editing
 
         Internal.Field.Touched ->
             Touched

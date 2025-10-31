@@ -135,6 +135,7 @@ update msg (Field field) =
                             { attrs
                                 | value = val
                                 , errors = []
+                                , status = Editing
                                 , selectionStart = selection.selectionStart
                                 , selectionEnd = selection.selectionEnd
                             }

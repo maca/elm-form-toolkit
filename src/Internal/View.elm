@@ -141,8 +141,8 @@ toHtml view =
         attrs =
             Tree.value view.root
 
-        wrapInput : (List (Html.Attribute msg) -> Html msg) -> Html msg
-        wrapInput inputHtml =
+        fieldView_ : (List (Html.Attribute msg) -> Html msg) -> Html msg
+        fieldView_ inputHtml =
             view.fieldView
                 { labelHtml = labelToHtml attrs.label view.path view.root
                 , inputHtml = inputHtml
@@ -176,42 +176,42 @@ toHtml view =
             repeatableToHtml view
 
         ( False, Text ) ->
-            wrapInput (inputToHtml view "text" [])
+            fieldView_ (inputToHtml view "text" [])
 
         ( False, StrictAutocomplete ) ->
-            wrapInput (inputToHtml view "text" [])
+            fieldView_ (inputToHtml view "text" [])
 
         ( False, Email ) ->
-            wrapInput (inputToHtml view "email" [])
+            fieldView_ (inputToHtml view "email" [])
 
         ( False, Password ) ->
-            wrapInput (inputToHtml view "password" [])
+            fieldView_ (inputToHtml view "password" [])
 
         ( False, TextArea ) ->
-            wrapInput (textAreaToHtml view)
+            fieldView_ (textAreaToHtml view)
 
         ( False, Integer ) ->
             inputToHtml view "number" [ valueAttribute Attributes.step (Tree.value view.root).step ]
-                |> wrapInput
+                |> fieldView_
 
         ( False, Float ) ->
             inputToHtml view "number" [ valueAttribute Attributes.step (Tree.value view.root).step ]
-                |> wrapInput
+                |> fieldView_
 
         ( False, Date ) ->
-            wrapInput (inputToHtml view "date" [])
+            fieldView_ (inputToHtml view "date" [])
 
         ( False, Month ) ->
-            wrapInput (inputToHtml view "month" [])
+            fieldView_ (inputToHtml view "month" [])
 
         ( False, LocalDatetime ) ->
-            wrapInput (inputToHtml view "datetime-local" [])
+            fieldView_ (inputToHtml view "datetime-local" [])
 
         ( False, Select ) ->
-            wrapInput (selectToHtml view)
+            fieldView_ (selectToHtml view)
 
         ( False, Radio ) ->
-            wrapInput (radioToHtml view)
+            fieldView_ (radioToHtml view)
 
         ( False, Checkbox ) ->
             checkboxToHtml view
@@ -707,27 +707,27 @@ visibleErrors input =
             Tree.value input
     in
     case ( params.status, params.fieldType ) of
-        ( Touched, _ ) ->
-            params.errors
-
         ( _, Repeatable _ ) ->
             params.errors
 
         ( _, Group ) ->
             params.errors
 
-        _ ->
+        ( Pristine, _ ) ->
+            []
+
+        ( Editing, _ ) ->
+            []
+
+        ( Touched, _ ) ->
+            params.errors
+
+        ( Focused, _ ) ->
             params.errors
                 |> List.filter
                     (\err ->
                         case err of
                             IsBlank _ ->
-                                False
-
-                            InvalidValue _ ->
-                                False
-
-                            PatternError _ ->
                                 False
 
                             _ ->
@@ -783,15 +783,8 @@ repeatableFieldView { field, removeFieldsButton, class } =
 
 
 fieldView : FieldView id msg -> Html msg
-fieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } =
-    Html.div
-        [ Attributes.class "field"
-        , Attributes.classList
-            [ ( "required", attributes.isRequired )
-            , ( "with-errors", not (List.isEmpty errors) )
-            ]
-        , Attributes.class class
-        ]
+fieldView ({ labelHtml, inputHtml, errors, hintHtml } as params) =
+    inputWrapper params
         [ labelHtml []
         , Html.div
             [ Attributes.class "input-wrapper" ]
@@ -805,8 +798,8 @@ fieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } =
         ]
 
 
-checkboxFieldView : FieldView id msg -> Html msg
-checkboxFieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } =
+inputWrapper : FieldView id msg -> List (Html msg) -> Html msg
+inputWrapper { attributes, errors, class } =
     Html.div
         [ Attributes.class "field"
         , Attributes.classList
@@ -814,7 +807,13 @@ checkboxFieldView { attributes, labelHtml, inputHtml, errors, hintHtml, class } 
             , ( "with-errors", not (List.isEmpty errors) )
             ]
         , Attributes.class class
+        , Attributes.class (statusToString attributes.status)
         ]
+
+
+checkboxFieldView : FieldView id msg -> Html msg
+checkboxFieldView ({ labelHtml, inputHtml, errors, hintHtml } as params) =
+    inputWrapper params
         [ Html.div
             [ Attributes.class "input-wrapper" ]
             [ inputHtml []
@@ -959,6 +958,22 @@ fieldTypeToString type_ =
 
         Group ->
             "group"
+
+
+statusToString : Status -> String
+statusToString status =
+    case status of
+        Pristine ->
+            "status-pristine"
+
+        Focused ->
+            "status-focused"
+
+        Editing ->
+            "status-editing"
+
+        Touched ->
+            "status-touched"
 
 
 isAutocompleteable : Node id -> Bool
