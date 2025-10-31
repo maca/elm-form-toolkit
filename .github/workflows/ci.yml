@@ -95,3 +95,46 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify CDN dependencies and API endpoints
+        run: |
+          echo "Checking CDN dependencies..."
+
+          # Google Fonts
+          curl -f -s -o /dev/null -w "Google Fonts CSS: %{http_code}\n" \
+            "https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic" || exit 1
+
+          # Leaflet CSS
+          curl -f -s -o /dev/null -w "Leaflet CSS: %{http_code}\n" \
+            "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" || exit 1
+
+          # Leaflet JS
+          curl -f -s -o /dev/null -w "Leaflet JS: %{http_code}\n" \
+            "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" || exit 1
+
+          # Choices.js CSS
+          curl -f -s -o /dev/null -w "Choices.js CSS: %{http_code}\n" \
+            "https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" || exit 1
+
+          # Choices.js JS
+          curl -f -s -o /dev/null -w "Choices.js JS: %{http_code}\n" \
+            "https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" || exit 1
+
+          # OpenStreetMap tile server (check one sample tile)
+          curl -f -s -o /dev/null -w "OpenStreetMap Tiles: %{http_code}\n" \
+            "https://a.tile.openstreetmap.org/0/0/0.png" || exit 1
+
+          echo ""
+          echo "Checking API endpoints..."
+
+          # Nominatim reverse geocoding API
+          curl -f -s -o /dev/null -w "Nominatim API: %{http_code}\n" \
+            -H "User-Agent: ElmFormToolkitDemo" \
+            "https://nominatim.openstreetmap.org/reverse?format=json&lat=19.4326&lon=-99.1332&addressdetails=1" || exit 1
+
+          # Photon geocoding API
+          curl -f -s -o /dev/null -w "Photon API: %{http_code}\n" \
+            "https://photon.komoot.io/api?q=London&limit=5" || exit 1
+
+          echo ""
+          echo "All dependencies and API endpoints are responding correctly!"
