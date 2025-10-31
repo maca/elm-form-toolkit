@@ -115,7 +115,7 @@ demoParser : Parse.Parser DemoFields Demo
 demoParser =
     Parse.map3 Demo
         (Parse.field AddressMap
-            (Parse.maybe (Parse.json |> Parse.map (Encode.encode 2)))
+            (Parse.maybe Parse.string)
         )
         (Parse.field TagsSelector (Parse.maybe Parse.string))
         (Parse.field ToggleSwitch Parse.bool)
@@ -164,7 +164,7 @@ viewCustomFields field =
                                             |> Decode.map
                                                 (\jsonValue ->
                                                     inputOnChange
-                                                        (Value.json jsonValue)
+                                                        (Value.string (Encode.encode 2 jsonValue))
                                                         { selectionStart = 0, selectionEnd = 0 }
                                                 )
                                         )

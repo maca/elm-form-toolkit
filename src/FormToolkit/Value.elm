@@ -1,6 +1,6 @@
 module FormToolkit.Value exposing
     ( Value(..)
-    , string, int, float, bool, blank, json
+    , string, int, float, bool, blank
     , date, month, time
     , toString, toBool, toFloat, toInt, toPosix
     )
@@ -12,7 +12,7 @@ float, boolean, date, month, time, or json.
 # Init
 
 @docs Value
-@docs string, int, float, bool, blank, json
+@docs string, int, float, bool, blank
 @docs date, month, time
 
 
@@ -57,12 +57,6 @@ float =
 bool : Bool -> Value
 bool =
     Value << Internal.fromBool
-
-
-{-| -}
-json : Json.Decode.Value -> Value
-json =
-    Value << Internal.Json
 
 
 {-| -}
