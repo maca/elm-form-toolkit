@@ -2,13 +2,16 @@
 
 A package for building, parsing, validating, and rendering forms.
 
-Intends to
+See interactive documentation
+[here](https://form-toolkit.bitmunge.com/usage/getting-started).
+
+Goals:
 
 - Be opinionated but flexible.
 - Allow for declarative building of complex forms with repeating fields, using
   an API similar to Elm's `Html`.
-- Provide default rendering of input groups with labels and errors, but allow
-  for customization.
+- Provide default rendering of input groups with labels and errors using native
+  inputs, but allow for rich customizations.
 - Permit custom validations and provide standard ones, such as presence and
   minimum and maximum scalar values.
 - Enable validation and mapping of form inputs to custom types using an
