@@ -1,7 +1,7 @@
 {
   "name": "form-toolkit-docs",
   "version": "1.0.0",
-  "description": "Documentation for elm-form-toolkit using elm-book",
+  "description": "Documentation for form-toolkit using elm-book",
   "scripts": {
     "build": "elm make src/Main.elm --output=elm.js",
     "dev": "elm-live src/Main.elm --open --pushstate -- --output=elm.js"

@@ -67,5 +67,5 @@ a geocoding address search field.
 
 <component with-label="Demo"/>
 
-A full example can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/AutocompleteGeocodingForm.elm).
+A full example can be found [here](https://github.com/maca/form-toolkit/blob/main/docs/src/Support/AutocompleteGeocodingForm.elm).
 """

@@ -137,6 +137,6 @@ The JSON structure must match the field names:
 }
 ```
 
-A full example can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/JsonPostForm.elm).
+A full example can be found [here](https://github.com/maca/form-toolkit/blob/main/docs/src/Support/JsonPostForm.elm).
 
 """

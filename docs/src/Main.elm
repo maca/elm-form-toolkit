@@ -59,7 +59,7 @@ main =
                     }
                 , Chapter.chapterLink
                     { title = "Source"
-                    , url = "https://github.com/maca/elm-form-toolkit"
+                    , url = "https://github.com/maca/form-toolkit"
                     }
                 ]
               )

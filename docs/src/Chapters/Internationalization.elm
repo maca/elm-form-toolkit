@@ -131,5 +131,5 @@ Field.repeatable
 
 <component with-label="Demo"/>
 
-A full example can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/I18nForm.elm).
+A full example can be found [here](https://github.com/maca/form-toolkit/blob/main/docs/src/Support/I18nForm.elm).
 """

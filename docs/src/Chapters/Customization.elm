@@ -171,6 +171,6 @@ field
     |> View.toHtml
 ```
 
-A full example can be found [here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/CustomElementsDemo.elm).
+A full example can be found [here](https://github.com/maca/form-toolkit/blob/main/docs/src/Support/CustomElementsDemo.elm).
 
 """

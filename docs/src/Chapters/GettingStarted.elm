@@ -346,7 +346,7 @@ view model =
 ## Complete Example
 
 A full example of a sandbox application for this form can be found
-[here](https://github.com/maca/elm-form-toolkit/blob/main/docs/src/Support/AddressForm.elm).
+[here](https://github.com/maca/form-toolkit/blob/main/docs/src/Support/AddressForm.elm).
 
 
 This example demonstrates:
