@@ -323,6 +323,9 @@ errorToSpanish attributes =
                 Error.NoOptionsProvided _ ->
                     "No hay opciones disponibles"
 
+                Error.InvalidValue _ ->
+                    "La selección no es válida"
+
                 Error.InputNotFound _ ->
                     "Campo no encontrado"
 

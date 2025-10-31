@@ -28,6 +28,7 @@ type Error id
     | EmailInvalid (Maybe id)
     | IsGroupNotInput (Maybe id)
     | NoOptionsProvided (Maybe id)
+    | InvalidValue (Maybe id)
     | InputNotFound id
     | ErrorList (Maybe id) (List (Error id))
     | ParseError (Maybe id)
@@ -74,6 +75,9 @@ toEnglish error =
 
         NoOptionsProvided _ ->
             "No options have been provided"
+
+        InvalidValue _ ->
+            "This is not an allowed option"
 
         InputNotFound _ ->
             "Couldn't find an input with the given identifier"

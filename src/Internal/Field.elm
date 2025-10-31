@@ -7,6 +7,7 @@ module Internal.Field exposing (Attributes, FieldType(..), Status(..), mapAttrib
 -}
 
 import Array
+import Dict
 import Internal.Utils
 import Internal.Value exposing (Value)
 import RoseTree.Tree as Tree
@@ -135,7 +136,9 @@ inputStringToValue input str =
             Internal.Value.fromNonBlankString str
 
         StrictAutocomplete ->
-            Internal.Value.fromNonBlankString str
+            Dict.fromList attrs.options
+                |> Dict.get str
+                |> Maybe.withDefault (Internal.Value.Invalid str)
 
         Email ->
             Internal.Value.fromNonBlankString str

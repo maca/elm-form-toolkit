@@ -195,33 +195,12 @@ updateAt path func input =
 
 focus : Attributes id -> Attributes id
 focus input =
-    { input
-        | status = Focused
-        , value =
-            if Internal.Value.isInvalid input.value then
-                Internal.Value.Blank
-
-            else
-                input.value
-    }
+    { input | status = Focused }
 
 
 blur : Attributes id -> Attributes id
 blur input =
-    { input
-        | status = Touched
-        , value =
-            case input.fieldType of
-                StrictAutocomplete ->
-                    if Internal.Value.isBlank input.value then
-                        Internal.Value.Invalid
-
-                    else
-                        input.value
-
-                _ ->
-                    input.value
-    }
+    { input | status = Touched }
 
 
 {-| Renders the form.
@@ -1300,8 +1279,8 @@ validateNode node =
     in
     List.foldl (<|)
         (clearErrors node)
-        [ checkRequired
-        , ifNotRequired checkStrictAutocomplete
+        [ checkInvalidValues
+        , checkRequired
         , ifNotRequired checkInRange
         , ifNotRequired checkEmail
         , ifNotRequired checkPattern
@@ -1317,28 +1296,17 @@ checkRequired node =
         node
 
 
-checkStrictAutocomplete : Node id -> Node id
-checkStrictAutocomplete node =
+checkInvalidValues : Node id -> Node id
+checkInvalidValues node =
     let
         attrs =
             Tree.value node
     in
-    case attrs.fieldType of
-        StrictAutocomplete ->
-            case
-                attrs.value
-                    |> Internal.Value.toString
-                    |> Maybe.andThen
-                        (\str -> Dict.fromList attrs.options |> Dict.get str)
-            of
-                Just _ ->
-                    node
+    if Internal.Value.isInvalid attrs.value then
+        setError InvalidValue node
 
-                Nothing ->
-                    setError IsBlank node
-
-        _ ->
-            node
+    else
+        node
 
 
 checkInRange : Node id -> Node id
@@ -1513,6 +1481,9 @@ mapError transformId error =
 
         NoOptionsProvided id ->
             NoOptionsProvided (Maybe.map transformId id)
+
+        InvalidValue id ->
+            InvalidValue (Maybe.map transformId id)
 
         PatternError id ->
             PatternError (Maybe.map transformId id)

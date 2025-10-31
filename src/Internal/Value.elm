@@ -38,7 +38,7 @@ type Value
     | LocalTime Posix
     | Boolean Bool
     | Json Decode.Value
-    | Invalid
+    | Invalid String
     | Blank
 
 
@@ -73,8 +73,8 @@ toString value =
         Json json ->
             Just (Encode.encode 0 json)
 
-        Invalid ->
-            Nothing
+        Invalid str ->
+            Just str
 
         Blank ->
             Nothing
@@ -266,7 +266,7 @@ isBlank value =
 isInvalid : Value -> Bool
 isInvalid value =
     case value of
-        Invalid ->
+        Invalid _ ->
             True
 
         _ ->

@@ -634,14 +634,9 @@ valueAttribute :
     -> Internal.Value.Value
     -> Html.Attribute msg
 valueAttribute f inputValue =
-    case inputValue of
-        Internal.Value.Invalid ->
-            f ""
-
-        _ ->
-            Internal.Value.toString inputValue
-                |> Maybe.map f
-                |> Maybe.withDefault (Attributes.class "")
+    Internal.Value.toString inputValue
+        |> Maybe.map f
+        |> Maybe.withDefault (Attributes.class "")
 
 
 textInputHtmlAttributes : View id msg -> List (Html.Attribute msg)
@@ -727,6 +722,9 @@ visibleErrors input =
                     (\err ->
                         case err of
                             IsBlank _ ->
+                                False
+
+                            InvalidValue _ ->
                                 False
 
                             PatternError _ ->
