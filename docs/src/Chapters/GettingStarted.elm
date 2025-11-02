@@ -68,8 +68,7 @@ markdownContent =
 # Welcome to form-toolkit!
 
 form-toolkit is a comprehensive package for building, parsing, validating, and
-rendering forms in Elm for building complex forms with validation, parsing to
-any shape, and flexible rendering.
+rendering forms in Elm.
 
 
 ## Features:
