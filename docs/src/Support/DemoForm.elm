@@ -31,7 +31,7 @@ main =
 type alias Model =
     { addressFields : Field AddressFields
     , submitted : Bool
-    , result : Maybe Address
+    , address : Maybe Address
     }
 
 
@@ -73,7 +73,7 @@ init : Model
 init =
     { addressFields = addressFields
     , submitted = False
-    , result = Nothing
+    , address = Nothing
     }
 
 
@@ -92,7 +92,7 @@ update msg model =
             in
             { model
                 | addressFields = fields
-                , result = Result.toMaybe result
+                , address = Result.toMaybe result
                 , submitted = True
             }
 
@@ -249,7 +249,7 @@ view model =
                 [ Html.text "Submit" ]
             ]
         , if model.submitted then
-            case model.result of
+            case model.address of
                 Just address ->
                     success
                         [ Html.div

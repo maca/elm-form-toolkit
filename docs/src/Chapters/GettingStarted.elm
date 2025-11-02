@@ -216,7 +216,7 @@ because it keeps track of the Fields state, and validation errors.
 type alias Model =
     { addressFields : Field AddressFields
     , submitted : Bool
-    , result : Maybe (Result (Error AddressFields) Address)
+    , address : Maybe Address
     }
 
 type alias Address =
@@ -232,9 +232,9 @@ type alias Address =
 
 init : Model
 init =
-    { addressFields = addressFieldsDefinition
+    { addressFields = addressFields
     , submitted = False
-    , result = Nothing
+    , address = Nothing
     }
 ```
 
@@ -262,7 +262,7 @@ update msg model =
             in
             { model
                 | addressFields = fields
-                , result = Result.toMaybe result
+                , address = Result.toMaybe result
                 , submitted = True
             }
 

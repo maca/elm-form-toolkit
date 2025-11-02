@@ -24,7 +24,7 @@ Goals:
 
 ```elm
 import Browser
-import FormToolkit.Decode as Decode
+import FormToolkit.Parse as Parse
 import FormToolkit.Field as Field exposing (Field)
 import Html exposing (Html)
 import Html.Events exposing (onClick, onSubmit)
@@ -37,10 +37,9 @@ main =
 
 
 type alias Model =
-    { formFields : Field TeamFields Never
+    { formFields : Field TeamFields
     , submitted : Bool
     , team : Maybe Team
-    , json : Maybe Json.Encode.Value
     }
 
 
@@ -52,11 +51,11 @@ type TeamFields
 
 
 type Msg
-    = FormChanged (Field.Msg TeamFields Never)
+    = FormChanged (Field.Msg TeamFields)
     | FormSubmitted
 
 
-teamFields : Field TeamFields val
+teamFields : Field TeamFields
 teamFields =
     Field.group []
         [ Field.text
@@ -99,7 +98,6 @@ init =
       formFields = teamFields
     , submitted = False
     , team = Nothing
-    , json = Nothing
     }
 
 
@@ -109,19 +107,19 @@ update msg model =
         FormChanged inputMsg ->
             let
                 ( formFields, result ) =
-                    -- Validates and produces result with decoder and updates with Msg
-                    Field.update teamDecoder inputMsg model.formFields
+                    -- Validates and produces result with parser and updates with Msg
+                    Parse.parseUpdate teamParser inputMsg model.formFields
             in
-            { model | formFields = formFields, team = Result.toMaybe result }
+            { model
+                | formFields = formFields
+                , team = Result.toMaybe result
+            }
 
         FormSubmitted ->
             { model
-                | submitted = True
-
-                -- Uses Field.name values as keys to build a json object
-                , json =
-                    Decode.decode Decode.json model.formFields
-                        |> Result.toMaybe
+                -- Touch makes field errors visible
+                | formFields = Field.touch model.formFields
+                , submitted = True
             }
 
 
@@ -151,16 +149,16 @@ type alias Person =
     }
 
 
-teamDecoder : Decode.Decoder TeamFields val Team
-teamDecoder =
-    Decode.map2 Team
-        (Decode.field TeamName Decode.string)
-        (Decode.field TeamMembers (Decode.list personDecoder))
+teamParser : Parse.Parser TeamFields Team
+teamParser =
+    Parse.map2 Team
+        (Parse.field TeamName Parse.string)
+        (Parse.field TeamMembers (Parse.list personParser))
 
 
-personDecoder : Decode.Decoder TeamFields val Person
-personDecoder =
-    Decode.map2 Person
-        (Decode.field MemberName Decode.string)
-        (Decode.field MemberAge Decode.int)
+personParser : Parse.Parser TeamFields Person
+personParser =
+    Parse.map2 Person
+        (Parse.field MemberName Parse.string)
+        (Parse.field MemberAge Parse.int)
 ```
