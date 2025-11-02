@@ -4,7 +4,7 @@ import ElmBook
 import ElmBook.Actions as Actions
 import ElmBook.Chapter as Chapter exposing (Chapter)
 import Html
-import Support.AddressForm as Demo
+import Support.DemoForm as Demo
 import Task
 
 
@@ -250,32 +250,31 @@ type Msg
     = FormChanged (Field.Msg AddressFields)
     | FormSubmitted
 
+
 update : Msg -> Model -> Model
 update msg model =
     case msg of
         FormChanged inputMsg ->
             let
-                ( addressFields, result ) =
+                ( fields, result ) =
+                    -- Update the fields state, run validations, and parse the Address
                     Parse.parseUpdate addressParser inputMsg model.addressFields
             in
             { model
-                | addressFields = addressFields
-                , result = Just result
+                | addressFields = fields
+                , result = Result.toMaybe result
+                , submitted = True
             }
 
         FormSubmitted ->
-            case Parse.parseValidate Parse.json model.addressFields of
-                ( updatedField, Ok jsonValue ) ->
-                    { model
-                        | addressFields = updatedField
-                        , submitted = True
-                        , result = Nothing
-                    }
+            { model
+              -- Touch makes fields errors visible
+                | addressFields = Field.touch model.addressFields
+                , submitted = True
+            }
 
-                ( updatedField, Err _ ) ->
-                    { model | addressFields = updatedField }
 
--- Parser to convert form data to Address type
+-- Parser to convert fields data to Address type
 addressParser : Parse.Parser AddressFields Address
 addressParser =
     Parse.succeed Address
