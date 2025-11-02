@@ -347,11 +347,4 @@ view model =
 A full example of a sandbox application for this form can be found
 [here](https://github.com/maca/form-toolkit/blob/main/docs/src/Support/AddressForm.elm).
 
-
-This example demonstrates:
-- Complex nested field groups
-- Different field types (text, select, number)
-- Optional fields with `Maybe` types
-- Custom parsing with validation
-- Form submission with error handling
 """
