@@ -63,8 +63,9 @@ addressField =
     Field.strictAutocomplete
         [ Field.label "Search Address"
         , Field.name "address"
-        , Field.placeholder "Type an address..."
+        , Field.placeholder "Karl-Marx-Platz, 12043, Berlin"
         , Field.required True
+        , Field.hint "Geocoding using https://photon.komoot.io, some regions work better than other"
         ]
 
 
@@ -110,14 +111,7 @@ update msg model =
                         |> Result.withDefault []
                         |> List.map
                             (\opt ->
-                                ( if
-                                    String.contains (String.toLower query)
-                                        (String.toLower opt.displayName)
-                                  then
-                                    opt.displayName
-
-                                  else
-                                    opt.displayName ++ " (" ++ query ++ ")"
+                                ( opt.displayName
                                 , Value.string (Encode.encode 2 opt.json)
                                 )
                             )

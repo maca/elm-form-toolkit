@@ -495,9 +495,9 @@ automatically and validated on blur.
 patternField : Field ()
 patternField =
     Field.text
-        [ Field.label "Phone Number"
-        , Field.placeholder "Enter phone number"
-        , Field.pattern "({d}{d}{d}) {d}{d}{d}-{d}{d}{d}{d}"
+        [ Field.label "Credit Card"
+        , Field.placeholder "Enter your credit card"
+        , Field.pattern "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
         , Field.required True
         ]
 ```
@@ -952,9 +952,9 @@ textareaField =
 patternField : Field ()
 patternField =
     Field.text
-        [ Field.label "Phone Number"
-        , Field.placeholder "Enter phone number"
-        , Field.pattern "({d}{d}{d}) {d}{d}{d}-{d}{d}{d}{d}"
+        [ Field.label "Credit Card"
+        , Field.placeholder "Enter your credit card"
+        , Field.pattern "{d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d} {d}{d}{d}{d}"
         , Field.required True
         ]
 

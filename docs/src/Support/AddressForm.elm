@@ -143,7 +143,7 @@ addressFields =
                     , Field.identifier AddressStreet
                     , Field.name "street-name"
                     ]
-                , Field.text
+                , Field.int
                     [ Field.label "Street Number"
                     , Field.identifier AddressNumber
                     , Field.required True
