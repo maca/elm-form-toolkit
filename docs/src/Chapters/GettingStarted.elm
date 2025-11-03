@@ -263,7 +263,7 @@ update msg model =
             { model
                 | addressFields = fields
                 , address = Result.toMaybe result
-                , submitted = True
+                , submitted = False
             }
 
         FormSubmitted ->
