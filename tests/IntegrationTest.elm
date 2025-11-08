@@ -192,6 +192,23 @@ stringFieldTests =
                             >> Query.has [ attribute (Attrs.value "Purple") ]
                         , .result >> Expect.equal (Ok "Purple")
                         ]
+        , test "name attribute renders dasherized class and non-dasherized html name" <|
+            \_ ->
+                let
+                    fieldWithName =
+                        Field.text
+                            [ Field.name "My Field Name"
+                            , Field.label "Test Field"
+                            ]
+                in
+                fieldWithName
+                    |> Field.toHtml (always never)
+                    |> Query.fromHtml
+                    |> Expect.all
+                        [ Query.has [ class "my-field-name" ]
+                        , Query.find [ tag "input" ]
+                            >> Query.has [ attribute (Attrs.name "My Field Name") ]
+                        ]
         ]
 
 

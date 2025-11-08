@@ -599,7 +599,7 @@ name str =
     combineAttrs
         -- NOT TESTED
         (class (dasherize str))
-        (Attribute (\field -> { field | name = Just (dasherize str) }))
+        (Attribute (\field -> { field | name = Just str }))
 
 
 {-| Sets the identifier to be referenced when decoding a specific field,

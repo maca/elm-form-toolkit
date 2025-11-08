@@ -3,7 +3,7 @@
     "name": "maca/form-toolkit",
     "summary": "Form toolkit",
     "license": "BSD-3-Clause",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "exposed-modules": [
         "FormToolkit.Field",
         "FormToolkit.View",
