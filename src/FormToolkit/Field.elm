@@ -1066,7 +1066,8 @@ recursiveStringListDecoder : Decode.Decoder (List (List String))
 recursiveStringListDecoder =
     Decode.oneOf
         [ Decode.oneOf
-            [ Decode.int |> Decode.map String.fromInt
+            [ Decode.null ""
+            , Decode.int |> Decode.map String.fromInt
             , Decode.float |> Decode.map String.fromFloat
             , Decode.bool
                 |> Decode.map

@@ -1,6 +1,7 @@
 module FieldTest exposing (suite)
 
 import Expect
+import FormToolkit.Error as Error
 import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
@@ -155,6 +156,80 @@ updateValuesFromJsonTests =
 
                     Err _ ->
                         Expect.fail "updateValuesFromJson should succeed for repeatable fields"
+        , test "handles null values gracefully by updating only non-null fields" <|
+            \_ ->
+                let
+                    addressForm =
+                        Field.group []
+                            [ Field.text
+                                [ Field.name "address"
+                                , Field.identifier "Address"
+                                ]
+                            , Field.text
+                                [ Field.name "address2"
+                                , Field.identifier "Address2"
+                                ]
+                            , Field.int
+                                [ Field.name "city_id"
+                                , Field.identifier "CityId"
+                                ]
+                            , Field.text
+                                [ Field.name "district"
+                                , Field.identifier "District"
+                                ]
+                            , Field.text
+                                [ Field.name "last_update"
+                                , Field.identifier "LastUpdate"
+                                ]
+                            , Field.text
+                                [ Field.name "phone"
+                                , Field.identifier "Phone"
+                                ]
+                            , Field.text
+                                [ Field.name "postal_code"
+                                , Field.identifier "PostalCode"
+                                ]
+                            ]
+
+                    addressValuesJson =
+                        """{
+                            "address": "47 MySakila Drive",
+                            "address2": null,
+                            "city_id": 300,
+                            "district": "Alberta",
+                            "last_update": "2022-02-15T10:45:30+01:00",
+                            "phone": "",
+                            "postal_code": ""
+                        }"""
+
+                    addressValues =
+                        case Decode.decodeString Decode.value addressValuesJson of
+                            Ok value ->
+                                value
+
+                            Err _ ->
+                                Encode.null
+                in
+                case Field.updateValuesFromJson addressValues addressForm of
+                    Ok updatedForm ->
+                        updatedForm
+                            |> Field.toHtml (always never)
+                            |> Query.fromHtml
+                            |> Expect.all
+                                [ Query.find [ tag "input", attribute (Attrs.name "address") ]
+                                    >> Query.has [ attribute (Attrs.value "47 MySakila Drive") ]
+                                , Query.find [ tag "input", attribute (Attrs.name "district") ]
+                                    >> Query.has [ attribute (Attrs.value "Alberta") ]
+                                , Query.find [ tag "input", attribute (Attrs.name "last_update") ]
+                                    >> Query.has [ attribute (Attrs.value "2022-02-15T10:45:30+01:00") ]
+                                , Query.find [ tag "input", attribute (Attrs.name "phone") ]
+                                    >> Query.has [ attribute (Attrs.value "") ]
+                                , Query.find [ tag "input", attribute (Attrs.name "postal_code") ]
+                                    >> Query.has [ attribute (Attrs.value "") ]
+                                ]
+
+                    Err err ->
+                        Expect.fail (Error.toEnglish err)
         ]
 
 
@@ -166,6 +241,7 @@ testForm =
             [ Field.text
                 [ Field.name "first-name"
                 , Field.identifier "FirstName"
+                , Field.required True
                 ]
             , Field.text
                 [ Field.name "last-name"
