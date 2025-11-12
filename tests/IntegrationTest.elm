@@ -380,8 +380,8 @@ strictAutocompleteJsonTests =
                     { field } =
                         Interaction.init Parse.json formField
                             |> fillInput "name" "Alice"
-                            |> select "size" "1"
-                            |> select "color" "2"
+                            |> select "size" "Medium"
+                            |> select "color" "Blue"
                             |> fillInput "fruit" "Banana"
 
                     result =

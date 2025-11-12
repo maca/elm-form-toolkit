@@ -11,11 +11,12 @@ module Support.Interaction exposing
     )
 
 import FormToolkit.Error exposing (Error(..))
-import FormToolkit.Field exposing (Field, Msg)
+import FormToolkit.Field as Field exposing (Field, Msg)
 import FormToolkit.Parse as Parse
 import FormToolkit.View as View
 import Html.Attributes exposing (name)
 import Json.Encode
+import RoseTree.Tree as Tree
 import Test.Html.Event as Event
 import Test.Html.Query as Query exposing (find, findAll, index)
 import Test.Html.Selector exposing (attribute, containing, tag, text)
@@ -54,8 +55,41 @@ check inputName checked =
 
 
 select : String -> String -> Interaction id a -> Interaction id a
-select selectName optionValue =
-    interact (find [ tag "select", attribute (name selectName) ]) (Event.input optionValue)
+select selectName optionLabel interaction =
+    let
+        (Field.Field tree) =
+            interaction.field
+
+        -- Find the field with the matching name and extract its options
+        options =
+            Tree.foldl
+                (\node acc ->
+                    let
+                        attrs =
+                            Tree.value node
+                    in
+                    if attrs.name == Just selectName then
+                        attrs.options
+
+                    else
+                        acc
+                )
+                []
+                tree
+
+        -- Find the index of the option with the matching label
+        optionIndex =
+            options
+                |> List.indexedMap Tuple.pair
+                |> List.filter (\( _, ( label, _ ) ) -> label == optionLabel)
+                |> List.head
+                |> Maybe.map (Tuple.first >> String.fromInt)
+                |> Maybe.withDefault "0"
+    in
+    interact
+        (find [ tag "select", attribute (name selectName) ])
+        (Event.input optionIndex)
+        interaction
 
 
 findInput : String -> Query.Single msg -> Query.Single msg
