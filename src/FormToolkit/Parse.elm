@@ -587,12 +587,18 @@ jsonEncodeHelp input acc =
         _ ->
             case name of
                 Just n ->
-                    Ok
-                        (( n
-                         , Internal.Value.encode attrs.value
-                         )
-                            :: acc
-                        )
+                    let
+                        fieldValue =
+                            Internal.Value.toString attrs.value
+                                |> Maybe.andThen
+                                    (\key ->
+                                        attrs.options
+                                            |> Dict.fromList
+                                            |> Dict.get key
+                                    )
+                                |> Maybe.withDefault attrs.value
+                    in
+                    Ok (( n, Internal.Value.encode fieldValue ) :: acc)
 
                 Nothing ->
                     Ok acc

@@ -7,6 +7,7 @@ module Support.Interaction exposing
     , fillInputWithIndex
     , init
     , interact
+    , select
     )
 
 import FormToolkit.Error exposing (Error(..))
@@ -50,6 +51,11 @@ fillInput inputName inputText =
 check : String -> Bool -> Interaction id a -> Interaction id a
 check inputName checked =
     interact (findInput inputName) (Event.check checked)
+
+
+select : String -> String -> Interaction id a -> Interaction id a
+select selectName optionValue =
+    interact (find [ tag "select", attribute (name selectName) ]) (Event.input optionValue)
 
 
 findInput : String -> Query.Single msg -> Query.Single msg

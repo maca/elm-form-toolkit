@@ -6,6 +6,8 @@ import FormToolkit.Field as Field
 import FormToolkit.Parse as Parse
 import FormToolkit.Value as Value
 import Html.Attributes as Attrs exposing (for, name, required)
+import Json.Decode
+import Json.Encode
 import Support.ExampleInputs exposing (..)
 import Support.Interaction as Interaction exposing (..)
 import Test exposing (..)
@@ -20,6 +22,7 @@ suite =
     describe "Integration Tests"
         [ stringFieldTests
         , strictAutocompleteFieldTests
+        , strictAutocompleteJsonTests
         , checkboxFieldTests
         , selectFieldTests
         , radioFieldTests
@@ -306,6 +309,87 @@ strictAutocompleteFieldTests =
                             >> Query.has [ attribute (Attrs.value "England") ]
                         , .result >> Expect.equal (Ok "England")
                         ]
+        ]
+
+
+strictAutocompleteJsonTests : Test
+strictAutocompleteJsonTests =
+    describe "strict autocomplete with Parse.json" <|
+        [ test "encodes int value from options, not string label" <|
+            \_ ->
+                let
+                    fruitField =
+                        Field.strictAutocomplete
+                            [ Field.label "Fruit"
+                            , Field.name "fruit"
+                            , Field.options
+                                [ ( "Apple", Value.int 1 )
+                                , ( "Banana", Value.int 2 )
+                                , ( "Cherry", Value.int 3 )
+                                , ( "Date", Value.int 4 )
+                                ]
+                            ]
+
+                    { result } =
+                        Interaction.init Parse.json fruitField
+                            |> fillInput "fruit" "Cherry"
+                in
+                result
+                    |> Result.map (Json.Encode.encode 0)
+                    |> Expect.equal (Ok "{\"fruit\":3}")
+        , test "complex form with text, checkbox, select with options (int), select with stringOptions, and strictAutocomplete" <|
+            \_ ->
+                let
+                    formField =
+                        Field.group []
+                            [ Field.text
+                                [ Field.label "Name"
+                                , Field.name "name"
+                                ]
+                            , Field.checkbox
+                                [ Field.label "Subscribe"
+                                , Field.name "subscribe"
+                                , Field.value (Value.bool True)
+                                ]
+                            , Field.select
+                                [ Field.label "Size"
+                                , Field.name "size"
+                                , Field.options
+                                    [ ( "Small", Value.int 10 )
+                                    , ( "Medium", Value.int 20 )
+                                    , ( "Large", Value.int 30 )
+                                    ]
+                                ]
+                            , Field.select
+                                [ Field.label "Color"
+                                , Field.name "color"
+                                , Field.stringOptions [ "Red", "Green", "Blue" ]
+                                ]
+                            , Field.strictAutocomplete
+                                [ Field.label "Fruit"
+                                , Field.name "fruit"
+                                , Field.options
+                                    [ ( "Apple", Value.int 1 )
+                                    , ( "Banana", Value.int 2 )
+                                    , ( "Cherry", Value.int 3 )
+                                    , ( "Date", Value.int 4 )
+                                    ]
+                                ]
+                            ]
+
+                    { field } =
+                        Interaction.init Parse.json formField
+                            |> fillInput "name" "Alice"
+                            |> select "size" "1"
+                            |> select "color" "2"
+                            |> fillInput "fruit" "Banana"
+
+                    result =
+                        Parse.parse Parse.json field
+                in
+                result
+                    |> Result.map (Json.Encode.encode 0)
+                    |> Expect.equal (Ok "{\"name\":\"Alice\",\"subscribe\":true,\"size\":20,\"color\":\"Blue\",\"fruit\":2}")
         ]
 
 
